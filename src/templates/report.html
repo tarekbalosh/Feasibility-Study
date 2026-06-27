@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>تقرير جدوى {{project.name}}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600&display=swap');
+    body {
+      font-family: 'Cairo', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      color: #333;
+    }
+    .page {
+      page-break-after: always;
+      padding: 20mm;
+    }
+    .cover {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      text-align: center;
+    }
+    .cover h1 {
+      font-size: 36px;
+      margin: 0;
+    }
+    .cover p {
+      font-size: 18px;
+      margin: 5px 0;
+    }
+    .section {
+      margin-bottom: 20px;
+    }
+    .section h2 {
+      font-size: 24px;
+      border-bottom: 2px solid #444;
+      padding-bottom: 4px;
+      margin-bottom: 12px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid #bbb;
+      padding: 8px;
+      text-align: right;
+    }
+    th {
+      background: #f0f0f0;
+    }
+    ul {
+      list-style-type: disc;
+      padding-right: 20px;
+    }
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      margin-top: 40px;
+      color: #777;
+    }
+  </style>
+</head>
+<body>
+  <!-- Cover Page -->
+  <div class="page cover">
+    <h1>{{project.name}}</h1>
+    <p>تاريخ الإنشاء: {{generatedAt}}</p>
+    <img src="https://via.placeholder.com/150x50?text=شعار+المنصة" alt="شعار" style="margin-top: 30px;" />
+  </div>
+
+  <!-- Executive Summary -->
+  <div class="page">
+    <div class="section">
+      <h2>ملخص تنفيذي</h2>
+      <p>{{report.executiveSummary}}</p>
+    </div>
+  </div>
+
+  <!-- Financial Data Tables -->
+  <div class="page">
+    <div class="section">
+      <h2>البيانات المالية</h2>
+      {{#if report.financialData}}
+      <table>
+        <thead>
+          <tr>
+            {{#each report.financialData.headers}}
+            <th>{{this}}</th>
+            {{/each}}
+          </tr>
+        </thead>
+        <tbody>
+          {{#each report.financialData.rows}}
+          <tr>
+            {{#each this}}
+            <td>{{this}}</td>
+            {{/each}}
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{else}}
+      <p>لا توجد بيانات مالية.</p>
+      {{/if}}
+    </div>
+  </div>
+
+  <!-- Profitability Indicators -->
+  <div class="page">
+    <div class="section">
+      <h2>مؤشرات الربحية</h2>
+      {{#if report.profitabilityIndicators}}
+      <ul>
+        {{#each report.profitabilityIndicators}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+      {{else}}
+      <p>لا توجد مؤشرات ربحية.</p>
+      {{/if}}
+    </div>
+  </div>
+
+  <!-- Key Findings -->
+  <div class="page">
+    <div class="section">
+      <h2>النتائج الرئيسية</h2>
+      <ul>
+        {{#each report.keyFindings}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+    </div>
+  </div>
+
+  <!-- Recommendations -->
+  <div class="page">
+    <div class="section">
+      <h2>التوصيات</h2>
+      <ul>
+        {{#each report.recommendations}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="page footer">
+    <p>⚠️ تنويه: هذا التقرير استرشادي ولا يعتبر مشورة قانونية أو مالية نهائية.</p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// ——————————————————————————————————————————————
+// Users table
+// ——————————————————————————————————————————————
+model User {
+  id                 String   @id @default(uuid())
+  name               String
+  email              String   @unique
+  passwordHash       String
+  subscriptionTier   String   @default("free")
+  subscriptionStatus String   @default("none")
+  stripeCustomerId   String?  
+  isVerified         Boolean  @default(false)
+  resetToken         String?  
+  resetTokenExpiry   DateTime? 
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  projects  Project[]
+  payments  Payment[]
+  userLimit UserLimit?
+}
+
+// ——————————————————————————————————————————————
+// Projects table
+// ——————————————————————————————————————————————
+model Project {
+  id              String   @id @default(uuid())
+  userId          String
+  name            String
+  industry        String
+  location        String
+  currency        String   @default("USD")
+  targetCapital   Float
+  durationYears   Int      @default(3)
+  description     String
+  financialInputs String   // JSON stored as string
+  aiOutput        String?  // JSON stored as string
+  financialOutput String?  // JSON stored as string
+  isShared        Boolean  @default(false)
+  shareToken      String?  @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ——————————————————————————————————————————————
+// Payments table
+// ——————————————————————————————————————————————
+model Payment {
+  id              String   @id @default(uuid())
+  userId          String
+  stripeSessionId String   @unique
+  amount          Float
+  currency        String
+  status          String
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+// ——————————————————————————————————————————————
+// User limits table
+// ——————————————————————————————————————————————
+model UserLimit {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  generationsUsed Int      @default(0)
+  generationsLimit Int    @default(1)
+  resetAt         DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FeasibilityStudy {
+  id            String   @id @default(uuid())
+  createdAt     DateTime @default(now())
+  sector        String
+  detectedSector String? // AI-detected sector when user selects "Other"
+  rawData       String   // store JSON as string
+  resultData    String   // store JSON as string
+  reportHtml    String?
+  reportPdf     String? 
+}
