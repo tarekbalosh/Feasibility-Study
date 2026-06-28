@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { toast } from 'react-hot-toast'; // adjust if using a different toast lib
-import { useAuth } from '../../context/auth'; // assumed auth context hook
+import { useAuth } from '../../context/AuthContext'; // corrected path and case
 
 /** Props for the SaveReportButton */
 interface SaveReportButtonProps {

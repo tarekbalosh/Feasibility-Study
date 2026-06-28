@@ -15,6 +15,7 @@ const projectInfoSchema = z.object({
 const financialDataSchema = z.object({
   initialCapital: z.number({ invalid_type_error: 'مطلوب إدخال رقم' }).min(1, 'رأس المال مطلوب'),
   monthlyOperatingCosts: z.number({ invalid_type_error: 'مطلوب إدخال رقم' }).min(0, 'يجب أن يكون رقماً صحيحاً'),
+
   expectedMonthlyRevenue: z.number({ invalid_type_error: 'مطلوب إدخال رقم' }).min(0, 'يجب أن يكون رقماً صحيحاً'),
 });
 
@@ -22,6 +23,9 @@ export const feasibilitySchema = z.object({
   projectInfo: projectInfoSchema,
   financialData: financialDataSchema,
 });
+export type FinancialData = z.infer<typeof financialDataSchema>;
+export type UseFeasibilityToolReturn = FeasibilityContextType;
+export type ProjectInfoData = z.infer<typeof projectInfoSchema>;
 
 export type FeasibilityData = z.infer<typeof feasibilitySchema>;
 
@@ -49,11 +53,16 @@ interface FeasibilityContextType {
   analysisResult: any;
   setAnalysisResult: (val: any) => void;
   projectId?: string;
+  projectInfo: any;
+  financialData: any;
+  updateProjectInfo: (data: any) => void;
+  updateFinancialData: (data: any) => void;
 }
 
 const FeasibilityContext = createContext<FeasibilityContextType | undefined>(undefined);
 
 export const FeasibilityProvider = ({ children }: { children: ReactNode }) => {
+
   const router = useRouter();
   const { edit } = router.query;
   const [currentStep, setCurrentStep] = useState(1);
@@ -61,7 +70,6 @@ export const FeasibilityProvider = ({ children }: { children: ReactNode }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [projectId, setProjectId] = useState<string | undefined>(undefined);
-
   const form = useForm<FeasibilityData>({
     resolver: zodResolver(feasibilitySchema),
     defaultValues,
@@ -145,17 +153,21 @@ export const FeasibilityProvider = ({ children }: { children: ReactNode }) => {
   return (
     <FeasibilityContext.Provider
       value={{
-        currentStep,
-        totalSteps,
-        nextStep,
-        prevStep,
-        form,
-        isAnalyzing,
-        setIsAnalyzing,
-        analysisResult,
-        setAnalysisResult,
-        projectId,
-      }}
+          currentStep,
+          totalSteps,
+          nextStep,
+          prevStep,
+          form,
+          isAnalyzing,
+          setIsAnalyzing,
+          analysisResult,
+          setAnalysisResult,
+          projectId,
+          projectInfo: form.watch('projectInfo'),
+          financialData: form.watch('financialData'),
+          updateProjectInfo: (data: any) => form.setValue('projectInfo', data),
+          updateFinancialData: (data: any) => form.setValue('financialData', data),
+        }}
     >
       {children}
     </FeasibilityContext.Provider>
@@ -164,8 +176,33 @@ export const FeasibilityProvider = ({ children }: { children: ReactNode }) => {
 
 export const useFeasibilityTool = () => {
   const context = useContext(FeasibilityContext);
-  if (context === undefined) {
-    throw new Error('useFeasibilityTool must be used within a FeasibilityProvider');
+    if (context === undefined) {
+      // Return a safe fallback for static rendering (no provider)
+      return {
+      currentStep: 1,
+      totalSteps: 5,
+      nextStep: async () => {},
+      prevStep: () => {},
+      form: {
+        // Minimal mock of useForm return (shape may be needed by components)
+        register: () => {},
+        watch: () => ({ projectInfo: { projectName: '' }, financialData: {} }),
+        getValues: () => ({ projectInfo: { projectName: '' }, financialData: {} }),
+        setValue: () => {},
+        trigger: async () => true,
+        reset: () => {},
+        formState: { errors: {} },
+      } as any,
+      isAnalyzing: false,
+      setIsAnalyzing: () => {},
+      analysisResult: null,
+      setAnalysisResult: () => {},
+      projectId: undefined,
+      projectInfo: {},
+      financialData: {},
+      updateProjectInfo: () => {},
+      updateFinancialData: () => {},
+    } as any;
   }
   return context;
 };

@@ -6,11 +6,11 @@ export interface SectorField {
 }
 
 export interface FinancialResult {
-  [key: string]: number;
+  [key: string]: number | number[];
 }
 
 export interface KPIResult {
-  [key: string]: number | string;
+  [key: string]: number | string | number[];
 }
 
 export interface SectorConfig {
@@ -29,12 +29,12 @@ export const SECTORS: Record<string, SectorConfig> = {
       { key: 'geographicLocation', label: 'الموقع الجغرافي', type: 'text' },
     ],
     computeKPI: (res) => {
-      const averageRevenuePerCustomer = res.monthlyRevenue / (res.monthlyRevenue / res.avgInvoiceValue || 1);
+      const averageRevenuePerCustomer = Number(res.monthlyRevenue) / (Number(res.avgInvoiceValue) || 1);
       return {
         averageRevenuePerCustomer,
-        salesGrowthRate: res.roi,
-        operationalEfficiency: res.profitMargin,
-        expectedMarketShare: 0.05, // placeholder
+        salesGrowthRate: Number(res.roi) || 0,
+        operationalEfficiency: Number(res.profitMargin) || 0,
+        expectedMarketShare: 0.05,
       };
     },
   },
@@ -51,10 +51,10 @@ export const SECTORS: Record<string, SectorConfig> = {
     // calculation logic moved to financial domain
     computeKPI: (res) => {
       return {
-        productionEfficiency: res.industrialProfitMargin,
-        unitCost: res.unitCost,
-        wasteRatio: res.wasteCost,
-        capacityUtilization: 0.8, // placeholder
+        productionEfficiency: Number(res.industrialProfitMargin) || 0,
+        unitCost: Number(res.unitCost) || 0,
+        wasteRatio: Number(res.wasteCost) || 0,
+        capacityUtilization: 0.8,
       };
     },
   },
@@ -70,10 +70,10 @@ export const SECTORS: Record<string, SectorConfig> = {
     // calculation logic moved to financial domain
     computeKPI: (res) => {
       return {
-        revenuePerEmployee: res.monthlyRevenue / (res.employeeCount || 1),
-        serviceOccupancy: res.profitMargin,
-        serviceCostPerUnit: res.operationalProfit / (res.monthlyRevenue || 1),
-        expectedCustomerSatisfaction: 0.9, // placeholder
+        revenuePerEmployee: Number(res.monthlyRevenue) / (Number(res.employeeCount) || 1),
+        serviceOccupancy: Number(res.profitMargin) || 0,
+        serviceCostPerUnit: Number(res.operationalProfit) / (Number(res.monthlyRevenue) || 1),
+        expectedCustomerSatisfaction: 0.9,
       };
     },
   },
@@ -91,16 +91,16 @@ export const SECTORS: Record<string, SectorConfig> = {
     // calculation logic moved to financial domain
     computeKPI: (res) => {
       return {
-        conversionRate: 0.1, // placeholder
-        retentionRate: 1 - res.churnRate,
-        userGrowth: 0.05, // placeholder
-        profitabilityPerUser: res.roi,
+        conversionRate: 0.1,
+        retentionRate: 1 - (Number(res.churnRate) || 0),
+        userGrowth: 0.05,
+        profitabilityPerUser: Number(res.roi) || 0,
       };
     },
   },
   other: {
     fields: [],
-    calculate: () => ({}),
+
     computeKPI: () => ({}),
   },
 };

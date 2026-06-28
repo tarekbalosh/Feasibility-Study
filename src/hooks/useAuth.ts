@@ -6,7 +6,8 @@ import { mapError } from '../utils/errorMessages';
 /** Register mutation */
 export const useRegister = () => {
   const queryClient = useQueryClient();
-  return useMutation(register, {
+  return useMutation({
+    mutationFn: register,
     onSuccess: (data) => {
       toast.success('تم التسجيل بنجاح');
       // Invalidate any auth‑related queries if you have them
@@ -21,7 +22,8 @@ export const useRegister = () => {
 /** Login mutation */
 export const useLogin = () => {
   const queryClient = useQueryClient();
-  return useMutation(login, {
+  return useMutation({
+    mutationFn: login,
     onSuccess: (data) => {
       toast.success('تم تسجيل الدخول');
       queryClient.invalidateQueries({ queryKey: ['auth'] });
@@ -35,7 +37,8 @@ export const useLogin = () => {
 /** Logout mutation */
 export const useLogout = () => {
   const queryClient = useQueryClient();
-  return useMutation(logout, {
+  return useMutation({
+    mutationFn: logout,
     onSuccess: () => {
       toast.success('تم تسجيل الخروج');
       // Clear auth queries and possibly other user data

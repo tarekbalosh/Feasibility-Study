@@ -16,7 +16,7 @@ export const getAll = asyncHandler(async (req: Request, res: Response) => {
 // ——— GET /api/reports/:id ———
 export const getById = asyncHandler(async (req: Request, res: Response) => {
   const report = await reportService.getReportById(
-    req.params.id,
+    (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id),
     req.user!.userId
   );
 
@@ -44,7 +44,7 @@ export const generate = asyncHandler(async (req: Request, res: Response) => {
 // ——— GET /api/reports/:id/download ———
 export const download = asyncHandler(async (req: Request, res: Response) => {
   const result = await reportService.getReportDownload(
-    req.params.id,
+    (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id),
     req.user!.userId
   );
 

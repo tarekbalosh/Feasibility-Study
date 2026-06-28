@@ -1,4 +1,4 @@
-import { calculateFinancials } from '../../engine/financialEngine';
+import { calculateFinancials } from '../engine/financialEngine';
 import { SECTORS } from '../../src/config/sectors';
 
 describe('Financial Engine', () => {

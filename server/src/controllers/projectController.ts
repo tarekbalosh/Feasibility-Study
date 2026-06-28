@@ -16,7 +16,7 @@ export const getAll = asyncHandler(async (req: Request, res: Response) => {
 // ——— GET /api/projects/:id ———
 export const getById = asyncHandler(async (req: Request, res: Response) => {
   const project = await projectService.getProjectById(
-    req.params.id,
+    (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id),
     req.user!.userId
   );
 
@@ -39,7 +39,7 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
 // ——— PUT /api/projects/:id ———
 export const update = asyncHandler(async (req: Request, res: Response) => {
   const project = await projectService.updateProject(
-    req.params.id,
+    (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id),
     req.user!.userId,
     req.body
   );
@@ -54,7 +54,7 @@ export const update = asyncHandler(async (req: Request, res: Response) => {
 // ——— DELETE /api/projects/:id ———
 export const remove = asyncHandler(async (req: Request, res: Response) => {
   const result = await projectService.deleteProject(
-    req.params.id,
+    (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id),
     req.user!.userId
   );
 

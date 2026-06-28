@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import bcrypt from "bcryptjs";
+import * as bcrypt from "bcryptjs";
 import { asyncHandler } from "../utils/asyncHandler";
 import { prisma } from "../config/prisma";
 import { ApiError } from "../utils/ApiError";

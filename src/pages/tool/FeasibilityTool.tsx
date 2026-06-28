@@ -12,7 +12,7 @@ import Report from './steps/Report';
 import Export from './steps/Export';
 
 const WizardContent = () => {
-  const { currentStep } = useFeasibilityTool();
+  const { currentStep, nextStep, prevStep, isAnalyzing } = useFeasibilityTool();
 
   return (
     <div className="bg-gray-50 min-h-screen py-12 px-4 sm:px-6 lg:px-8 font-sans" dir="rtl">
@@ -41,7 +41,13 @@ const WizardContent = () => {
           </div>
 
           <div className="print:hidden">
-            <NavigationButtons />
+            <NavigationButtons
+              currentStep={currentStep}
+              totalSteps={5}
+              onNext={nextStep}
+              onPrev={prevStep}
+              isAnalyzing={isAnalyzing}
+            />
           </div>
         </div>
       </div>

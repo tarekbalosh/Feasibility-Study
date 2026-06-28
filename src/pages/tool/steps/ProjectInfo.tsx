@@ -1,4 +1,4 @@
-import React from 'react';
+"use client";
 import { useFeasibilityTool } from '@/hooks/useFeasibilityTool';
 
 // ——— حقول إضافية حسب نوع النشاط (تظهر مباشرة بعد الاختيار) ———

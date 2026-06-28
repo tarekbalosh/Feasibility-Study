@@ -41,13 +41,14 @@ export class PDFService {
     });
     try {
       const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
-      // Ensure Arabic fonts are loaded – they are linked in the template via Google Fonts
-      const pdfBuffer = await page.pdf({
+      await page.setContent(html, { waitUntil: 'load' });
+      // Generate PDF (returns Buffer in newer puppeteer typings, but ensure Buffer type
+      const pdfUint8 = await page.pdf({
         format: 'A4',
         printBackground: true,
         margin: { top: '20mm', right: '15mm', bottom: '20mm', left: '15mm' },
       });
+      const pdfBuffer = Buffer.from(pdfUint8);
       return pdfBuffer;
     } finally {
       await browser.close();

@@ -1,4 +1,4 @@
-import { OpenAI } from 'openai';
+import OpenAI from 'openai';
 import { openAIConfig } from '../config/openai.config';
 import { buildFeasibilityPrompt, parseAIResponse, estimateTokens } from '../utils/openaiHelpers';
 import { logger } from '../utils/logger'; // assume a logger utility exists
@@ -110,7 +110,7 @@ export class OpenAIService {
       const apiResp = await this.callAPI(messages);
       const text = apiResp.choices?.[0]?.message?.content ?? '';
       // Assume each recommendation is on a new line or numbered
-      const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+      const lines = text.split(/\r?\n/).filter((l: string) => l.trim().length > 0);
       return lines;
     } catch (error) {
       logger.error('Recommendations generation failed', { error });

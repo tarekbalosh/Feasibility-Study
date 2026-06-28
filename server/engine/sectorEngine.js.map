@@ -1,0 +1,1 @@
+{"version":3,"file":"sectorEngine.js","sourceRoot":"","sources":["sectorEngine.ts"],"names":[],"mappings":";;AAEA,0CAMC;AARD,mDAAgD;AAEhD,SAAgB,eAAe,CAAC,MAAc;IAC5C,MAAM,MAAM,GAAG,iBAAO,CAAC,MAAM,CAAC,CAAC;IAC/B,IAAI,CAAC,MAAM,EAAE,CAAC;QACZ,MAAM,IAAI,KAAK,CAAC,UAAU,MAAM,gBAAgB,CAAC,CAAC;IACpD,CAAC;IACD,OAAO,MAAM,CAAC;AAChB,CAAC"}

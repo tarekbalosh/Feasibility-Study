@@ -12,7 +12,7 @@ const schema = z.object({
     .min(1, "اسم المشروع مطلوب")
     .max(100, "اسم المشروع يجب ألا يتجاوز 100 حرف"),
   activityType: z.string().min(1, "نوع النشاط مطلوب"),
-  projectDescription: z
+  description: z
     .string()
     .min(50, "وصف المشروع يجب أن يكون 50 حرف على الأقل")
     .max(500, "وصف المشروع يجب ألا يتجاوز 500 حرف"),
@@ -41,7 +41,7 @@ export const ProjectInfo: React.FC<ProjectInfoProps> = ({ tool }) => {
     defaultValues: tool.projectInfo,
   })
 
-  const description = watch("projectDescription", tool.projectInfo.projectDescription)
+  const description = watch("description", tool.projectInfo.description)
   const charCount = description?.length || 0
 
   const onSubmit = (data: ProjectInfoData) => {
@@ -104,16 +104,16 @@ export const ProjectInfo: React.FC<ProjectInfoProps> = ({ tool }) => {
             rows={5}
             placeholder="اكتب وصفاً تفصيلياً لفكرة المشروع، الجمهور المستهدف، والقيمة المقدّمة..."
             className={`w-full px-4 py-3 border rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 transition-all duration-150 resize-none ${
-              errors.projectDescription
+              errors.description
                 ? "border-red-500 focus:border-red-500 focus:ring-red-500"
                 : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
             }`}
-            {...register("projectDescription")}
+            {...register("description")}
           />
           <div className="flex items-center justify-between">
-            {errors.projectDescription ? (
+            {errors.description ? (
               <span className="text-xs text-red-500 font-medium">
-                {errors.projectDescription.message}
+                {errors.description.message}
               </span>
             ) : (
               <span />

@@ -1,4 +1,6 @@
-import { PrismaClient, Report as PrismaReport } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+
+type PrismaReport = any; // placeholder type for Report model
 import { logger } from '../utils/logger'; // optional logger
 
 // Initialize Prisma client (singleton)

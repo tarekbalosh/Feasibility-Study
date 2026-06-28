@@ -10,23 +10,23 @@ import { mapError } from '../utils/errorMessages';
 
 /** Fetch list of reports */
 export const useReports = () => {
-  return useQuery<Report[], Error>(['reports'], listReports, {
-    onError: (error) => {
-      toast.error(mapError(error));
-    },
+  return useQuery<Report[], any>({
+    queryKey: ['reports'],
+    queryFn: listReports,
+
   });
 };
 
 /** Generate a new report */
 export const useGenerateReport = () => {
   const queryClient = useQueryClient();
-  return useMutation(generateReport, {
+  return useMutation({
+    mutationFn: generateReport,
     onSuccess: (data) => {
       toast.success('تم إنشاء التقرير');
-      // Optionally invalidate the list to include the new report
       queryClient.invalidateQueries({ queryKey: ['reports'] });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(mapError(error));
     },
   });
@@ -34,18 +34,18 @@ export const useGenerateReport = () => {
 
 /** Download a report file */
 export const useDownloadReport = () => {
-  return useMutation(downloadReport, {
+  return useMutation({
+    mutationFn: downloadReport,
     onSuccess: (blob) => {
-      // Create a temporary link to trigger download
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'report.pdf'; // you may customize filename
+      a.download = 'report.pdf';
       a.click();
       window.URL.revokeObjectURL(url);
       toast.success('تم تحميل التقرير');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(mapError(error));
     },
   });

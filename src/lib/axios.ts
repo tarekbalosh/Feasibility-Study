@@ -60,13 +60,13 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     // 1️⃣ Retry on transient network errors
-    if (isNetworkError(error)) {
+    if (isNetworkError(error) && originalRequest) {
       const retryResp = await retryRequest(error);
       if (retryResp) return retryResp;
     }
 
     // 2️⃣ Handle 401 – try to refresh token once
-    if (error.response?.status === 401 && !(originalRequest as any)._retry) {
+    if (error.response?.status === 401 && originalRequest && !(originalRequest as any)._retry) {
       (originalRequest as any)._retry = true;
       try {
         const newAccess = await authService.refreshToken(); // should return new JWT string

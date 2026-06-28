@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { PDFService } from '../../../services/pdf.service';
+import { PDFService } from '../../../../services/pdf.service';
 
 // Placeholder functions – replace with real DB queries
 const getReportById = async (id: string) => {
