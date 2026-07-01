@@ -22,7 +22,7 @@ export default function Pricing() {
         "دعم فني عادي عبر البريد",
       ],
       ctaText: "ابدأ مجاناً",
-      ctaLink: "/signup",
+      ctaLink: "/auth/register",
       popular: false,
     },
     {
@@ -39,7 +39,7 @@ export default function Pricing() {
         "دعم فني ذو أولوية",
       ],
       ctaText: "اشترك الآن",
-      ctaLink: "/signup?plan=standard",
+      ctaLink: "/auth/register?plan=standard",
       popular: true,
     },
     {
@@ -55,7 +55,7 @@ export default function Pricing() {
         "مدير حساب مخصص ودعم فني هاتفي مباشر",
       ],
       ctaText: "اشترك الآن",
-      ctaLink: "/contact",
+      ctaLink: "/auth/register?plan=premium",
       popular: false,
     },
   ]
