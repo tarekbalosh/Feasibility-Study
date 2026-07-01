@@ -11,22 +11,24 @@ datasource db {
 // Users table
 // ——————————————————————————————————————————————
 model User {
-  id                 String   @id @default(uuid())
+  id                 String    @id @default(uuid())
   name               String
-  email              String   @unique
-  passwordHash       String
-  subscriptionTier   String   @default("free")
-  subscriptionStatus String   @default("none")
-  stripeCustomerId   String?  
-  isVerified         Boolean  @default(false)
-  resetToken         String?  
-  resetTokenExpiry   DateTime? 
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  email              String    @unique
+  passwordHash       String    @map("password_hash")
+  subscriptionTier   String    @default("free") @map("subscription_tier")
+  subscriptionStatus String    @default("none") @map("subscription_status")
+  stripeCustomerId   String?   @map("stripe_customer_id")
+  isVerified         Boolean   @default(false) @map("is_verified")
+  resetToken         String?   @map("reset_token")
+  resetTokenExpiry   DateTime? @map("reset_token_expiry")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
   projects  Project[]
   payments  Payment[]
   userLimit UserLimit?
+
+  @@map("users")
 }
 
 // ——————————————————————————————————————————————
@@ -34,23 +36,25 @@ model User {
 // ——————————————————————————————————————————————
 model Project {
   id              String   @id @default(uuid())
-  userId          String
+  userId          String   @map("user_id")
   name            String
   industry        String
   location        String
   currency        String   @default("USD")
-  targetCapital   Float
-  durationYears   Int      @default(3)
+  targetCapital   Float    @map("target_capital")
+  durationYears   Int      @default(3) @map("duration_years")
   description     String
-  financialInputs String   // JSON stored as string
-  aiOutput        String?  // JSON stored as string
-  financialOutput String?  // JSON stored as string
-  isShared        Boolean  @default(false)
-  shareToken      String?  @unique
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  financialInputs String   @map("financial_inputs") // JSON stored as string
+  aiOutput        String?  @map("ai_output")        // JSON stored as string
+  financialOutput String?  @map("financial_output")  // JSON stored as string
+  isShared        Boolean  @default(false) @map("is_shared")
+  shareToken      String?  @unique @map("share_token")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("projects")
 }
 
 // ——————————————————————————————————————————————
@@ -58,36 +62,40 @@ model Project {
 // ——————————————————————————————————————————————
 model Payment {
   id              String   @id @default(uuid())
-  userId          String
-  stripeSessionId String   @unique
+  userId          String   @map("user_id")
+  stripeSessionId String   @unique @map("stripe_session_id")
   amount          Float
   currency        String
   status          String
-  createdAt       DateTime @default(now())
+  createdAt       DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id])
+
+  @@map("payments")
 }
 
 // ——————————————————————————————————————————————
 // User limits table
 // ——————————————————————————————————————————————
 model UserLimit {
-  id              String   @id @default(uuid())
-  userId          String   @unique
-  generationsUsed Int      @default(0)
-  generationsLimit Int    @default(1)
-  resetAt         DateTime
+  id               String   @id @default(uuid())
+  userId           String   @unique @map("user_id")
+  generationsUsed  Int      @default(0) @map("generations_used")
+  generationsLimit Int      @default(1) @map("generations_limit")
+  resetAt          DateTime @map("reset_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_limits")
 }
 
 model FeasibilityStudy {
-  id            String   @id @default(uuid())
-  createdAt     DateTime @default(now())
-  sector        String
+  id             String   @id @default(uuid())
+  createdAt      DateTime @default(now())
+  sector         String
   detectedSector String? // AI-detected sector when user selects "Other"
-  rawData       String   // store JSON as string
-  resultData    String   // store JSON as string
-  reportHtml    String?
-  reportPdf     String? 
+  rawData        String  // store JSON as string
+  resultData     String  // store JSON as string
+  reportHtml     String?
+  reportPdf      String?
 }
