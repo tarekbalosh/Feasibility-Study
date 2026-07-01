@@ -254,10 +254,10 @@ const ProjectCard = ({
               <ChevronLeft size={14} className="transition-transform group-hover:-translate-x-1" />
             </Link>
   
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+            <Link href="/dashboard/Reports" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
               <FileText size={14} />
               التقرير
-            </button>
+            </Link>
           </div>
         )}
       </div>

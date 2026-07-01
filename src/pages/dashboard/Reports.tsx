@@ -16,11 +16,21 @@ interface Report {
   activityType?: string;
 }
 
-/** Fetch reports for the logged‑in user using authenticated axios */
 const fetchUserReports = async ({ queryKey }: any): Promise<{ reports: Report[]; total: number }> => {
   const [_key, { page, limit }] = queryKey;
   const res = await axios.get(`/reports?skip=${(page - 1) * limit}&take=${limit}`);
-  return res.data;
+  // backend returns { success: true, count: number, data: any[] }
+  return {
+    reports: res.data.data.map((item: any) => ({
+      id: item.reportId,
+      projectName: item.projectName,
+      activityType: item.industry,
+      createdAt: item.createdAt,
+      projectId: item.reportId, // The backend reportId is actually the projectId
+      content: {},
+    })),
+    total: res.data.count,
+  };
 };
 
 /** Delete a report */
@@ -93,7 +103,7 @@ export const Reports: React.FC = () => {
                   {report.activityType ?? '-'}
                 </td>
                 <td className="p-2 border space-x-2">
-                  <a href={`/reports/${report.id}`} className="text-blue-600 hover:underline">
+                  <a href={`/tool/FeasibilityTool?edit=${report.projectId}`} className="text-blue-600 hover:underline">
                     عرض كامل
                   </a>
                   {report.pdfPath && (
