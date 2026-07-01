@@ -29,7 +29,7 @@ export interface FinancialData {
 }
 
 export class OpenAIService {
-  private client: OpenAI;
+  private client: any;
   private readonly maxRetries = 3;
 
   constructor() {

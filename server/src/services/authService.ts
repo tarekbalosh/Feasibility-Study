@@ -2,7 +2,7 @@ import * as bcrypt from "bcryptjs";
 import jwt, { SignOptions } from "jsonwebtoken";
 import crypto from "crypto";
 import { prisma } from "../config/prisma";
-import { config } from "../config";
+import { env } from "../config/env";
 import { ApiError } from "../utils/ApiError";
 
 const SALT_ROUNDS = 12;
@@ -12,16 +12,16 @@ const SALT_ROUNDS = 12;
 // ——————————————————————————————————————————————
 function generateAccessToken(userId: string, email: string): string {
   const options: SignOptions = {
-    expiresIn: config.jwtExpiresIn as string & SignOptions["expiresIn"],
+    expiresIn: env.JWT_EXPIRES_IN as string & SignOptions["expiresIn"],
   };
-  return jwt.sign({ userId, email }, config.jwtSecret, options);
+  return jwt.sign({ userId, email }, env.JWT_SECRET, options);
 }
 
 function generateRefreshToken(userId: string, email: string): string {
   const options: SignOptions = {
-    expiresIn: config.jwtRefreshExpiresIn as string & SignOptions["expiresIn"],
+    expiresIn: env.JWT_REFRESH_EXPIRES_IN as string & SignOptions["expiresIn"],
   };
-  return jwt.sign({ userId, email }, config.jwtRefreshSecret, options);
+  return jwt.sign({ userId, email }, env.JWT_REFRESH_SECRET, options);
 }
 
 // ——————————————————————————————————————————————
@@ -145,7 +145,7 @@ export async function forgotPassword(email: string) {
 
   // TODO: Send email with reset link containing resetToken
   // For now, log the token in development
-  if (config.nodeEnv === "development") {
+  if (env.NODE_ENV === "development") {
     console.log(`[DEV] Reset token for ${email}: ${resetToken}`);
   }
 
@@ -202,7 +202,7 @@ export async function resetPassword(data: {
 // ——————————————————————————————————————————————
 export async function refreshToken(token: string) {
   try {
-    const decoded = jwt.verify(token, config.jwtRefreshSecret) as {
+    const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET) as {
       userId: string;
       email: string;
     };

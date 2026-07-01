@@ -22,7 +22,8 @@
     "morgan": "^1.10.0",
     "openai": "^6.44.0",
     "winston": "^3.13.0",
-    "@prisma/client": "^5.14.0"
+    "@prisma/client": "^5.14.0",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
 

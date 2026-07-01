@@ -2,10 +2,11 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
-import { config } from "./config";
+import { env } from "./config/env";
 import { rateLimiter } from "./middleware/rateLimiter";
 import { errorHandler } from "./middleware/errorHandler";
 import routes from "./routes";
+import path from "path";
 import { logger } from "./utils/logger";
 
 const app = express();
@@ -13,14 +14,16 @@ const app = express();
 // ——————————————————————————————————————————————
 // Security Middleware
 // ——————————————————————————————————————————————
-app.use(helmet());
+app.get('/health', (_req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 
 // ——————————————————————————————————————————————
 // CORS — محدود للـ Frontend domain
 // ——————————————————————————————————————————————
 app.use(
   cors({
-    origin: config.corsOrigin,
+    origin: env.CORS_ORIGIN,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -53,6 +56,9 @@ app.use(rateLimiter);
 // API Routes
 // ——————————————————————————————————————————————
 app.use("/api", routes);
+// Serve static files (environment page)
+app.use(express.static(path.join(__dirname, "public")));
+
 
 // ——————————————————————————————————————————————
 // 404 Handler

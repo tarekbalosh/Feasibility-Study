@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Environment Variables</title>
+  <style>
+    body { font-family: 'Inter', sans-serif; padding: 2rem; background: #f5f5f5; }
+    h1 { text-align: center; margin-bottom: 1rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { padding: 0.5rem 1rem; border: 1px solid #ddd; text-align: left; }
+    th { background: #333; color: #fff; }
+    .present { color: #28a745; font-weight: bold; }
+    .missing { color: #dc3545; font-weight: bold; }
+    .category { background: #555; color: #fff; font-size: 1.1rem; }
+    tr:nth-child(even) { background: #fff; }
+    tr:nth-child(odd) { background: #f9f9f9; }
+  </style>
+</head>
+<body>
+  <h1>Environment Variables</h1>
+  <div id="content">Loading...</div>
+  <script>
+    fetch('/api/system/environment')
+      .then(res => {
+        if (!res.ok) throw new Error('Forbidden');
+        return res.json();
+      })
+      .then(data => {
+        const container = document.getElementById('content');
+        const table = document.createElement('table');
+        const tbody = document.createElement('tbody');
+        for (const category of Object.keys(data)) {
+          const catRow = document.createElement('tr');
+          const catCell = document.createElement('td');
+          catCell.colSpan = 3;
+          catCell.className = 'category';
+          catCell.textContent = category;
+          catRow.appendChild(catCell);
+          tbody.appendChild(catRow);
+          const vars = data[category];
+          for (const key of Object.keys(vars)) {
+            const { exists, value } = vars[key];
+            const row = document.createElement('tr');
+            const nameCell = document.createElement('td');
+            nameCell.textContent = key;
+            const statusCell = document.createElement('td');
+            statusCell.innerHTML = exists ? '<span class="present">🟢 موجود</span>' : '<span class="missing">🔴 غير موجود</span>';
+            const valueCell = document.createElement('td');
+            valueCell.textContent = value;
+            row.appendChild(nameCell);
+            row.appendChild(statusCell);
+            row.appendChild(valueCell);
+            tbody.appendChild(row);
+          }
+        }
+        table.appendChild(tbody);
+        container.innerHTML = '';
+        container.appendChild(table);
+      })
+      .catch(err => {
+        document.getElementById('content').innerText = 'Unable to load environment information (access restricted).';
+      });
+  </script>
+</body>
+</html>

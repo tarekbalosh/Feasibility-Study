@@ -14,7 +14,7 @@ export const Card: React.FC<CardProps> = ({
   return (
     <div
       className={clsx(
-        "bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden",
+        "bg-white border border-slate-200 rounded-xl shadow-sm",
         className
       )}
       {...props}

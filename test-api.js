@@ -1,7 +1,7 @@
 const axios = require('axios');
 async function test() {
   try {
-    const login = await axios.post('http://localhost:3002/api/auth/register', {
+    const login = await axios.post('https://api.<your-domain>.com/api/auth/register', {
       name: 'testuser',
       email: 'test' + Date.now() + '@example.com',
       password: 'password123'
@@ -22,7 +22,7 @@ async function test() {
         }
     };
     
-    const res = await axios.post('http://localhost:3002/api/projects', payload, {
+    const res = await axios.post('https://<project-name>.onrender.com/api/projects', payload, {
       headers: { Authorization: `Bearer ${token}` }
     });
     console.log("Status:", res.status);

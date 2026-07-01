@@ -1,7 +1,7 @@
 import api from '../lib/axios';
 import axios from 'axios';
 
-const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3002/api';
+const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL as string;
 
 interface RegisterPayload {
   name: string;

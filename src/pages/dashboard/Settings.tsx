@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
-import { Save, AlertTriangle, Trash2 } from 'lucide-react';
+import { Save, AlertTriangle, Trash2, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import apiClient from '@/lib/axios';
+import { toast } from 'react-hot-toast';
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, updateUser, logout } = useAuth();
   const [profileForm, setProfileForm] = useState({ name: '', email: '' });
+  const [profileLoading, setProfileLoading] = useState(false);
   
   // Update form when user data is available
   useEffect(() => {
@@ -16,34 +19,69 @@ export default function Settings() {
   }, [user]);
 
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordLoading, setPasswordLoading] = useState(false);
   
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const handleProfileSave = (e: React.FormEvent) => {
+  const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    // API call to update profile
-    alert('تم حفظ البيانات بنجاح!');
+    setProfileLoading(true);
+    try {
+      const { data: res } = await apiClient.put('/users/me', {
+        name: profileForm.name,
+        email: profileForm.email,
+      });
+      // Update local AuthContext state so header/sidebar reflect the change
+      updateUser({ name: res.data.name, email: res.data.email });
+      toast.success('تم حفظ البيانات بنجاح!');
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.response?.data?.error?.message || 'حدث خطأ أثناء حفظ البيانات.';
+      toast.error(msg);
+    } finally {
+      setProfileLoading(false);
+    }
   };
 
-  const handlePasswordSave = (e: React.FormEvent) => {
+  const handlePasswordSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      alert('كلمة المرور الجديدة غير متطابقة!');
+      toast.error('كلمة المرور الجديدة غير متطابقة!');
       return;
     }
-    // API call to update password
-    alert('تم تغيير كلمة المرور بنجاح!');
-    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    setPasswordLoading(true);
+    try {
+      await apiClient.put('/users/change-password', {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+      toast.success('تم تغيير كلمة المرور بنجاح!');
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.response?.data?.error?.message || 'حدث خطأ أثناء تغيير كلمة المرور.';
+      toast.error(msg);
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
-  const handleDeleteAccount = () => {
-    if (deleteConfirmText === 'حذف حسابي') {
-      // API call to delete account
-      alert('تم حذف الحساب.');
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'حذف حسابي') {
+      toast.error('يرجى كتابة "حذف حسابي" لتأكيد العملية.');
+      return;
+    }
+    setDeleteLoading(true);
+    try {
+      await apiClient.delete('/users/me');
+      toast.success('تم حذف الحساب بنجاح.');
       setShowDeleteModal(false);
-    } else {
-      alert('يرجى كتابة "حذف حسابي" لتأكيد العملية.');
+      logout();
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.response?.data?.error?.message || 'حدث خطأ أثناء حذف الحساب.';
+      toast.error(msg);
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -89,9 +127,9 @@ export default function Settings() {
               </div>
             </div>
             <div className="flex justify-end">
-              <button type="submit" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-medium transition-colors shadow-sm">
-                <Save size={18} />
-                حفظ التغييرات
+              <button type="submit" disabled={profileLoading} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                {profileLoading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                {profileLoading ? 'جاري الحفظ...' : 'حفظ التغييرات'}
               </button>
             </div>
           </form>
@@ -139,9 +177,9 @@ export default function Settings() {
               </div>
             </div>
             <div className="flex justify-end">
-              <button type="submit" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-medium transition-colors shadow-sm">
-                <Save size={18} />
-                تحديث كلمة المرور
+              <button type="submit" disabled={passwordLoading} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                {passwordLoading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                {passwordLoading ? 'جاري التحديث...' : 'تحديث كلمة المرور'}
               </button>
             </div>
           </form>

@@ -16,7 +16,7 @@ export const config = {
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
 
   // CORS
-  corsOrigin: process.env.CORS_ORIGIN || "http://localhost:4000",
+  corsOrigin: process.env.CORS_ORIGIN,
 
   // OpenAI
   openaiApiKey: process.env.OPENAI_API_KEY || "",

@@ -5,13 +5,13 @@ import { mapError } from '../utils/errorMessages';
 import * as authService from '../services/auth.service';
 
 // Base URL from environment (you can rename the variable as needed)
-const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3002/api';
+const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL as string;
 
 // Create Axios instance – withCredentials enables sending httpOnly refresh‑token cookie
 const api: AxiosInstance = axios.create({
   baseURL,
   withCredentials: true,
-  timeout: 15000,
+  timeout: 60000, // Increased to 60s to allow Render free tier backend to wake up
 });
 
 // ---------- Request interceptor ----------
@@ -32,41 +32,37 @@ api.interceptors.request.use(
 // ---------- Helper for retry (network errors only) ----------
 // Only retry when there is NO response at all (connection refused, timeout)
 // Never retry on 4xx / 5xx / 429 — those are server decisions
-const isNetworkError = (error: any) => !error.response && Boolean(error.isAxiosError);
-
-const retryRequest = async (error: AxiosError, retries = 2, baseDelay = 300): Promise<AxiosResponse | null> => {
-  let attempt = 0;
-  while (attempt < retries) {
-    attempt += 1;
-    await new Promise((res) => setTimeout(res, baseDelay * Math.pow(2, attempt - 1)));
-    try {
-      const { config } = error;
-      if (!config) return null;
-      return await api.request(config);
-    } catch (e: any) {
-      // If we now get an HTTP response (even an error), stop retrying
-      if (e.response) break;
-      if (!isNetworkError(e)) break;
-      if (attempt === retries) return null;
-    }
-  }
-  return null;
-};
+const isNetworkError = (error: any) => 
+  !error.response && 
+  Boolean(error.isAxiosError) && 
+  error.code !== 'ERR_CANCELED' && 
+  !axios.isCancel(error);
 
 // ---------- Response interceptor ----------
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config;
+    const url = originalRequest?.url || '';
+    const isAuthEndpoint = url.includes('/auth/');
 
-    // 1️⃣ Retry on transient network errors
-    if (isNetworkError(error) && originalRequest) {
-      const retryResp = await retryRequest(error);
-      if (retryResp) return retryResp;
+    // 1️⃣ Retry on transient network errors — but NEVER for auth endpoints
+    if (!isAuthEndpoint) {
+      const retryCount = (originalRequest as any)?._retryCount || 0;
+      if (isNetworkError(error) && originalRequest && retryCount < 2) {
+        (originalRequest as any)._retryCount = retryCount + 1;
+        await new Promise((res) => setTimeout(res, 300 * Math.pow(2, retryCount)));
+        return api.request(originalRequest);
+      }
     }
 
-    // 2️⃣ Handle 401 – try to refresh token once
-    if (error.response?.status === 401 && originalRequest && !(originalRequest as any)._retry) {
+    // 2️⃣ Handle 401 – try to refresh token once (skip for login/register/refresh endpoints)
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !isAuthEndpoint &&
+      !(originalRequest as any)._retry
+    ) {
       (originalRequest as any)._retry = true;
       try {
         const newAccess = await authService.refreshToken(); // should return new JWT string
@@ -87,8 +83,11 @@ api.interceptors.response.use(
     }
 
     // 3️⃣ Unified error handling – map to Arabic message, show toast
-    const friendly = mapError(error);
-    toast.error(friendly);
+    //    Skip toast for auth endpoints (they handle their own error UI)
+    if (!isAuthEndpoint) {
+      const friendly = mapError(error);
+      toast.error(friendly);
+    }
     return Promise.reject(error);
   }
 );

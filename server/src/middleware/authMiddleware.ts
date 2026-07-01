@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { config } from "../config";
+import { env } from "../config/env";
 import { ApiError } from "../utils/ApiError";
 
 // Extend Express Request to include user info
@@ -44,7 +44,7 @@ export const authMiddleware = (
       throw ApiError.authRequired("رمز الدخول غير صالح.");
     }
 
-    const decoded = jwt.verify(token, config.jwtSecret) as JwtPayload;
+    const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
 
     req.user = {
       userId: decoded.userId,

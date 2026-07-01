@@ -80,32 +80,40 @@ export const Reports: React.FC = () => {
           </tr>
         </thead>
         <tbody>
-          {data?.reports.map((report) => (
-            <tr key={report.id} className="hover:bg-gray-50">
-              <td className="p-2 border">
-                {report.projectName ?? `مشروع ${report.projectId}`}
-              </td>
-              <td className="p-2 border">
-                {new Date(report.createdAt).toLocaleDateString('ar-EG')}
-              </td>
-              <td className="p-2 border">
-                {report.activityType ?? '-'}
-              </td>
-              <td className="p-2 border space-x-2">
-                <a href={`/reports/${report.id}`} className="text-blue-600 hover:underline">
-                  عرض كامل
-                </a>
-                {report.pdfPath && (
-                  <a href={`/api/reports/${report.id}/download`} className="text-green-600 hover:underline">
-                    تحميل PDF
+          {data?.reports?.length ? (
+            data.reports.map((report) => (
+              <tr key={report.id} className="hover:bg-gray-50">
+                <td className="p-2 border">
+                  {report.projectName ?? `مشروع ${report.projectId}`}
+                </td>
+                <td className="p-2 border">
+                  {new Date(report.createdAt).toLocaleDateString('ar-EG')}
+                </td>
+                <td className="p-2 border">
+                  {report.activityType ?? '-'}
+                </td>
+                <td className="p-2 border space-x-2">
+                  <a href={`/reports/${report.id}`} className="text-blue-600 hover:underline">
+                    عرض كامل
                   </a>
-                )}
-                <button onClick={() => handleDelete(report.id)} className="text-red-600 hover:underline">
-                  حذف
-                </button>
+                  {report.pdfPath && (
+                    <a href={`/api/reports/${report.id}/download`} className="text-green-600 hover:underline">
+                      تحميل PDF
+                    </a>
+                  )}
+                  <button onClick={() => handleDelete(report.id)} className="text-red-600 hover:underline">
+                    حذف
+                  </button>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={4} className="p-6 text-center text-gray-500">
+                لا توجد تقارير بعد. قم بإنشاء دراسة جدوى لتظهر هنا.
               </td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
 

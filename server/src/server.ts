@@ -1,5 +1,5 @@
 import app from "./app";
-import { config } from "./config";
+import { env } from "./config/env";
 import { prisma } from "./config/prisma";
 import { logger } from "./utils/logger";
 
@@ -10,10 +10,10 @@ async function main() {
     logger.info("✅ Connected to PostgreSQL database");
 
     // Start server
-    app.listen(config.port, () => {
-      logger.info(`🚀 Server is running on http://localhost:${config.port}`);
-      logger.info(`📌 Environment: ${config.nodeEnv}`);
-      logger.info(`🔗 CORS Origin: ${config.corsOrigin}`);
+    app.listen(env.PORT, () => {
+      logger.info(`🚀 Server is running on port ${env.PORT}`);
+      logger.info(`📌 Environment: ${env.NODE_ENV}`);
+      logger.info(`🔗 CORS Origin: ${env.CORS_ORIGIN}`);
     });
   } catch (error) {
     logger.error("❌ Failed to start server:", error);

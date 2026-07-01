@@ -54,7 +54,7 @@ export default function Pricing() {
         "تصدير الجداول المالية لملفات Excel (XLSX) عارية",
         "مدير حساب مخصص ودعم فني هاتفي مباشر",
       ],
-      ctaText: "تواصل معنا",
+      ctaText: "اشترك الآن",
       ctaLink: "/contact",
       popular: false,
     },
@@ -149,9 +149,9 @@ export default function Pricing() {
                     {/* CTA Button */}
                     <Link href={plan.ctaLink} passHref className="mt-4">
                       <Button
-                        variant={plan.popular ? "primary" : "ghost"}
+                        variant={price === 0 ? "ghost" : "primary"}
                         className={`w-full py-3 font-bold ${
-                          !plan.popular ? "border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" : ""
+                          price === 0 ? "border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" : ""
                         }`}
                       >
                         {plan.ctaText}
