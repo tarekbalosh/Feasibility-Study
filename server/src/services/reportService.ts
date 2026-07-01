@@ -20,18 +20,30 @@ export async function getAllReports(userId: string) {
       currency: true,
       targetCapital: true,
       createdAt: true,
-      aiOutput: true,
+      financialOutput: true,
     },
   });
 
   return projects.map((p) => {
     let status = 'غير محدد';
-    if (p.aiOutput) {
+    if (p.financialOutput) {
       try {
-        const parsed = typeof p.aiOutput === 'string' ? JSON.parse(p.aiOutput) : p.aiOutput;
-        status = (parsed as any).status || 'غير محدد';
+        const parsed = typeof p.financialOutput === 'string' ? JSON.parse(p.financialOutput) : p.financialOutput;
+        status = (parsed as any).status;
+        
+        // Backward compatibility for existing projects
+        if (!status && parsed.monthlyNetProfit !== undefined) {
+           const annualNetProfit = parsed.monthlyNetProfit * 12;
+           const roi = p.targetCapital > 0 ? (annualNetProfit / p.targetCapital) * 100 : 0;
+           if (parsed.monthlyNetProfit > 0) {
+             status = roi > 20 ? 'ممتاز' : 'جيد';
+           } else {
+             status = 'مخاطرة عالية';
+           }
+        }
       } catch (e) {}
     }
+    
     return {
       reportId: p.id,
       projectName: p.name,
@@ -40,7 +52,7 @@ export async function getAllReports(userId: string) {
       currency: p.currency,
       targetCapital: p.targetCapital,
       createdAt: p.createdAt,
-      status,
+      status: status || 'غير محدد',
     };
   });
 }

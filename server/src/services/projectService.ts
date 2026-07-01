@@ -20,22 +20,34 @@ export async function getAllProjects(userId: string) {
       isShared: true,
       createdAt: true,
       updatedAt: true,
-      aiOutput: true,
+      financialOutput: true,
     },
   });
 
   return projects.map((p) => {
     let status = 'غير محدد';
-    if (p.aiOutput) {
+    if (p.financialOutput) {
       try {
-        const parsed = typeof p.aiOutput === 'string' ? JSON.parse(p.aiOutput) : p.aiOutput;
-        status = (parsed as any).status || 'غير محدد';
+        const parsed = typeof p.financialOutput === 'string' ? JSON.parse(p.financialOutput) : p.financialOutput;
+        status = (parsed as any).status;
+        
+        // Backward compatibility for existing projects
+        if (!status && parsed.monthlyNetProfit !== undefined) {
+           const annualNetProfit = parsed.monthlyNetProfit * 12;
+           const roi = p.targetCapital > 0 ? (annualNetProfit / p.targetCapital) * 100 : 0;
+           if (parsed.monthlyNetProfit > 0) {
+             status = roi > 20 ? 'ممتاز' : 'جيد';
+           } else {
+             status = 'مخاطرة عالية';
+           }
+        }
       } catch (e) {}
     }
+    
     return {
       ...p,
-      aiOutput: undefined, // remove full aiOutput to save payload size
-      status,
+      financialOutput: undefined, // remove to save payload size
+      status: status || 'غير محدد',
     };
   });
 }
@@ -294,6 +306,13 @@ function calculateFinancials(
     npv += annualNetProfit / Math.pow(1 + discountRate, year);
   }
   npv = parseFloat(npv.toFixed(0));
+  
+  // Calculate project status based on ROI and profit
+  const roi = targetCapital > 0 ? (annualNetProfit / targetCapital) * 100 : 0;
+  let status = 'مخاطرة عالية';
+  if (monthlyNetProfit > 0) {
+    status = roi > 20 ? 'ممتاز' : 'جيد';
+  }
 
   return {
     monthlyFixedCosts,
@@ -303,6 +322,8 @@ function calculateFinancials(
     paybackPeriodMonths,
     irr,
     npv,
+    roi,
+    status,
   };
 }
 
