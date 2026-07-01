@@ -17,6 +17,7 @@ interface Report {
   createdAt: string;
   projectName?: string;
   activityType?: string;
+  status?: string;
 }
 
 const fetchUserReports = async ({ queryKey }: any): Promise<{ reports: Report[]; total: number }> => {
@@ -29,6 +30,7 @@ const fetchUserReports = async ({ queryKey }: any): Promise<{ reports: Report[];
       activityType: item.industry,
       createdAt: item.createdAt,
       projectId: item.reportId,
+      status: item.status,
       content: {},
     })),
     total: res.data.count,
@@ -65,17 +67,26 @@ const getRelativeTime = (date: string | Date) => {
 
 // --- Report Card Component ---
 const ReportCard = ({ report, onDelete, index }: { report: Report; onDelete: (id: string) => void; index: number }) => {
+  const isExcellent = report.status === 'ممتاز';
+  const theme = {
+    gradient: isExcellent ? 'from-blue-500 to-indigo-600' : 'from-rose-500 to-red-600',
+    bg: isExcellent ? 'bg-blue-50' : 'bg-rose-50',
+    text: isExcellent ? 'text-blue-600' : 'text-rose-600',
+    shadowHover: isExcellent ? 'hover:shadow-blue-100/50' : 'hover:shadow-rose-100/50',
+    overlayBg: isExcellent ? 'from-blue-500 to-indigo-600' : 'from-rose-500 to-red-600',
+  };
+
   return (
     <div
-      className="group relative bg-white rounded-2xl border border-gray-100 overflow-hidden transition-all duration-500 hover:shadow-xl hover:shadow-blue-100/50 hover:-translate-y-1"
+      className={`group relative bg-white rounded-2xl border border-gray-100 overflow-hidden transition-all duration-500 hover:shadow-xl ${theme.shadowHover} hover:-translate-y-1`}
       style={{ animationDelay: `${index * 80}ms` }}
     >
-      <div className="h-1.5 bg-gradient-to-l from-blue-500 to-indigo-600" />
+      <div className={`h-1.5 bg-gradient-to-l ${theme.gradient}`} />
       <div className="p-5 pb-4">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="shrink-0 w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
-              <FileText size={20} className="text-blue-600" />
+            <div className={`shrink-0 w-11 h-11 rounded-xl ${theme.bg} flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}>
+              <BarChart3 size={20} className={theme.text} />
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="text-[15px] font-bold text-gray-900 truncate leading-snug" title={report.projectName || `مشروع ${report.projectId}`}>
@@ -101,7 +112,7 @@ const ReportCard = ({ report, onDelete, index }: { report: Report; onDelete: (id
         </div>
 
         <div className="flex flex-wrap gap-2 mb-4">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-600">
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${theme.bg} ${theme.text}`}>
             <BarChart3 size={12} />
             {report.activityType || 'غير محدد'}
           </span>
@@ -117,10 +128,10 @@ const ReportCard = ({ report, onDelete, index }: { report: Report; onDelete: (id
         <div className="flex items-center justify-between gap-2">
           <Link
             href={`/tool/FeasibilityTool?edit=${report.projectId}`}
-            className="flex items-center gap-2 text-sm font-semibold text-blue-600 hover:opacity-80 transition-opacity"
+            className={`flex items-center gap-2 text-sm font-semibold ${theme.text} hover:opacity-80 transition-opacity`}
           >
             <Eye size={16} />
-            عرض كامل
+            عرض التفاصيل
           </Link>
 
           {report.pdfPath && (
@@ -134,7 +145,7 @@ const ReportCard = ({ report, onDelete, index }: { report: Report; onDelete: (id
           )}
         </div>
       </div>
-      <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-br from-blue-500 to-indigo-600 mix-blend-soft-light" style={{ opacity: 0 }} />
+      <div className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-br ${theme.overlayBg} mix-blend-soft-light`} style={{ opacity: 0 }} />
     </div>
   );
 };

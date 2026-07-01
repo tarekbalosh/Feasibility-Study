@@ -20,10 +20,24 @@ export async function getAllProjects(userId: string) {
       isShared: true,
       createdAt: true,
       updatedAt: true,
+      aiOutput: true,
     },
   });
 
-  return projects;
+  return projects.map((p) => {
+    let status = 'غير محدد';
+    if (p.aiOutput) {
+      try {
+        const parsed = typeof p.aiOutput === 'string' ? JSON.parse(p.aiOutput) : p.aiOutput;
+        status = (parsed as any).status || 'غير محدد';
+      } catch (e) {}
+    }
+    return {
+      ...p,
+      aiOutput: undefined, // remove full aiOutput to save payload size
+      status,
+    };
+  });
 }
 
 // ——————————————————————————————————————————————

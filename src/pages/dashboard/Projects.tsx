@@ -107,10 +107,18 @@ const ProjectCard = ({
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   
-  // Use a special styling for the draft card
-  const config = isDraft 
-    ? { icon: FileText, gradient: 'from-slate-400 to-gray-500', accent: 'text-slate-600', bg: 'bg-slate-100', label: 'مسودة غير محفوظة' }
-    : getIndustryConfig(project.industry);
+  let config = getIndustryConfig(project.industry);
+  if (isDraft) {
+    config = { icon: FileText, gradient: 'from-slate-400 to-gray-500', accent: 'text-slate-600', bg: 'bg-slate-100', label: 'مسودة غير محفوظة' };
+  } else if (project.status && project.status !== 'غير محدد') {
+    const isExcellent = project.status === 'ممتاز';
+    config = {
+      ...config,
+      gradient: isExcellent ? 'from-blue-500 to-indigo-600' : 'from-rose-500 to-red-600',
+      accent: isExcellent ? 'text-blue-600' : 'text-rose-600',
+      bg: isExcellent ? 'bg-blue-50' : 'bg-rose-50',
+    };
+  }
     
   const IndustryIcon = config.icon;
 

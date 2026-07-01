@@ -20,18 +20,29 @@ export async function getAllReports(userId: string) {
       currency: true,
       targetCapital: true,
       createdAt: true,
+      aiOutput: true,
     },
   });
 
-  return projects.map((p) => ({
-    reportId: p.id,
-    projectName: p.name,
-    industry: p.industry,
-    location: p.location,
-    currency: p.currency,
-    targetCapital: p.targetCapital,
-    createdAt: p.createdAt,
-  }));
+  return projects.map((p) => {
+    let status = 'غير محدد';
+    if (p.aiOutput) {
+      try {
+        const parsed = typeof p.aiOutput === 'string' ? JSON.parse(p.aiOutput) : p.aiOutput;
+        status = (parsed as any).status || 'غير محدد';
+      } catch (e) {}
+    }
+    return {
+      reportId: p.id,
+      projectName: p.name,
+      industry: p.industry,
+      location: p.location,
+      currency: p.currency,
+      targetCapital: p.targetCapital,
+      createdAt: p.createdAt,
+      status,
+    };
+  });
 }
 
 // ——————————————————————————————————————————————
