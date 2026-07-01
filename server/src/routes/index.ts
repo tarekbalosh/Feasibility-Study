@@ -14,7 +14,7 @@ router.use("/users", userRoutes);
 router.use("/projects", projectRoutes);
 router.use("/reports", reportRoutes);
 router.use("/feasibility", feasibilityRoutes);
-router.use(systemRoutes);
+router.use('/system', systemRoutes);
 // Health check
 router.get("/health", (_req, res) => {
   res.status(200).json({

@@ -12,10 +12,28 @@ import { logger } from "./utils/logger";
 const app = express();
 
 // ——————————————————————————————————————————————
-// Security Middleware
+// Root & Health Routes
 // ——————————————————————————————————————————————
+app.get('/', (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'مرحبًا بك في واجهة برمجة تطبيقات دراسة الجدوى',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      health: '/health',
+      api: '/api',
+      auth: '/api/auth',
+      users: '/api/users',
+      projects: '/api/projects',
+      reports: '/api/reports',
+      feasibility: '/api/feasibility',
+    },
+  });
+});
+
 app.get('/health', (_req, res) => {
-  res.status(200).json({ status: 'ok' });
+  res.status(200).json({ success: true, status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // ——————————————————————————————————————————————
