@@ -67,13 +67,27 @@ const getRelativeTime = (date: string | Date) => {
 
 // --- Report Card Component ---
 const ReportCard = ({ report, onDelete, index }: { report: Report; onDelete: (id: string) => void; index: number }) => {
-  const isExcellent = report.status === 'ممتاز';
-  const theme = {
-    gradient: isExcellent ? 'from-blue-500 to-indigo-600' : 'from-rose-500 to-red-600',
-    bg: isExcellent ? 'bg-blue-50' : 'bg-rose-50',
-    text: isExcellent ? 'text-blue-600' : 'text-rose-600',
-    shadowHover: isExcellent ? 'hover:shadow-blue-100/50' : 'hover:shadow-rose-100/50',
-    overlayBg: isExcellent ? 'from-blue-500 to-indigo-600' : 'from-rose-500 to-red-600',
+  const isExcellent = typeof report.status === 'string' && report.status.includes('ممتاز');
+  const isGood = typeof report.status === 'string' && report.status.includes('جيد');
+  
+  const theme = isExcellent ? {
+    gradient: 'from-blue-500 to-indigo-600',
+    bg: 'bg-blue-50',
+    text: 'text-blue-600',
+    shadowHover: 'hover:shadow-blue-100/50',
+    overlayBg: 'from-blue-500 to-indigo-600',
+  } : isGood ? {
+    gradient: 'from-emerald-500 to-teal-600',
+    bg: 'bg-emerald-50',
+    text: 'text-emerald-600',
+    shadowHover: 'hover:shadow-emerald-100/50',
+    overlayBg: 'from-emerald-500 to-teal-600',
+  } : {
+    gradient: 'from-rose-500 to-red-600',
+    bg: 'bg-rose-50',
+    text: 'text-rose-600',
+    shadowHover: 'hover:shadow-rose-100/50',
+    overlayBg: 'from-rose-500 to-red-600',
   };
 
   return (

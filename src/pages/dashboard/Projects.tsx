@@ -111,13 +111,31 @@ const ProjectCard = ({
   if (isDraft) {
     config = { icon: FileText, gradient: 'from-slate-400 to-gray-500', accent: 'text-slate-600', bg: 'bg-slate-100', label: 'مسودة غير محفوظة' };
   } else if (project.status && project.status !== 'غير محدد') {
-    const isExcellent = project.status === 'ممتاز';
-    config = {
-      ...config,
-      gradient: isExcellent ? 'from-blue-500 to-indigo-600' : 'from-rose-500 to-red-600',
-      accent: isExcellent ? 'text-blue-600' : 'text-rose-600',
-      bg: isExcellent ? 'bg-blue-50' : 'bg-rose-50',
-    };
+    const isExcellent = typeof project.status === 'string' && project.status.includes('ممتاز');
+    const isGood = typeof project.status === 'string' && project.status.includes('جيد');
+    
+    if (isExcellent) {
+      config = {
+        ...config,
+        gradient: 'from-blue-500 to-indigo-600',
+        accent: 'text-blue-600',
+        bg: 'bg-blue-50',
+      };
+    } else if (isGood) {
+      config = {
+        ...config,
+        gradient: 'from-emerald-500 to-teal-600',
+        accent: 'text-emerald-600',
+        bg: 'bg-emerald-50',
+      };
+    } else {
+      config = {
+        ...config,
+        gradient: 'from-rose-500 to-red-600',
+        accent: 'text-rose-600',
+        bg: 'bg-rose-50',
+      };
+    }
   }
     
   const IndustryIcon = config.icon;
