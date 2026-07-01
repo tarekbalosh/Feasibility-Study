@@ -138,7 +138,7 @@ export default function Export() {
 
       {/* Hidden Report for Printing */}
       <div className="hidden print:block" dir="rtl">
-        <Report />
+        <Report forPrint={true} />
       </div>
     </>
   );

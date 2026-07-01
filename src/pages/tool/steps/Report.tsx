@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { useFeasibilityTool } from '@/hooks/useFeasibilityTool';
 import { ChevronDown, ChevronUp, CheckCircle2, AlertTriangle, FileText } from 'lucide-react';
 
-export default function Report() {
+interface ReportProps {
+  forPrint?: boolean;
+}
+
+export default function Report({ forPrint = false }: ReportProps) {
   const { form, analysisResult } = useFeasibilityTool();
   const data = form.getValues();
   
@@ -12,8 +16,15 @@ export default function Report() {
     recommendations: true,
   });
 
+  // When printing, force all sections open
+  const sections = forPrint 
+    ? { executive: true, financial: true, recommendations: true } 
+    : openSections;
+
   const toggleSection = (section: keyof typeof openSections) => {
-    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+    if (!forPrint) {
+      setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+    }
   };
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('ar-SA', { style: 'currency', currency: 'SAR', maximumFractionDigits: 0 }).format(val);
@@ -35,9 +46,9 @@ export default function Report() {
               className="w-full flex items-center justify-between p-5 bg-gray-50 hover:bg-gray-100 transition-colors"
             >
               <h3 className="text-lg font-bold text-gray-900">الملخص التنفيذي</h3>
-              {openSections.executive ? <ChevronUp className="text-gray-500" /> : <ChevronDown className="text-gray-500" />}
+              {sections.executive ? <ChevronUp className="text-gray-500" /> : <ChevronDown className="text-gray-500" />}
             </button>
-            {openSections.executive && (
+            {sections.executive && (
               <div className="p-5 bg-white border-t border-gray-100">
                 <p className="text-gray-600 leading-relaxed">
                   يصنف مشروع <strong>{data.projectInfo.projectName}</strong> كنشاط <strong>{data.projectInfo.activityType}</strong>. 
@@ -60,9 +71,9 @@ export default function Report() {
               className="w-full flex items-center justify-between p-5 bg-gray-50 hover:bg-gray-100 transition-colors"
             >
               <h3 className="text-lg font-bold text-gray-900">النتائج المالية والمؤشرات</h3>
-              {openSections.financial ? <ChevronUp className="text-gray-500" /> : <ChevronDown className="text-gray-500" />}
+              {sections.financial ? <ChevronUp className="text-gray-500" /> : <ChevronDown className="text-gray-500" />}
             </button>
-            {openSections.financial && (
+            {sections.financial && (
               <div className="p-5 bg-white border-t border-gray-100">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-4 rounded-lg bg-gray-50">
@@ -93,9 +104,9 @@ export default function Report() {
               className="w-full flex items-center justify-between p-5 bg-gray-50 hover:bg-gray-100 transition-colors"
             >
               <h3 className="text-lg font-bold text-gray-900">التوصيات</h3>
-              {openSections.recommendations ? <ChevronUp className="text-gray-500" /> : <ChevronDown className="text-gray-500" />}
+              {sections.recommendations ? <ChevronUp className="text-gray-500" /> : <ChevronDown className="text-gray-500" />}
             </button>
-            {openSections.recommendations && (
+            {sections.recommendations && (
               <div className="p-5 bg-white border-t border-gray-100">
                 <ul className="space-y-4">
                   <li className="flex items-start gap-3">
