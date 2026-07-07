@@ -87,7 +87,7 @@ export default function Contact() {
   return (
     <PublicLayout>
       {/* Header Section */}
-      <section className="bg-slate-50 border-b border-slate-200 py-16">
+      <section className="bg-slate-50 border-b border-slate-200 py-16 animate-fade-in-up">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center flex flex-col items-center gap-4">
           <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">تواصل معنا</h1>
           <p className="text-lg text-slate-600 max-w-2xl leading-relaxed">
@@ -101,7 +101,7 @@ export default function Contact() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             {/* Contact Info */}
-            <div className="flex flex-col gap-8 text-right">
+            <div className="flex flex-col gap-8 text-right animate-fade-in-up" style={{ animationDelay: '100ms' }}>
               <div className="flex flex-col gap-3">
                 <h2 className="text-2xl font-bold text-slate-900">معلومات الاتصال المباشرة</h2>
                 <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
@@ -143,8 +143,8 @@ export default function Contact() {
             </div>
 
             {/* Contact Form */}
-            <div>
-              <Card>
+            <div className="animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+              <Card className="hover:shadow-xl transition-shadow duration-300">
                 <CardContent className="p-8">
                   {submitted ? (
                     <div className="flex flex-col items-center justify-center text-center gap-4 py-8 animate-fade-in">
@@ -211,7 +211,7 @@ export default function Contact() {
                         )}
                       </div>
 
-                      <Button type="submit" variant="primary" className="py-3 font-bold flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#128C7E] text-white border-none">
+                      <Button type="submit" variant="primary" className="py-3 font-bold flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#128C7E] text-white border-none shadow-lg shadow-[#25D366]/40 hover:shadow-xl hover:shadow-[#25D366]/50 transition-all duration-300 hover:-translate-y-1 active:scale-95">
                         <MessageCircle className="w-5 h-5" />
                         إرسال عبر واتساب
                       </Button>
