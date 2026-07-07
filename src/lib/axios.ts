@@ -6,7 +6,12 @@ import * as authService from '../services/auth.service';
 
 // API URL – falls back to production if NEXT_PUBLIC_API_BASE_URL is not set
 const PRODUCTION_API_URL = 'https://feasibility-study.onrender.com/api';
-const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || PRODUCTION_API_URL;
+let baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || PRODUCTION_API_URL;
+
+// Fix for incorrect Vercel environment variable pointing to the frontend URL
+if (baseURL.includes('vercel.app') && !baseURL.includes('/api')) {
+  baseURL = PRODUCTION_API_URL;
+}
 
 // Create Axios instance – withCredentials enables sending httpOnly refresh‑token cookie
 const api: AxiosInstance = axios.create({
