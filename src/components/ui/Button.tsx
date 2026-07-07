@@ -1,5 +1,6 @@
 import React from "react"
 import clsx from "clsx"
+import { twMerge } from "tailwind-merge"
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "outline"
 
@@ -31,7 +32,7 @@ export const Button: React.FC<ButtonProps> = ({
 
   return (
     <button
-      className={clsx(baseClasses, variantClasses[variant], className)}
+      className={twMerge(clsx(baseClasses, variantClasses[variant], className))}
       {...props}
     >
       {children}
