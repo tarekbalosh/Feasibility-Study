@@ -56,7 +56,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
                 تسجيل الدخول
               </Link>
               <Link
-                href="/auth/register"
+                href="/tool/FeasibilityTool"
                 className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm transition-all duration-150"
               >
                 ابدأ مجاناً
@@ -99,7 +99,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
                 تسجيل الدخول
               </Link>
               <Link
-                href="/auth/register"
+                href="/tool/FeasibilityTool"
                 onClick={() => setIsOpen(false)}
                 className="block text-center bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2.5 rounded-md text-base font-semibold"
               >
