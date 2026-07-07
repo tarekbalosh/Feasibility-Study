@@ -149,7 +149,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
             <div>
               <h3 className="text-sm font-semibold text-white tracking-wider uppercase mb-4">تواصل معنا</h3>
               <p className="text-sm text-slate-400">الدعم الفني: support@feasibilitysuite.com</p>
-              <p className="text-sm text-slate-400 mt-2">الرياض، المملكة العربية السعودية</p>
+              <p className="text-sm text-slate-400 mt-2">Taman Putra Sulaiman, Selangor, 68000 Ampang.</p>
             </div>
           </div>
           <div className="mt-8 border-t border-slate-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs">

@@ -63,7 +63,7 @@ export default function Contact() {
     if (validate()) {
       const text = `*الاسم:* ${formData.name}\n*البريد الإلكتروني:* ${formData.email}\n*الموضوع:* ${formData.subject}\n*الرسالة:*\n${formData.message}`
       const encodedText = encodeURIComponent(text)
-      window.open(`https://wa.me/601169397149?text=${encodedText}`, '_blank')
+      window.open(`https://wa.me/601111111104?text=${encodedText}`, '_blank')
       
       setSubmitted(true)
       setFormData({
@@ -126,7 +126,7 @@ export default function Contact() {
                   </div>
                   <div>
                     <h4 className="text-sm font-bold text-slate-900">رقم الهاتف الرسمي</h4>
-                    <span className="text-sm text-slate-600" dir="ltr">+966 11 000 0000</span>
+                    <span className="text-sm text-slate-600" dir="ltr">+601111111104</span>
                   </div>
                 </div>
 
@@ -136,7 +136,7 @@ export default function Contact() {
                   </div>
                   <div>
                     <h4 className="text-sm font-bold text-slate-900">المقر الرئيسي للشركة</h4>
-                    <span className="text-sm text-slate-600">طريق الملك فهد، الرياض، المملكة العربية السعودية</span>
+                    <span className="text-sm text-slate-600">Taman Putra Sulaiman, Selangor, 68000 Ampang.</span>
                   </div>
                 </div>
               </div>
