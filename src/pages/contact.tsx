@@ -3,7 +3,7 @@ import { PublicLayout } from "@/layouts/PublicLayout"
 import { Button } from "@/components/ui/Button"
 import { Card, CardContent } from "@/components/ui/Card"
 import { Input } from "@/components/ui/Input"
-import { Mail, Phone, MapPin, CheckCircle2 } from "lucide-react"
+import { Mail, Phone, MapPin, CheckCircle2, MessageCircle } from "lucide-react"
 
 interface ContactFormState {
   name: string
@@ -61,7 +61,10 @@ export default function Contact() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (validate()) {
-      // Simulate API submit
+      const text = `*الاسم:* ${formData.name}\n*البريد الإلكتروني:* ${formData.email}\n*الموضوع:* ${formData.subject}\n*الرسالة:*\n${formData.message}`
+      const encodedText = encodeURIComponent(text)
+      window.open(`https://wa.me/601169397149?text=${encodedText}`, '_blank')
+      
       setSubmitted(true)
       setFormData({
         name: "",
@@ -208,8 +211,9 @@ export default function Contact() {
                         )}
                       </div>
 
-                      <Button type="submit" variant="primary" className="py-3 font-bold">
-                        إرسال الرسالة
+                      <Button type="submit" variant="primary" className="py-3 font-bold flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#128C7E] text-white border-none">
+                        <MessageCircle className="w-5 h-5" />
+                        إرسال عبر واتساب
                       </Button>
                     </form>
                   )}
