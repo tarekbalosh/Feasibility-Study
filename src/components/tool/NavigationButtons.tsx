@@ -8,6 +8,9 @@ export interface NavigationButtonsProps {
   onPrev: () => void;
   isAnalyzing?: boolean;
   showPrev?: boolean;
+  nextLabel?: string;
+  disableNext?: boolean;
+  hideButtons?: boolean;
 }
 
 export const NavigationButtons: React.FC<NavigationButtonsProps> = ({
@@ -17,12 +20,15 @@ export const NavigationButtons: React.FC<NavigationButtonsProps> = ({
   onPrev,
   isAnalyzing = false,
   showPrev = true,
+  nextLabel,
+  disableNext = false,
+  hideButtons = false,
 }) => {
-  if (currentStep === totalSteps) return null; // No navigation on the last step (Export)
+  if (currentStep === totalSteps || hideButtons) return null;
 
   return (
     <div className="flex items-center justify-between mt-10 pt-6 border-t border-gray-100" dir="rtl">
-      {showPrev && (
+      {showPrev ? (
         <button
           type="button"
           onClick={onPrev}
@@ -32,12 +38,12 @@ export const NavigationButtons: React.FC<NavigationButtonsProps> = ({
           <ArrowRight size={20} />
           السابق
         </button>
-      )}
+      ) : <div />}
       <button
         type="button"
         onClick={onNext}
-        disabled={isAnalyzing}
-        className="flex items-center gap-2 px-8 py-2.5 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed transition-colors shadow-sm shadow-blue-200"
+        disabled={isAnalyzing || disableNext}
+        className="flex items-center gap-2 px-8 py-2.5 rounded-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-70 disabled:cursor-not-allowed transition-colors shadow-sm shadow-indigo-200"
       >
         {isAnalyzing ? (
           <>
@@ -46,7 +52,7 @@ export const NavigationButtons: React.FC<NavigationButtonsProps> = ({
           </>
         ) : (
           <>
-            {currentStep === 2 ? 'تحليل البيانات' : 'التالي'}
+            {nextLabel || 'التالي'}
             <ArrowLeft size={20} />
           </>
         )}

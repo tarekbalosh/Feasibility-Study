@@ -359,7 +359,7 @@ export default function Projects() {
       const capital = Number(unsavedData?.financialData?.initialCapital);
       
       const payload = {
-        name: unsavedData?.projectInfo?.projectName || 'مشروع جديد',
+        name: unsavedData?.projectInfo?.projectName || unsavedData?.projectDetails?.projectName || 'مشروع جديد',
         industry: unsavedData?.projectInfo?.activityType || 'آخر',
         location: 'غير محدد',
         targetCapital: capital > 0 ? capital : 1000,
@@ -486,7 +486,7 @@ export default function Projects() {
                 key="unsaved-draft-project"
                 project={{
                   id: 'draft',
-                  name: unsavedData?.projectInfo?.projectName || 'مشروع غير مسمى',
+                  name: unsavedData?.projectInfo?.projectName || unsavedData?.projectDetails?.projectName || 'مشروع غير مسمى',
                   industry: unsavedData?.projectInfo?.activityType || 'غير محدد',
                   targetCapital: unsavedData?.financialData?.initialCapital || 0,
                   createdAt: Date.now(),

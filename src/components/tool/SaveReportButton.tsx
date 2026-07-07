@@ -24,7 +24,7 @@ const LoginPromptModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
           إلغاء
         </button>
         <a
-          href="/auth/login"
+          href="/auth/login?returnTo=/tool"
           className="px-4 py-2 bg-blue-600 text-white rounded"
         >
           تسجيل الدخول

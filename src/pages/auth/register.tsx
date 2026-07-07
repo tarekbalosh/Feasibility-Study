@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import Head from "next/head"
 import Link from "next/link"
+import { useRouter } from "next/router"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2, Eye, EyeOff, UserPlus, CheckCircle2 } from "lucide-react"
@@ -43,7 +44,8 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterFormData) => {
     setApiError(null)
     try {
-      await registerUser(data.fullName, data.email, data.password)
+      const returnTo = router.query.returnTo as string | undefined
+      await registerUser(data.fullName, data.email, data.password, returnTo)
     } catch (err: any) {
       setApiError(
         err.response?.data?.error?.message ||
@@ -52,6 +54,10 @@ export default function RegisterPage() {
       )
     }
   }
+
+  const router = useRouter()
+  const returnTo = router.query.returnTo as string | undefined
+  const loginHref = returnTo ? `/auth/login?returnTo=${encodeURIComponent(returnTo)}` : '/auth/login'
 
   return (
     <>
@@ -180,7 +186,7 @@ export default function RegisterPage() {
           <p className="text-center text-sm text-slate-500 mt-4">
             لديك حساب بالفعل؟{" "}
             <Link
-              href="/auth/login"
+              href={loginHref}
               className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors"
             >
               تسجيل الدخول

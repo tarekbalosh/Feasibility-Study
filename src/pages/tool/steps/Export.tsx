@@ -1,18 +1,12 @@
 import React, { useState } from 'react';
 import { useFeasibilityTool } from '@/hooks/useFeasibilityTool';
-import { Download, Save, CheckCircle2, Loader2 } from 'lucide-react';
+import { Download, Save, CheckCircle2 } from 'lucide-react';
 import { useRouter } from 'next/router';
-import { useAuth } from '@/context/AuthContext';
-import axios from '@/lib/axios';
-import { toast } from 'react-hot-toast';
 import Report from './Report';
 
 export default function Export() {
-  const { prevStep, form, projectId } = useFeasibilityTool();
-  const [isSaved, setIsSaved] = useState(false);
+  const { prevStep, clearDraft } = useFeasibilityTool();
   const [isDownloading, setIsDownloading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const { isAuthenticated } = useAuth();
   const router = useRouter();
 
   const handleDownloadPdf = () => {
@@ -24,61 +18,9 @@ export default function Export() {
     }, 500);
   };
 
-  const handleSaveToAccount = async () => {
-    if (!isAuthenticated) {
-      toast.error('يرجى تسجيل الدخول أولاً لحفظ دراسة الجدوى في حسابك.');
-      router.push('/auth/login');
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      const data = form.getValues();
-      
-      const desc = data?.projectInfo?.description || '';
-      const validDesc = desc.length >= 10 ? desc : (desc + ' (تم إنشاء هذا المشروع من خلال الأداة).');
-      const capital = Number(data?.financialData?.initialCapital);
-
-      const payload = {
-        name: data?.projectInfo?.projectName || 'مشروع جديد',
-        industry: data?.projectInfo?.activityType || 'آخر',
-        location: 'غير محدد',
-        targetCapital: capital > 0 ? capital : 1000,
-        durationYears: 3,
-        description: validDesc,
-        financialInputs: {
-          monthlyOperatingCosts: Number(data?.financialData?.monthlyOperatingCosts) || 0,
-          expectedMonthlyRevenue: Number(data?.financialData?.expectedMonthlyRevenue) || 0
-        }
-      };
-
-      if (projectId) {
-        await axios.put('/projects/' + projectId, payload);
-        toast.success('تم تحديث دراسة الجدوى بنجاح في حسابك!');
-      } else {
-        await axios.post('/projects', payload);
-        toast.success('تم حفظ دراسة الجدوى بنجاح في حسابك!');
-      }
-      
-      setIsSaved(true);
-      sessionStorage.removeItem('feasibilityToolData');
-      sessionStorage.removeItem('feasibilityToolStep');
-      
-      // Navigate to Dashboard Projects page after a short delay
-      setTimeout(() => {
-        router.push('/dashboard/Projects');
-      }, 1000);
-      
-    } catch (error: any) {
-      console.error('Error saving project:', error);
-      toast.error(
-        error.response?.data?.message || 
-        error.response?.data?.error?.message || 
-        'حدث خطأ أثناء حفظ دراسة الجدوى. حاول مرة أخرى.'
-      );
-    } finally {
-      setIsSaving(false);
-    }
+  const handleReturnToDashboard = () => {
+    clearDraft(false); // Ensure draft is cleared just in case
+    router.push('/dashboard/Projects');
   };
 
   return (
@@ -92,7 +34,7 @@ export default function Export() {
           
           <h2 className="text-3xl font-bold text-gray-900 mb-4">اكتملت دراسة الجدوى المبدئية بنجاح!</h2>
           <p className="text-gray-500 max-w-lg mx-auto mb-10 text-lg">
-            لقد قمنا بإعداد تقرير مبدئي لمشروعك. يمكنك الآن تحميل التقرير أو حفظه في حسابك للعودة إليه لاحقاً.
+            لقد قمنا بإعداد تقرير مبدئي لمشروعك وتم حفظه في حسابك بنجاح. يمكنك الآن تحميل التقرير أو العودة للوحة التحكم.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -106,22 +48,11 @@ export default function Export() {
             </button>
 
             <button
-              onClick={handleSaveToAccount}
-              disabled={isSaved || isSaving}
-              className={`flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold transition-colors shadow-sm ${
-                isSaved 
-                  ? 'bg-green-50 text-green-700 border border-green-200' 
-                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-              } disabled:opacity-70`}
+              onClick={handleReturnToDashboard}
+              className="flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold transition-colors shadow-sm bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
             >
-              {isSaving ? (
-                <Loader2 size={20} className="animate-spin" />
-              ) : isSaved ? (
-                <CheckCircle2 size={20} />
-              ) : (
-                <Save size={20} />
-              )}
-              {isSaving ? 'جاري الحفظ...' : isSaved ? 'تم الحفظ بنجاح' : 'حفظ في حسابي'}
+              <Save size={20} />
+              العودة للوحة التحكم
             </button>
           </div>
 

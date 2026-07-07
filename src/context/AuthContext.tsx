@@ -20,8 +20,8 @@ interface AuthState {
 }
 
 interface AuthContextType extends AuthState {
-  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>
-  register: (fullName: string, email: string, password: string) => Promise<void>
+  login: (email: string, password: string, rememberMe?: boolean, redirectUrl?: string) => Promise<void>
+  register: (fullName: string, email: string, password: string, redirectUrl?: string) => Promise<void>
   logout: () => void
   forgotPassword: (email: string) => Promise<void>
   resetPassword: (token: string, password: string) => Promise<void>
@@ -40,31 +40,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading: true,
   })
 
-  // تحميل بيانات المستخدم من localStorage عند التهيئة
+  // تحميل بيانات المستخدم من localStorage عند التهيئة ومزامنة التبويبات
   useEffect(() => {
-    try {
-      const storedToken = localStorage.getItem("accessToken")
-      const storedUser = localStorage.getItem("user")
-      if (storedToken && storedUser) {
+    const loadAuthFromStorage = () => {
+      try {
+        const storedToken = localStorage.getItem("accessToken")
+        const storedUser = localStorage.getItem("user")
+        if (storedToken && storedUser) {
+          setState({
+            user: JSON.parse(storedUser),
+            token: storedToken,
+            isAuthenticated: true,
+            isLoading: false,
+          })
+        } else {
+          setState({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            isLoading: false,
+          })
+        }
+      } catch {
+        localStorage.removeItem("accessToken")
+        localStorage.removeItem("user")
         setState({
-          user: JSON.parse(storedUser),
-          token: storedToken,
-          isAuthenticated: true,
+          user: null,
+          token: null,
+          isAuthenticated: false,
           isLoading: false,
         })
-      } else {
-        setState((prev) => ({ ...prev, isLoading: false }))
       }
-    } catch {
-      localStorage.removeItem("accessToken")
-      localStorage.removeItem("user")
-      setState((prev) => ({ ...prev, isLoading: false }))
     }
+
+    // Load initially
+    loadAuthFromStorage()
+
+    // Sync across tabs
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'accessToken' || e.key === 'user') {
+        loadAuthFromStorage()
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
   // ——— تسجيل الدخول ———
   const login = useCallback(
-    async (email: string, password: string, rememberMe?: boolean) => {
+    async (email: string, password: string, rememberMe?: boolean, redirectUrl?: string) => {
       const { data: res } = await apiClient.post("/auth/login", { email, password })
       const { token, data: user } = res
 
@@ -78,14 +103,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading: false,
       })
 
-      router.push("/dashboard")
+      if (redirectUrl) {
+        router.push(redirectUrl)
+      } else {
+        router.push("/dashboard")
+      }
     },
     [router]
   )
 
   // ——— إنشاء حساب ———
   const register = useCallback(
-    async (fullName: string, email: string, password: string) => {
+    async (fullName: string, email: string, password: string, redirectUrl?: string) => {
       const { data: res } = await apiClient.post("/auth/register", {
         name: fullName,
         email,
@@ -103,7 +132,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading: false,
       })
 
-      router.push("/dashboard")
+      if (redirectUrl) {
+        router.push(redirectUrl)
+      } else {
+        router.push("/dashboard")
+      }
     },
     [router]
   )

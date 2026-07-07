@@ -4,10 +4,9 @@ import { toast } from 'react-hot-toast'; // adjust if using a different toast li
 import { mapError } from '../utils/errorMessages';
 import * as authService from '../services/auth.service';
 
-// Production API URL (Render backend). Local dev uses .env.local override.
+// API URL – falls back to production if NEXT_PUBLIC_API_BASE_URL is not set
 const PRODUCTION_API_URL = 'https://feasibility-study.onrender.com/api';
-const envURL = process.env.NEXT_PUBLIC_API_BASE_URL;
-const baseURL = envURL && envURL.includes('localhost') ? envURL : PRODUCTION_API_URL;
+const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || PRODUCTION_API_URL;
 
 // Create Axios instance – withCredentials enables sending httpOnly refresh‑token cookie
 const api: AxiosInstance = axios.create({

@@ -25,7 +25,7 @@ export default function Home() {
                 منصة رقمية ذكية تمكن رواد الأعمال وأصحاب المشاريع من إعداد خطط عمل ودراسات مالية تفصيلية متوافقة مع متطلبات البنوك وجهات التمويل خلال دقائق معدودة.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-                <Link href="/auth/register" passHref>
+                <Link href="/tool/FeasibilityTool" passHref>
                   <Button variant="primary" className="w-full sm:w-auto text-base px-8 py-3">
                     ابدأ دراستك مجاناً
                   </Button>
@@ -126,7 +126,7 @@ export default function Home() {
           <p className="text-indigo-200 max-w-xl text-base leading-relaxed">
             اشترك الآن واصنع دراسة الجدوى الأولى الخاصة بك بالكامل مجاناً وخلال دقائق معدودة بمساعدة خبيرنا الذكي.
           </p>
-          <Link href="/auth/register" passHref>
+          <Link href="/tool/FeasibilityTool" passHref>
             <Button variant="secondary" className="px-8 py-3 text-base font-bold shadow-lg shadow-emerald-950/20">
               ابدأ الآن مجاناً
             </Button>

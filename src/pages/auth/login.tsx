@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import Head from "next/head"
 import Link from "next/link"
+import { useRouter } from "next/router"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2, Eye, EyeOff, LogIn } from "lucide-react"
@@ -31,7 +32,8 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     setApiError(null)
     try {
-      await login(data.email, data.password, data.rememberMe)
+      const returnTo = router.query.returnTo as string | undefined
+      await login(data.email, data.password, data.rememberMe, returnTo)
     } catch (err: any) {
       const status = err.response?.status
       const serverMessage =
@@ -47,6 +49,10 @@ export default function LoginPage() {
       }
     }
   }
+
+  const router = useRouter()
+  const returnTo = router.query.returnTo as string | undefined
+  const registerHref = returnTo ? `/auth/register?returnTo=${encodeURIComponent(returnTo)}` : '/auth/register'
 
   return (
     <>
@@ -144,7 +150,7 @@ export default function LoginPage() {
           <p className="text-center text-sm text-slate-500 mt-4">
             ليس لديك حساب؟{" "}
             <Link
-              href="/auth/register"
+              href={registerHref}
               className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors"
             >
               إنشاء حساب مجاني
