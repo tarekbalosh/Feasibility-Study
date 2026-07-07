@@ -331,7 +331,7 @@ export const FeasibilityProvider = ({ children }: { children: ReactNode }) => {
       const g3Valid = await form.trigger('salesData.growthRateYear3');
       const isFieldsValid = avgValid && g2Valid && g3Valid;
       const sales = form.getValues('salesData');
-      const hasSales = (sales?.firstYearAverage || 0) > 0 || (sales?.monthlyGrid && sales.monthlyGrid.some(v => v > 0));
+      const hasSales = (sales?.firstYearAverage || 0) > 0 || !!(sales?.monthlyGrid && sales.monthlyGrid.some(v => v > 0));
       isValid = isFieldsValid && hasSales;
       if (!hasSales && isFieldsValid) {
         form.setError('salesData.firstYearAverage', { message: 'أدخل متوسطاً تقريبياً — من دونه لا مبيعات نبني عليها الدراسة.' });

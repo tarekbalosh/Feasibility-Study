@@ -1,7 +1,7 @@
 import React from "react"
 import clsx from "clsx"
 
-type ButtonVariant = "primary" | "secondary" | "ghost"
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "outline"
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant
@@ -25,6 +25,8 @@ export const Button: React.FC<ButtonProps> = ({
       "bg-secondary hover:bg-secondary-dark text-white focus:ring-secondary shadow-sm",
     ghost:
       "bg-transparent hover:bg-slate-100 text-slate-700 hover:text-slate-900 focus:ring-slate-400",
+    outline:
+      "bg-transparent border border-current hover:bg-slate-50 focus:ring-slate-400",
   }
 
   return (
