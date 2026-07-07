@@ -3,6 +3,8 @@ import { useFeasibilityTool } from '@/hooks/useFeasibilityTool';
 import { useFieldArray } from 'react-hook-form';
 import { Plus, Trash2, AlertCircle } from 'lucide-react';
 
+export const getServerSideProps = async () => ({ props: {} });
+
 export default function ItemsAndCosts() {
   const { form } = useFeasibilityTool();
   const { control, register, watch } = form;

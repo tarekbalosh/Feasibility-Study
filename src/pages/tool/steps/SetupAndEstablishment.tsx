@@ -6,6 +6,8 @@ import { Plus, Trash2, AlertCircle } from 'lucide-react';
 const defaultEquipments = ['تجهيزات المطبخ والمعدات', 'الأثاث والديكور الثابت', 'أجهزة الكاشير والشاشات', 'مركبة توصيل'];
 const defaultExpenses = ['التراخيص والتصاريح', 'تصميم الهوية واللافتة', 'دفعة الإيجار المقدّمة', 'حملة الافتتاح'];
 
+export const getServerSideProps = async () => ({ props: {} });
+
 export default function SetupAndEstablishment() {
   const { form } = useFeasibilityTool();
   const { control, register, watch } = form;

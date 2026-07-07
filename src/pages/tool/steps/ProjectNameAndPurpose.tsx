@@ -8,6 +8,8 @@ const purposes = [
   'أُعدّها لعميل'
 ];
 
+export const getServerSideProps = async () => ({ props: {} });
+
 export default function ProjectNameAndPurpose() {
   const { form } = useFeasibilityTool();
   const { register, watch, formState: { errors } } = form;

@@ -4,6 +4,8 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 
 const months = ['الشهر 1', 'الشهر 2', 'الشهر 3', 'الشهر 4', 'الشهر 5', 'الشهر 6', 'الشهر 7', 'الشهر 8', 'الشهر 9', 'الشهر 10', 'الشهر 11', 'الشهر 12'];
 
+export const getServerSideProps = async () => ({ props: {} });
+
 export default function ExpectedSales() {
   const { form, projectDetails } = useFeasibilityTool();
   const { register, watch, setValue, formState: { errors } } = form;

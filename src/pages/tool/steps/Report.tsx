@@ -6,6 +6,8 @@ interface ReportProps {
   forPrint?: boolean;
 }
 
+export const getServerSideProps = async () => ({ props: {} });
+
 export default function Report({ forPrint = false }: ReportProps) {
   const { form, analysisResult } = useFeasibilityTool();
   const data = form.getValues();

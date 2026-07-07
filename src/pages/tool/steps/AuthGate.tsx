@@ -7,6 +7,8 @@ import apiClient from '@/lib/axios';
 import { Loader2, LogIn, UserPlus, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
+export const getServerSideProps = async () => ({ props: {} });
+
 export default function AuthGate() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { form, projectId, setProjectId, nextStep, clearDraft } = useFeasibilityTool();

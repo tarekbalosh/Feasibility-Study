@@ -3,6 +3,8 @@ import { useFeasibilityTool } from '@/hooks/useFeasibilityTool';
 
 const currencies = ['ر.ع', 'د.إ', 'ر.س', 'د.ك', '$'];
 
+export const getServerSideProps = async () => ({ props: {} });
+
 export default function InitialInvestment() {
   const { form } = useFeasibilityTool();
   const { register, watch, setValue, formState: { errors } } = form;

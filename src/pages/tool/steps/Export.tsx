@@ -4,6 +4,8 @@ import { Download, Save, CheckCircle2 } from 'lucide-react';
 import { useRouter } from 'next/router';
 import Report from './Report';
 
+export const getServerSideProps = async () => ({ props: {} });
+
 export default function Export() {
   const { prevStep, clearDraft } = useFeasibilityTool();
   const [isDownloading, setIsDownloading] = useState(false);

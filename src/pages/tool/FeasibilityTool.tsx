@@ -117,6 +117,8 @@ const WizardContent = () => {
   );
 };
 
+export const getServerSideProps = async () => ({ props: {} });
+
 export default function FeasibilityToolPage() {
   return (
     <FeasibilityProvider>

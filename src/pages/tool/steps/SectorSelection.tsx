@@ -11,6 +11,8 @@ const sectors = [
   { id: 'مجال آخر', label: 'مجال آخر', icon: PlusCircle },
 ];
 
+export const getServerSideProps = async () => ({ props: {} });
+
 export default function SectorSelection() {
   const { form, nextStep } = useFeasibilityTool();
   const { setValue, watch } = form;

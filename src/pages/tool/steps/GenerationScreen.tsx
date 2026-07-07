@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useFeasibilityTool } from '@/hooks/useFeasibilityTool';
 import { Loader2 } from 'lucide-react';
 
+export const getServerSideProps = async () => ({ props: {} });
+
 export default function GenerationScreen() {
   const { form, nextStep } = useFeasibilityTool();
   const projectName = form.watch('projectDetails.projectName') || 'مشروعك';

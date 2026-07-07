@@ -1,6 +1,8 @@
 import React from 'react';
 import { useFeasibilityTool } from '@/hooks/useFeasibilityTool';
 
+export const getServerSideProps = async () => ({ props: {} });
+
 export default function CommissionAndTax() {
   const { form } = useFeasibilityTool();
   const { register, formState: { errors } } = form;

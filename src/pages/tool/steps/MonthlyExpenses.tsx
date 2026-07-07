@@ -5,6 +5,8 @@ import { Plus, Trash2, AlertCircle } from 'lucide-react';
 
 const defaultExpensesList = ['الرواتب الشهرية', 'الإيجار الشهري', 'الكهرباء والماء', 'الإعلان والتسويق', 'الإنترنت والاشتراكات', 'الصيانة والنظافة'];
 
+export const getServerSideProps = async () => ({ props: {} });
+
 export default function MonthlyExpenses() {
   const { form, projectDetails } = useFeasibilityTool();
   const { control, register, watch } = form;
