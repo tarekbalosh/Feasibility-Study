@@ -20,10 +20,17 @@ import Analysis from './steps/Analysis';
 import AuthGate from './steps/AuthGate';
 import Report from './steps/Report';
 import Export from './steps/Export';
-
+import GuestAuthOverlay from './steps/GuestAuthOverlay';
 const WizardContent = () => {
   const { currentStep, totalSteps, nextStep, prevStep, isAnalyzing, form } = useFeasibilityTool();
   const { isAuthenticated } = useAuth();
+  const [showAuthOverlay, setShowAuthOverlay] = React.useState(false);
+
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      setShowAuthOverlay(false);
+    }
+  }, [isAuthenticated]);
   
   const partners = form.watch('partnersData') || [];
   const totalPercentage = partners.reduce((sum, p) => sum + (Number(p.percentage) || 0), 0);
@@ -77,7 +84,11 @@ const WizardContent = () => {
 
         if (!hideButtons && !disableNext) {
           e.preventDefault();
-          nextStep();
+          if ((currentStep === 11 || currentStep === 13) && !isAuthenticated) {
+            setShowAuthOverlay(true);
+          } else {
+            nextStep();
+          }
         }
       }
     };
@@ -125,7 +136,13 @@ const WizardContent = () => {
             <NavigationButtons
               currentStep={currentStep}
               totalSteps={totalSteps}
-              onNext={nextStep}
+              onNext={() => {
+                if ((currentStep === 11 || currentStep === 13) && !isAuthenticated) {
+                  setShowAuthOverlay(true);
+                } else {
+                  nextStep();
+                }
+              }}
               onPrev={prevStep}
               isAnalyzing={isAnalyzing}
               nextLabel={nextLabel}
@@ -135,6 +152,9 @@ const WizardContent = () => {
           </div>
         </div>
       </div>
+      {showAuthOverlay && (
+        <GuestAuthOverlay onClose={() => setShowAuthOverlay(false)} />
+      )}
     </div>
   );
 };

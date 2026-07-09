@@ -7,7 +7,7 @@ export const getServerSideProps = async () => ({ props: {} });
 
 export default function PartnersAndShares() {
   const { form } = useFeasibilityTool();
-  const { control, register, watch, formState: { errors } } = form;
+  const { control, register, watch, formState: { errors }, setValue, getValues } = form;
   
   const projectName = watch('projectDetails.projectName') || 'مشروعك';
   const investmentAmount = watch('investmentData.amount') || 0;
@@ -23,9 +23,14 @@ export default function PartnersAndShares() {
 
   useEffect(() => {
     if (fields.length === 0) {
-      append({ name: 'أنا', percentage: 100 });
+      append({ name: 'أنا (صاحب المشروع)', percentage: 100 });
+    } else {
+      const currentPartners = getValues('partnersData');
+      if (currentPartners && currentPartners.length > 0 && currentPartners[0].name === 'أنا') {
+        setValue('partnersData.0.name', 'أنا (صاحب المشروع)');
+      }
     }
-  }, [fields.length, append]);
+  }, [fields.length, append, getValues, setValue]);
 
   const isTotal100 = totalPercentage === 100;
 
@@ -60,7 +65,38 @@ export default function PartnersAndShares() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">النسبة (%)</label>
                   <div className="relative">
                     <input
-                      {...register(`partnersData.${index}.percentage`, { valueAsNumber: true })}
+                      {...register(`partnersData.${index}.percentage`, { 
+                        valueAsNumber: true,
+                        onChange: (e) => {
+                          const newValue = Number(e.target.value) || 0;
+                          const currentPartners = getValues('partnersData') || [];
+                          
+                          if (index !== 0) {
+                            let sumOthers = 0;
+                            currentPartners.forEach((p: any, i: number) => {
+                              if (i !== 0 && i !== index) sumOthers += (Number(p.percentage) || 0);
+                            });
+                            
+                            let allowedValue = newValue;
+                            if (sumOthers + newValue > 100) {
+                              allowedValue = 100 - sumOthers;
+                              setValue(`partnersData.${index}.percentage`, allowedValue, { shouldValidate: true });
+                            }
+                            
+                            const newOwnerShare = Math.max(0, 100 - sumOthers - allowedValue);
+                            setValue(`partnersData.0.percentage`, newOwnerShare, { shouldValidate: true });
+                          } else {
+                            let sumOthers = 0;
+                            currentPartners.forEach((p: any, i: number) => {
+                              if (i !== 0) sumOthers += (Number(p.percentage) || 0);
+                            });
+                            
+                            if (sumOthers + newValue > 100) {
+                              setValue(`partnersData.0.percentage`, 100 - sumOthers, { shouldValidate: true });
+                            }
+                          }
+                        }
+                      })}
                       type="number"
                       min="0"
                       max="100"

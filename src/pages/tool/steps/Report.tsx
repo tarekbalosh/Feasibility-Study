@@ -36,6 +36,10 @@ export default function Report({ forPrint = false }: ReportProps) {
   const [isLinking, setIsLinking] = useState(false);
 
   useEffect(() => {
+    if (isAuthenticated) {
+      setShowAuthOverlay(false);
+    }
+    
     if (isAuthenticated && !projectId && !isLinking) {
       const linkDraftToAccount = async () => {
         setIsLinking(true);
@@ -91,6 +95,10 @@ export default function Report({ forPrint = false }: ReportProps) {
   const [activeSection, setActiveSection] = useState('cover');
 
   const handlePrint = () => {
+    if (!isAuthenticated) {
+      setShowAuthOverlay(true);
+      return;
+    }
     window.print();
   };
 
