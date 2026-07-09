@@ -3,6 +3,7 @@ import Link from "next/link"
 import { useRouter } from "next/router"
 import { Menu, X, ArrowLeftRight } from "lucide-react"
 import { LoginModal } from "@/components/auth/LoginModal"
+import { useAuth } from "@/context/AuthContext"
 
 interface PublicLayoutProps {
   children: React.ReactNode
@@ -12,6 +13,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
   const router = useRouter()
+  const { isAuthenticated } = useAuth()
 
   const navLinks = [
     { name: "الرئيسية", path: "/" },
@@ -54,17 +56,28 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
 
             {/* Auth Buttons */}
             <div className="hidden md:flex items-center gap-4">
-              <button 
-                onClick={() => setIsLoginModalOpen(true)}
-                className="text-sm font-medium text-slate-600 hover:text-indigo-600 px-3 py-2 cursor-pointer transition-colors duration-150"
-              >
-                تسجيل الدخول
-              </button>
+              {isAuthenticated ? (
+                <>
+                  <Link
+                    href="/dashboard"
+                    className="text-sm font-medium text-indigo-600 hover:text-indigo-700 px-3 py-2 transition-colors duration-150 flex items-center gap-2"
+                  >
+                    لوحة التحكم
+                  </Link>
+                </>
+              ) : (
+                <button 
+                  onClick={() => setIsLoginModalOpen(true)}
+                  className="text-sm font-medium text-slate-600 hover:text-indigo-600 px-3 py-2 cursor-pointer transition-colors duration-150"
+                >
+                  تسجيل الدخول
+                </button>
+              )}
               <Link
                 href="/tool/FeasibilityTool"
                 className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm transition-all duration-150"
               >
-                ابدأ مجاناً
+                {isAuthenticated ? "أكمل مشروعك" : "ابدأ مجاناً"}
               </Link>
             </div>
 
@@ -96,21 +109,31 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
               </Link>
             ))}
             <div className="pt-4 border-t border-slate-100 flex flex-col gap-2">
-              <button
-                onClick={() => {
-                  setIsOpen(false)
-                  setIsLoginModalOpen(true)
-                }}
-                className="block w-full text-center text-slate-600 hover:bg-slate-50 px-3 py-2 rounded-md text-base font-medium transition-colors"
-              >
-                تسجيل الدخول
-              </button>
+              {isAuthenticated ? (
+                <Link
+                  href="/dashboard"
+                  onClick={() => setIsOpen(false)}
+                  className="block text-center text-indigo-600 hover:bg-indigo-50 px-3 py-2 rounded-md text-base font-medium transition-colors"
+                >
+                  لوحة التحكم
+                </Link>
+              ) : (
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
+                    setIsLoginModalOpen(true)
+                  }}
+                  className="block w-full text-center text-slate-600 hover:bg-slate-50 px-3 py-2 rounded-md text-base font-medium transition-colors"
+                >
+                  تسجيل الدخول
+                </button>
+              )}
               <Link
                 href="/tool/FeasibilityTool"
                 onClick={() => setIsOpen(false)}
                 className="block text-center bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2.5 rounded-md text-base font-semibold"
               >
-                ابدأ مجاناً
+                {isAuthenticated ? "أكمل مشروعك" : "ابدأ مجاناً"}
               </Link>
             </div>
           </div>
