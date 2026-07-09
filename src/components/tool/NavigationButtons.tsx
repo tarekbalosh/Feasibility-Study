@@ -27,15 +27,15 @@ export const NavigationButtons: React.FC<NavigationButtonsProps> = ({
   if (currentStep === totalSteps || hideButtons) return null;
 
   return (
-    <div className="flex items-center justify-between mt-10 pt-6 border-t border-gray-100" dir="rtl">
+    <div className="flex flex-wrap items-center justify-between gap-3 mt-8 sm:mt-10 pt-6 border-t border-gray-100" dir="rtl">
       {showPrev ? (
         <button
           type="button"
           onClick={onPrev}
           disabled={currentStep === 1 || isAnalyzing}
-          className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-lg font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
         >
-          <ArrowRight size={20} />
+          <ArrowRight size={18} />
           السابق
         </button>
       ) : <div />}
@@ -43,17 +43,18 @@ export const NavigationButtons: React.FC<NavigationButtonsProps> = ({
         type="button"
         onClick={onNext}
         disabled={isAnalyzing || disableNext}
-        className="flex items-center gap-2 px-8 py-2.5 rounded-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-70 disabled:cursor-not-allowed transition-colors shadow-sm shadow-indigo-200"
+        className="flex items-center gap-2 px-5 sm:px-8 py-2.5 rounded-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-70 disabled:cursor-not-allowed transition-colors shadow-sm shadow-indigo-200 text-sm sm:text-base"
       >
         {isAnalyzing ? (
           <>
-            <Loader2 className="animate-spin" size={20} />
-            جاري التحليل...
+            <Loader2 className="animate-spin" size={18} />
+            <span className="hidden xs:inline">جاري التحليل...</span>
+            <span className="xs:hidden">تحليل...</span>
           </>
         ) : (
           <>
-            {nextLabel || 'التالي'}
-            <ArrowLeft size={20} />
+            <span className="truncate max-w-[180px] sm:max-w-none">{nextLabel || 'التالي'}</span>
+            <ArrowLeft size={18} />
           </>
         )}
       </button>

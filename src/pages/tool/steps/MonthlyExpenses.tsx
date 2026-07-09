@@ -42,22 +42,22 @@ export default function MonthlyExpenses() {
       </div>
 
       <div className="space-y-3 mb-8">
-        <div className="flex gap-3 px-2 text-sm font-medium text-gray-500">
+        <div className="flex gap-2 sm:gap-3 px-2 text-xs sm:text-sm font-medium text-gray-500">
           <div className="flex-1">اسم المصروف</div>
-          <div className="w-32 text-center">القيمة الشهرية</div>
-          <div className="w-8"></div>
+          <div className="w-24 sm:w-32 text-center">القيمة الشهرية</div>
+          <div className="w-7 sm:w-8"></div>
         </div>
         
         {/* Auto depreciation row */}
-        <div className="flex gap-3 items-center opacity-80">
-          <div className="flex-1 p-3 bg-gray-100 rounded-lg border border-gray-200 text-gray-600 font-medium flex items-center justify-between">
-            <span>إهلاك التجهيزات والتأسيس</span>
-            <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">يُحتسب آلياً</span>
+        <div className="flex gap-2 sm:gap-3 items-center opacity-80">
+          <div className="flex-1 p-2.5 sm:p-3 text-sm bg-gray-100 rounded-lg border border-gray-200 text-gray-600 font-medium flex items-center justify-between">
+            <span className="truncate pr-1">إهلاك التجهيزات والتأسيس</span>
+            <span className="hidden sm:inline-block text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">يُحتسب آلياً</span>
           </div>
-          <div className="w-32 p-3 bg-gray-100 rounded-lg border border-gray-200 text-center font-bold text-gray-700" dir="ltr">
+          <div className="w-24 sm:w-32 p-2.5 sm:p-3 text-sm bg-gray-100 rounded-lg border border-gray-200 text-center font-bold text-gray-700" dir="ltr">
             {depreciation.toLocaleString()}
           </div>
-          <div className="w-8"></div>
+          <div className="w-7 sm:w-8"></div>
         </div>
         {grandTotalSetup > 0 && (
           <p className="text-xs text-gray-500 mt-1 pr-2 mb-3">حسبناه عنك: مجموع تجهيزاتك وتأسيسك ({grandTotalSetup.toLocaleString()}) موزّعاً على 36 شهراً.</p>
@@ -65,20 +65,20 @@ export default function MonthlyExpenses() {
 
         {/* Dynamic rows */}
         {fields.map((field, index) => (
-          <div key={field.id} className="flex gap-3 items-center">
+          <div key={field.id} className="flex gap-2 sm:gap-3 items-center">
             <input
               {...register(`monthlyExpensesData.expenses.${index}.name`)}
               placeholder="اسم المصروف"
-              className="flex-1 p-3 rounded-lg border border-gray-200 focus:border-indigo-500"
+              className="flex-1 p-2.5 sm:p-3 text-sm rounded-lg border border-gray-200 focus:border-indigo-500"
             />
             <input
               {...register(`monthlyExpensesData.expenses.${index}.value`, { valueAsNumber: true })}
               type="number" min="0" placeholder="0"
-              className="w-32 p-3 text-center rounded-lg border border-gray-200 focus:border-indigo-500 font-medium"
+              className="w-24 sm:w-32 p-2.5 sm:p-3 text-sm text-center rounded-lg border border-gray-200 focus:border-indigo-500 font-medium"
               dir="ltr"
             />
-            <button type="button" onClick={() => remove(index)} className="text-gray-400 hover:text-red-500 p-1">
-              <Trash2 className="w-5 h-5" />
+            <button type="button" onClick={() => remove(index)} className="text-gray-400 hover:text-red-500 px-1 sm:px-1.5 flex-shrink-0">
+              <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         ))}

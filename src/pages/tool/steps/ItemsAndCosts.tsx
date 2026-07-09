@@ -44,11 +44,11 @@ export default function ItemsAndCosts() {
       </div>
 
       <div className="space-y-3 mb-6">
-        <div className="flex gap-3 px-2 text-sm font-medium text-gray-500">
+        <div className="flex gap-2 sm:gap-3 px-2 text-xs sm:text-sm font-medium text-gray-500">
           <div className="flex-1">الصنف</div>
-          <div className="w-28 text-center">تكلفته عليك</div>
-          <div className="w-28 text-center">سعر بيعه</div>
-          <div className="w-8"></div>
+          <div className="w-20 sm:w-28 text-center">تكلفته</div>
+          <div className="w-20 sm:w-28 text-center">سعر البيع</div>
+          <div className="w-7 sm:w-8"></div>
         </div>
         {fields.map((field, index) => {
           const c = Number(items[index]?.cost) || 0;
@@ -57,26 +57,26 @@ export default function ItemsAndCosts() {
           
           return (
             <div key={field.id}>
-              <div className="flex gap-3 items-center">
+              <div className="flex gap-2 sm:gap-3 items-center">
                 <input
                   {...register(`itemsData.items.${index}.name`)}
                   placeholder="اسم الصنف"
-                  className="flex-1 p-3 rounded-lg border border-gray-200 focus:border-indigo-500"
+                  className="flex-1 p-2.5 sm:p-3 text-sm rounded-lg border border-gray-200 focus:border-indigo-500"
                 />
                 <input
                   {...register(`itemsData.items.${index}.cost`, { valueAsNumber: true })}
                   type="number" min="0" placeholder="0"
-                  className="w-28 p-3 text-center rounded-lg border border-gray-200 focus:border-indigo-500"
+                  className="w-20 sm:w-28 p-2.5 sm:p-3 text-sm text-center rounded-lg border border-gray-200 focus:border-indigo-500"
                   dir="ltr"
                 />
                 <input
                   {...register(`itemsData.items.${index}.price`, { valueAsNumber: true })}
                   type="number" min="0" placeholder="0"
-                  className="w-28 p-3 text-center rounded-lg border border-gray-200 focus:border-indigo-500"
+                  className="w-20 sm:w-28 p-2.5 sm:p-3 text-sm text-center rounded-lg border border-gray-200 focus:border-indigo-500"
                   dir="ltr"
                 />
-                <button type="button" onClick={() => remove(index)} className="text-gray-400 hover:text-red-500 p-1">
-                  <Trash2 className="w-5 h-5" />
+                <button type="button" onClick={() => remove(index)} className="text-gray-400 hover:text-red-500 p-1 flex-shrink-0">
+                  <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
               {warning && (

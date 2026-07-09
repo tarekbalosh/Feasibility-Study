@@ -2,6 +2,7 @@ import React, { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/router"
 import { Menu, X, ArrowLeftRight } from "lucide-react"
+import { LoginModal } from "@/components/auth/LoginModal"
 
 interface PublicLayoutProps {
   children: React.ReactNode
@@ -9,6 +10,7 @@ interface PublicLayoutProps {
 
 export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false)
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
   const router = useRouter()
 
   const navLinks = [
@@ -52,9 +54,12 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
 
             {/* Auth Buttons */}
             <div className="hidden md:flex items-center gap-4">
-              <Link href="/auth/login" className="text-sm font-medium text-slate-600 hover:text-indigo-600 px-3 py-2">
+              <button 
+                onClick={() => setIsLoginModalOpen(true)}
+                className="text-sm font-medium text-slate-600 hover:text-indigo-600 px-3 py-2 cursor-pointer transition-colors duration-150"
+              >
                 تسجيل الدخول
-              </Link>
+              </button>
               <Link
                 href="/tool/FeasibilityTool"
                 className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm transition-all duration-150"
@@ -91,13 +96,15 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
               </Link>
             ))}
             <div className="pt-4 border-t border-slate-100 flex flex-col gap-2">
-              <Link
-                href="/auth/login"
-                onClick={() => setIsOpen(false)}
-                className="block text-center text-slate-600 hover:bg-slate-50 px-3 py-2 rounded-md text-base font-medium"
+              <button
+                onClick={() => {
+                  setIsOpen(false)
+                  setIsLoginModalOpen(true)
+                }}
+                className="block w-full text-center text-slate-600 hover:bg-slate-50 px-3 py-2 rounded-md text-base font-medium transition-colors"
               >
                 تسجيل الدخول
-              </Link>
+              </button>
               <Link
                 href="/tool/FeasibilityTool"
                 onClick={() => setIsOpen(false)}
@@ -164,6 +171,8 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
           </div>
         </div>
       </footer>
+
+      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
     </div>
   )
 }

@@ -65,7 +65,7 @@ const WizardContent = () => {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen py-12 px-4 sm:px-6 lg:px-8 font-sans" dir="rtl">
+    <div className="bg-gray-50 min-h-screen py-6 sm:py-12 px-3 sm:px-6 lg:px-8 font-sans" dir="rtl">
       <Head>
         <title>أداة دراسة الجدوى الذكية</title>
         <meta name="description" content="أداة متعددة الخطوات لإنشاء دراسة جدوى مبدئية" />
@@ -73,11 +73,11 @@ const WizardContent = () => {
 
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-10 print:hidden">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">أداة دراسة الجدوى الذكية</h1>
-          <p className="text-gray-500 text-lg">قم بإدخال بيانات مشروعك وسنقوم بتحليلها وتقديم تقرير مبدئي</p>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3">أداة دراسة الجدوى الذكية</h1>
+          <p className="text-gray-500 text-base sm:text-lg">قم بإدخال بيانات مشروعك وسنقوم بتحليلها وتقديم تقرير مبدئي</p>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 md:p-10 print:shadow-none print:border-none print:p-0">
+        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-gray-100 p-4 sm:p-6 md:p-10 print:shadow-none print:border-none print:p-0">
           <div className="print:hidden">
             <StepIndicator />
           </div>

@@ -250,7 +250,7 @@ export default function Reports() {
       )}
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <div className="dashboard-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {[0, 1, 2, 3, 4, 5].map((i) => (
             <SkeletonCard key={i} index={i} />
           ))}
@@ -277,7 +277,7 @@ export default function Reports() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          <div className="dashboard-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {data?.reports?.map((report, index) => (
               <ReportCard
                 key={report.id}

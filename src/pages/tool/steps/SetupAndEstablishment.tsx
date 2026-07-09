@@ -50,20 +50,20 @@ export default function SetupAndEstablishment() {
           </div>
           <div className="space-y-3">
             {equipFields.map((field, index) => (
-              <div key={field.id} className="flex gap-3">
+              <div key={field.id} className="flex gap-2 sm:gap-3">
                 <input
                   {...register(`setupData.equipments.${index}.name`)}
                   placeholder="اسم التجهيز"
-                  className="flex-1 p-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-0"
+                  className="flex-1 p-2.5 sm:p-3 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-0"
                 />
                 <input
                   {...register(`setupData.equipments.${index}.value`, { valueAsNumber: true })}
                   type="number" min="0" placeholder="0"
-                  className="w-32 p-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-0"
+                  className="w-24 sm:w-32 p-2.5 sm:p-3 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-0"
                   dir="ltr"
                 />
-                <button type="button" onClick={() => removeEquip(index)} className="text-gray-400 hover:text-red-500 px-2">
-                  <Trash2 className="w-5 h-5" />
+                <button type="button" onClick={() => removeEquip(index)} className="text-gray-400 hover:text-red-500 px-1 sm:px-2 flex-shrink-0">
+                  <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
             ))}
@@ -82,20 +82,20 @@ export default function SetupAndEstablishment() {
           </div>
           <div className="space-y-3">
             {expFields.map((field, index) => (
-              <div key={field.id} className="flex gap-3">
+              <div key={field.id} className="flex gap-2 sm:gap-3">
                 <input
                   {...register(`setupData.establishmentExpenses.${index}.name`)}
                   placeholder="اسم المصروف"
-                  className="flex-1 p-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-0"
+                  className="flex-1 p-2.5 sm:p-3 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-0"
                 />
                 <input
                   {...register(`setupData.establishmentExpenses.${index}.value`, { valueAsNumber: true })}
                   type="number" min="0" placeholder="0"
-                  className="w-32 p-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-0"
+                  className="w-24 sm:w-32 p-2.5 sm:p-3 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-0"
                   dir="ltr"
                 />
-                <button type="button" onClick={() => removeExp(index)} className="text-gray-400 hover:text-red-500 px-2">
-                  <Trash2 className="w-5 h-5" />
+                <button type="button" onClick={() => removeExp(index)} className="text-gray-400 hover:text-red-500 px-1 sm:px-2 flex-shrink-0">
+                  <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
             ))}
