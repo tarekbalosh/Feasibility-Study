@@ -157,6 +157,7 @@ interface FeasibilityContextType {
   updateProjectInfo: (data: any) => void;
   updateFinancialData: (data: any) => void;
   clearDraft: (resetState?: boolean) => void;
+  recalculateFinancialData: () => void;
 }
 
 const FeasibilityContext = createContext<FeasibilityContextType | undefined>(undefined);
@@ -398,6 +399,46 @@ export const FeasibilityProvider = ({ children }: { children: ReactNode }) => {
     setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
+  /**
+   * Recalculate derived financialData from all form inputs.
+   * Same aggregation logic used in step 9 (MonthlyExpenses → Generation).
+   */
+  const recalculateFinancialData = () => {
+    const data = form.getValues();
+
+    let rev = data.salesData?.firstYearAverage || 0;
+    if (data.salesData?.monthlyGrid && data.salesData.monthlyGrid.some(v => v > 0)) {
+      const sum = data.salesData.monthlyGrid.reduce((a, b) => a + (b || 0), 0);
+      rev = sum / 12;
+    }
+
+    const fixedExpenses = (data.monthlyExpensesData?.expenses || []).reduce((sum, e) => sum + (Number(e.value) || 0), 0);
+
+    const commRate = data.commissionTaxData?.commissionRate || 0;
+    const taxRate = data.commissionTaxData?.taxRate || 0;
+
+    const items = data.itemsData?.items || [];
+    const totalCost = items.reduce((sum, item) => sum + (Number(item.cost) || 0), 0);
+    const totalPrice = items.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+    const costMargin = totalPrice > 0 ? (totalCost / totalPrice) : 0;
+    const suppliesMargin = (data.itemsData?.suppliesPercentage || 0) / 100;
+
+    const cogs = rev * (costMargin + suppliesMargin);
+    const variableCosts = rev * ((commRate + taxRate) / 100);
+
+    const equipTotal = (data.setupData?.equipments || []).reduce((sum, item) => sum + (Number(item.value) || 0), 0);
+    const expTotal = (data.setupData?.establishmentExpenses || []).reduce((sum, item) => sum + (Number(item.value) || 0), 0);
+    const grandTotalSetup = equipTotal + expTotal;
+    const depreciation = Math.round(grandTotalSetup / 36);
+
+    const monthlyOperatingCosts = fixedExpenses + variableCosts + cogs + depreciation;
+    const initialCapital = grandTotalSetup;
+
+    form.setValue('financialData.expectedMonthlyRevenue', Math.round(rev));
+    form.setValue('financialData.monthlyOperatingCosts', Math.round(monthlyOperatingCosts));
+    form.setValue('financialData.initialCapital', Math.round(initialCapital));
+  };
+
   return (
     <FeasibilityContext.Provider
       value={{
@@ -417,6 +458,7 @@ export const FeasibilityProvider = ({ children }: { children: ReactNode }) => {
           updateProjectInfo: (data: any) => form.setValue('projectInfo', data),
           updateFinancialData: (data: any) => form.setValue('financialData', data),
           clearDraft,
+          recalculateFinancialData,
         }}
     >
       {children}
@@ -454,6 +496,7 @@ export const useFeasibilityTool = () => {
       updateProjectInfo: () => {},
       updateFinancialData: () => {},
       clearDraft: () => {},
+      recalculateFinancialData: () => {},
     } as any;
   }
   return context;

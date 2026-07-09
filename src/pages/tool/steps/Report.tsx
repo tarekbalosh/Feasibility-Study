@@ -5,6 +5,7 @@ import apiClient from '@/lib/axios';
 import { computeFinancialReport } from '@/utils/financialCalculations';
 import { FileText, Printer, AlertTriangle } from 'lucide-react';
 import GuestAuthOverlay from './GuestAuthOverlay';
+import ProjectEditDrawer from '@/components/tool/report/ProjectEditDrawer';
 
 // Report sub-components
 import ReportCover from '@/components/tool/report/ReportCover';
@@ -31,6 +32,7 @@ export default function Report({ forPrint = false }: ReportProps) {
   const data = form.getValues();
 
   const [showAuthOverlay, setShowAuthOverlay] = useState(false);
+  const [showEditDrawer, setShowEditDrawer] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
 
   useEffect(() => {
@@ -124,13 +126,21 @@ export default function Report({ forPrint = false }: ReportProps) {
               <p className="text-sm text-gray-500">{report.projectName}</p>
             </div>
           </div>
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl hover:bg-blue-700 transition-colors text-sm font-bold shadow-sm"
-          >
-            <Printer className="w-4 h-4" />
-            طباعة التقرير
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowEditDrawer(true)}
+              className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-2.5 rounded-xl hover:bg-indigo-100 transition-colors text-sm font-bold shadow-sm border border-indigo-100"
+            >
+              تعديل معلومات المشروع
+            </button>
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl hover:bg-blue-700 transition-colors text-sm font-bold shadow-sm"
+            >
+              <Printer className="w-4 h-4" />
+              طباعة التقرير
+            </button>
+          </div>
         </div>
       )}
 
@@ -202,6 +212,12 @@ export default function Report({ forPrint = false }: ReportProps) {
           <InvestorResults report={report} />
         </div>
       </div>
+
+      <ProjectEditDrawer 
+        isOpen={showEditDrawer}
+        onClose={() => setShowEditDrawer(false)}
+        onSave={() => setShowEditDrawer(false)}
+      />
 
       {showAuthOverlay && (
         <GuestAuthOverlay onClose={() => setShowAuthOverlay(false)} />
