@@ -18,7 +18,6 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
   const navLinks = [
     { name: "الرئيسية", path: "/" },
     { name: "المميزات", path: "/features" },
-    { name: "الأسعار", path: "/pricing" },
     { name: "من نحن", path: "/about" },
     { name: "تواصل معنا", path: "/contact" },
   ]
@@ -165,7 +164,6 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
               <ul className="space-y-2 text-sm">
                 <li><Link href="/" className="hover:text-white transition-colors duration-150">الرئيسية</Link></li>
                 <li><Link href="/features" className="hover:text-white transition-colors duration-150">المميزات</Link></li>
-                <li><Link href="/pricing" className="hover:text-white transition-colors duration-150">الأسعار</Link></li>
               </ul>
             </div>
             <div>
