@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useFeasibilityTool } from '@/hooks/useFeasibilityTool';
 import { useAuth } from '@/context/AuthContext';
-import GuestAuthOverlay from './GuestAuthOverlay';
 import { Loader2, PieChart as PieChartIcon, Activity, TrendingUp, Target } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
@@ -81,7 +80,7 @@ export default function Analysis() {
 
   return (
     <div className="relative" dir="rtl">
-      <div className={isAuthenticated ? "" : "filter blur-[8px]"}>
+      <div>
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500" dir="rtl">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">نتائج التحليل المبدئي</h2>
           
@@ -170,7 +169,6 @@ export default function Analysis() {
           </div>
         </div>
       </div>
-      {!isAuthenticated && <GuestAuthOverlay />}
     </div>
   );
 }

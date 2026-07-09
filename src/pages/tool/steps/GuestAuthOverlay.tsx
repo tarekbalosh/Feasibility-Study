@@ -2,12 +2,16 @@ import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import { useRouter } from 'next/router';
 
 type FormMode = 'login' | 'register';
 
-export default function GuestAuthOverlay() {
+interface GuestAuthOverlayProps {
+  onClose?: () => void;
+}
+
+export default function GuestAuthOverlay({ onClose }: GuestAuthOverlayProps = {}) {
   const { register: registerUser, login, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const returnTo = (router.query.returnTo as string) || '/tool/FeasibilityTool';
@@ -49,8 +53,13 @@ export default function GuestAuthOverlay() {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center">
+      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md relative">
+        {onClose && (
+          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors">
+            <X className="w-6 h-6" />
+          </button>
+        )}
+        <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center mt-2">
           {mode === 'register'
             ? 'دراستك جاهزة! أنشئ حساباً لعرضها وحفظها'
             : 'سجّل دخولك لعرض الدراسة وحفظها'}

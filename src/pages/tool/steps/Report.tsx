@@ -1,7 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useFeasibilityTool } from '@/hooks/useFeasibilityTool';
+import { useAuth } from '@/context/AuthContext';
+import apiClient from '@/lib/axios';
 import { computeFinancialReport } from '@/utils/financialCalculations';
-import { FileText, Printer } from 'lucide-react';
+import { FileText, Printer, AlertTriangle } from 'lucide-react';
+import GuestAuthOverlay from './GuestAuthOverlay';
 
 // Report sub-components
 import ReportCover from '@/components/tool/report/ReportCover';
@@ -23,8 +26,47 @@ interface ReportProps {
 export const getServerSideProps = async () => ({ props: {} });
 
 export default function Report({ forPrint = false }: ReportProps) {
-  const { form, analysisResult } = useFeasibilityTool();
+  const { form, analysisResult, projectId, setProjectId, clearDraft } = useFeasibilityTool();
+  const { isAuthenticated } = useAuth();
   const data = form.getValues();
+
+  const [showAuthOverlay, setShowAuthOverlay] = useState(false);
+  const [isLinking, setIsLinking] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated && !projectId && !isLinking) {
+      const linkDraftToAccount = async () => {
+        setIsLinking(true);
+        try {
+          const formValues = form.getValues();
+          const desc = formValues.projectInfo?.description || formValues.projectDetails?.purpose || '';
+          const validDesc = desc.length >= 10 ? desc : (desc + ' (تم إنشاء هذا المشروع من خلال الأداة).');
+
+          const payload = {
+            name: formValues.projectInfo?.projectName || formValues.projectDetails?.projectName || 'مشروع جديد',
+            industry: formValues.sector || 'غير محدد',
+            location: 'غير محدد',
+            targetCapital: formValues.financialData?.initialCapital || 1000,
+            description: validDesc,
+            financialInputs: formValues, // Send all tool data
+          };
+
+          const { data: res } = await apiClient.post('/projects', payload);
+          const newProjectId = res.data?.id;
+          
+          if (newProjectId) {
+            setProjectId(newProjectId);
+            clearDraft(false);
+          }
+        } catch (err: any) {
+          console.error('Failed to link project:', err);
+        } finally {
+          setIsLinking(false);
+        }
+      };
+      linkDraftToAccount();
+    }
+  }, [isAuthenticated, projectId]);
 
   // Compute all financial data from form inputs
   const report = useMemo(() => computeFinancialReport(data), [data]);
@@ -52,6 +94,24 @@ export default function Report({ forPrint = false }: ReportProps) {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500" dir="rtl">
+      {/* Unauthenticated Alert Banner */}
+      {!forPrint && !isAuthenticated && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 print:hidden shadow-sm">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <AlertTriangle className="w-6 h-6 text-yellow-600 shrink-0" />
+            <p className="text-sm font-medium leading-relaxed">
+              لن يتم حفظ هذا التقرير في حسابك وسيتم إزالته بعد عدة دقائق إذا لم تقم بإنشاء حساب أو تسجيل الدخول.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowAuthOverlay(true)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-colors w-full sm:w-auto text-center"
+          >
+            إنشاء حساب أو تسجيل الدخول
+          </button>
+        </div>
+      )}
+
       {/* Top Bar */}
       {!forPrint && (
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4 print:hidden">
@@ -142,6 +202,10 @@ export default function Report({ forPrint = false }: ReportProps) {
           <InvestorResults report={report} />
         </div>
       </div>
+
+      {showAuthOverlay && (
+        <GuestAuthOverlay onClose={() => setShowAuthOverlay(false)} />
+      )}
     </div>
   );
 }
