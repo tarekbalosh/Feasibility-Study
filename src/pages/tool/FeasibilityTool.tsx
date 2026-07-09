@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import Head from 'next/head';
 import { FeasibilityProvider, useFeasibilityTool } from '@/hooks/useFeasibilityTool';
 import { useAuth } from '@/context/AuthContext';
@@ -63,6 +63,29 @@ const WizardContent = () => {
   } else if (currentStep === 14) {
     hideButtons = true; // Export screen has its own buttons
   }
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        // Prevent default only if we are advancing the step
+        const target = e.target as HTMLElement;
+        const tagName = target.tagName.toLowerCase();
+        
+        // Don't trigger if user is typing in a textarea or activating a button
+        if (tagName === 'textarea' || tagName === 'button') {
+          return;
+        }
+
+        if (!hideButtons && !disableNext) {
+          e.preventDefault();
+          nextStep();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [hideButtons, disableNext, nextStep]);
 
   return (
     <div className="bg-gray-50 min-h-screen py-6 sm:py-12 px-3 sm:px-6 lg:px-8 font-sans" dir="rtl">
