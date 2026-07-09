@@ -48,7 +48,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const onSubmit = async (data: LoginFormData) => {
     setApiError(null)
     try {
-      const returnTo = router.asPath !== '/auth/login' ? router.asPath : undefined
+      // If user is on the home page or login page, redirect to dashboard.
+      // Otherwise, keep them on their current page (e.g. tool, pricing).
+      const returnTo = (router.pathname !== '/auth/login' && router.pathname !== '/') ? router.asPath : undefined
       await login(data.email, data.password, data.rememberMe, returnTo)
       onClose()
       reset()
