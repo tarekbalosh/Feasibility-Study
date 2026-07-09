@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react';
 import { useFeasibilityTool } from '@/hooks/useFeasibilityTool';
-import { useAuth } from '@/context/AuthContext';
 import { Loader2, PieChart as PieChartIcon, Activity, TrendingUp, Target } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
@@ -8,7 +7,6 @@ export const getServerSideProps = async () => ({ props: {} });
 
 export default function Analysis() {
   const { form, isAnalyzing, setIsAnalyzing, analysisResult, setAnalysisResult } = useFeasibilityTool();
-  const { isAuthenticated } = useAuth();
   const { watch, getValues } = form;
 
   const data = watch();

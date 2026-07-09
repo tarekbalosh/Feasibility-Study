@@ -54,8 +54,7 @@ const WizardContent = () => {
   } else if (currentStep === 10) {
     hideButtons = true; // Generation Screen handles its own navigation
   } else if (currentStep === 11) {
-    nextLabel = 'التالي: حفظ التقرير';
-    disableNext = !isAuthenticated;
+    nextLabel = 'عرض التقرير الكامل';
   } else if (currentStep === 12) {
     hideButtons = true; // Auth Gate handles its own logic and navigation
   } else if (currentStep === 13) {
