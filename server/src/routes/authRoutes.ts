@@ -96,4 +96,20 @@ router.post(
   authController.refreshToken
 );
 
+// ——— GET /api/auth/verify-email ———
+router.get("/verify-email", authController.verifyEmail);
+
+// ——— POST /api/auth/resend-verification ———
+router.post(
+  "/resend-verification",
+  validateRequest([
+    body("email")
+      .trim()
+      .isEmail()
+      .normalizeEmail()
+      .withMessage("صيغة البريد الإلكتروني غير صحيحة."),
+  ]),
+  authController.resendVerification
+);
+
 export default router;

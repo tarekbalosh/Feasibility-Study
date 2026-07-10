@@ -20,4 +20,13 @@ export const config = {
 
   // OpenAI
   openaiApiKey: process.env.OPENAI_API_KEY || "",
+
+  // SMTP Email
+  smtpHost: process.env.SMTP_HOST || "smtp.gmail.com",
+  smtpPort: parseInt(process.env.SMTP_PORT || "587", 10),
+  smtpUser: process.env.SMTP_USER || "",
+  smtpPass: process.env.SMTP_PASS || "",
+
+  // Frontend URL (for links)
+  frontendUrl: process.env.FRONTEND_URL || "https://feasibility-study.vercel.app",
 } as const;

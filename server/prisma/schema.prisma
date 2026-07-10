@@ -20,6 +20,8 @@ model User {
   subscriptionStatus String    @default("none") @map("subscription_status")
   stripeCustomerId   String?   @map("stripe_customer_id")
   isVerified         Boolean   @default(false) @map("is_verified")
+  verificationToken  String?   @map("verification_token")
+  verificationTokenExpiry DateTime? @map("verification_token_expiry")
   resetToken         String?   @map("reset_token")
   resetTokenExpiry   DateTime? @map("reset_token_expiry")
   createdAt          DateTime  @default(now()) @map("created_at")

@@ -73,3 +73,36 @@ export const refreshToken = asyncHandler(
     });
   }
 );
+
+// ——— GET /api/auth/verify-email ———
+export const verifyEmail = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { token } = req.query;
+
+    if (!token || typeof token !== 'string') {
+      res.status(400).json({ success: false, message: "رمز التوثيق مفقود." });
+      return;
+    }
+
+    const result = await authService.verifyEmail(token);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  }
+);
+
+// ——— POST /api/auth/resend-verification ———
+export const resendVerification = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    const result = await authService.resendVerification(email);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  }
+);

@@ -11,5 +11,10 @@ export const env = {
   CORS_ORIGIN: config.corsOrigin,
   ADMIN_DEBUG: process.env.ADMIN_DEBUG,
   OPENAI_API_KEY: config.openaiApiKey,
+  SMTP_HOST: config.smtpHost,
+  SMTP_PORT: config.smtpPort,
+  SMTP_USER: config.smtpUser,
+  SMTP_PASS: config.smtpPass,
+  FRONTEND_URL: config.frontendUrl,
 } as const;
 

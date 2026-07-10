@@ -16,8 +16,10 @@ interface LoginPayload {
 }
 
 interface AuthResponse {
-  token: string;
-  refreshToken: string;
+  token?: string;
+  refreshToken?: string;
+  needsVerification?: boolean;
+  message?: string;
   data?: any;
 }
 
@@ -90,4 +92,16 @@ export const refreshToken = async (): Promise<string> => {
     localStorage.setItem('refreshToken', newRefreshToken);
   }
   return newToken;
+};
+
+/** Verify Email */
+export const verifyEmail = async (token: string): Promise<{ success: boolean; message: string }> => {
+  const res = await api.get(`/auth/verify-email?token=${token}`);
+  return res.data;
+};
+
+/** Resend Verification Email */
+export const resendVerification = async (email: string): Promise<{ success: boolean; message: string }> => {
+  const res = await api.post('/auth/resend-verification', { email });
+  return res.data;
 };

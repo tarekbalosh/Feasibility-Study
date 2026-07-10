@@ -1,5 +1,22 @@
 import { z } from "zod"
 
+const DISPOSABLE_DOMAINS = [
+  "mailinator.com",
+  "10minutemail.com",
+  "tempmail.com",
+  "guerrillamail.com",
+  "yopmail.com",
+  "temp-mail.org",
+  "tempmail.net",
+  "throwawaymail.com",
+  "getairmail.com",
+  "mohmal.com",
+  "maildrop.cc",
+  "dispostable.com",
+  "sharklasers.com",
+  "nada.ltd"
+]
+
 // ——— Register Schema ———
 export const registerSchema = z
   .object({
@@ -10,7 +27,14 @@ export const registerSchema = z
     email: z
       .string()
       .min(1, "البريد الإلكتروني مطلوب")
-      .email("صيغة البريد الإلكتروني غير صحيحة"),
+      .email("صيغة البريد الإلكتروني غير صحيحة")
+      .refine(
+        (val) => {
+          const domain = val.split("@")[1]?.toLowerCase()
+          return !DISPOSABLE_DOMAINS.includes(domain)
+        },
+        { message: "لا يمكن استخدام بريد إلكتروني مؤقت" }
+      ),
     password: z
       .string()
       .min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل")

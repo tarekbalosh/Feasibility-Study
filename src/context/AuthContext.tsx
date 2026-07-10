@@ -21,11 +21,12 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string, rememberMe?: boolean, redirectUrl?: string) => Promise<void>
-  register: (fullName: string, email: string, password: string, redirectUrl?: string) => Promise<void>
+  register: (fullName: string, email: string, password: string, redirectUrl?: string) => Promise<any>
   logout: () => void
   forgotPassword: (email: string) => Promise<void>
   resetPassword: (token: string, password: string) => Promise<void>
   updateUser: (data: Partial<User>) => void
+  resendVerification: (email: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -120,6 +121,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email,
         password,
       })
+      
+      if (res.needsVerification) {
+        return res; // Return early, don't set tokens or redirect
+      }
+
       const { token, data: user } = res
 
       localStorage.setItem("accessToken", token)
@@ -137,6 +143,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         router.push("/dashboard")
       }
+      return res;
     },
     [router]
   )
@@ -174,6 +181,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     })
   }, [])
 
+  // ——— إعادة إرسال رابط التوثيق ———
+  const resendVerification = useCallback(async (email: string) => {
+    await apiClient.post("/auth/resend-verification", { email })
+  }, [])
+
   return (
     <AuthContext.Provider
       value={{
@@ -184,6 +196,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         forgotPassword,
         resetPassword,
         updateUser,
+        resendVerification,
       }}
     >
       {children}

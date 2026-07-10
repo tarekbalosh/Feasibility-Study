@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useRouter } from "next/router"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Loader2, Eye, EyeOff, UserPlus, CheckCircle2 } from "lucide-react"
+import { Loader2, Eye, EyeOff, UserPlus, CheckCircle2, MailCheck } from "lucide-react"
 import { AuthLayout } from "@/layouts/AuthLayout"
 import { Input } from "@/components/ui/Input"
 import { Button } from "@/components/ui/Button"
@@ -12,10 +12,13 @@ import { useAuth } from "@/context/AuthContext"
 import { registerSchema, type RegisterFormData } from "@/lib/validations"
 
 export default function RegisterPage() {
-  const { register: registerUser } = useAuth()
+  const { register: registerUser, resendVerification } = useAuth()
   const [apiError, setApiError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [needsVerification, setNeedsVerification] = useState(false)
+  const [isResending, setIsResending] = useState(false)
+  const [resendMessage, setResendMessage] = useState("")
 
   const {
     register,
@@ -45,7 +48,10 @@ export default function RegisterPage() {
     setApiError(null)
     try {
       const returnTo = router.query.returnTo as string | undefined
-      await registerUser(data.fullName, data.email, data.password, returnTo)
+      const res = await registerUser(data.fullName, data.email, data.password, returnTo)
+      if (res && res.needsVerification) {
+        setNeedsVerification(true)
+      }
     } catch (err: any) {
       setApiError(
         err.response?.data?.error?.message ||
@@ -67,10 +73,75 @@ export default function RegisterPage() {
       </Head>
 
       <AuthLayout
-        title="إنشاء حساب جديد"
-        subtitle="أنشئ حسابك المجاني لتبدأ بإعداد دراسات الجدوى"
+        title={needsVerification ? "تحقق من بريدك الإلكتروني" : "إنشاء حساب جديد"}
+        subtitle={needsVerification ? "لقد أرسلنا رابط التوثيق إلى بريدك الإلكتروني" : "أنشئ حسابك المجاني لتبدأ بإعداد دراسات الجدوى"}
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+        {needsVerification ? (
+          <div className="text-center space-y-6">
+            <div className="flex justify-center">
+              <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center">
+                <MailCheck className="w-10 h-10" />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <p className="text-slate-600">
+                أرسلنا رابطاً لتفعيل حسابك إلى:
+              </p>
+              <p className="font-semibold text-lg text-slate-800 dir-ltr inline-block">
+                {watch("email")}
+              </p>
+              <p className="text-sm text-slate-500 mt-4">
+                الرجاء النقر على الرابط في البريد الإلكتروني لتفعيل حسابك.
+              </p>
+            </div>
+
+            <div className="pt-4 space-y-4">
+              <Button
+                variant="outline"
+                className="w-full py-3"
+                disabled={isResending}
+                onClick={async () => {
+                  setIsResending(true)
+                  setResendMessage("")
+                  try {
+                    await resendVerification(watch("email"))
+                    setResendMessage("تم إرسال الرابط بنجاح! تفقد صندوق الوارد.")
+                  } catch (err: any) {
+                    setResendMessage("حدث خطأ أثناء إرسال الرابط. حاول مرة أخرى.")
+                  } finally {
+                    setIsResending(false)
+                  }
+                }}
+              >
+                {isResending ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    جارٍ الإرسال...
+                  </span>
+                ) : (
+                  "لم يصلك البريد؟ أعد الإرسال"
+                )}
+              </Button>
+              
+              {resendMessage && (
+                <p className="text-sm text-emerald-600 font-medium">
+                  {resendMessage}
+                </p>
+              )}
+
+              <div className="pt-4">
+                <Link
+                  href={loginHref}
+                  className="text-sm text-indigo-600 hover:text-indigo-700 font-semibold transition-colors"
+                >
+                  العودة لتسجيل الدخول
+                </Link>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
           {/* رسالة الخطأ من الـ API */}
           {apiError && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
@@ -205,6 +276,7 @@ export default function RegisterPage() {
             </Link>
           </p>
         </form>
+        )}
       </AuthLayout>
     </>
   )
