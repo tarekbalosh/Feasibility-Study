@@ -76,6 +76,8 @@ export default function MonthlyExpenses() {
               type="number" min="0" placeholder="0"
               className="w-24 sm:w-32 p-2.5 sm:p-3 text-sm text-center rounded-lg border border-gray-200 focus:border-indigo-500 font-medium"
               dir="ltr"
+              onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+              onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
             />
             <button type="button" onClick={() => remove(index)} className="text-gray-400 hover:text-red-500 px-1 sm:px-1.5 flex-shrink-0">
               <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />

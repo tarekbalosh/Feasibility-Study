@@ -259,6 +259,8 @@ export default function ProjectEditDrawer({ isOpen, onClose, onSave }: ProjectEd
                 <input
                   {...register('investmentData.amount', { valueAsNumber: true })}
                   type="number" min="0" className={inputClass} placeholder="0" dir="ltr"
+                  onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+                  onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
                 />
               </div>
               <div>
@@ -329,7 +331,7 @@ export default function ProjectEditDrawer({ isOpen, onClose, onSave }: ProjectEd
                   {equipFields.map((field, idx) => (
                     <div key={field.id} className="flex gap-2 items-center">
                       <input {...register(`setupData.equipments.${idx}.name`)} placeholder="اسم التجهيز" className={`flex-1 ${inputClass}`} />
-                      <input {...register(`setupData.equipments.${idx}.value`, { valueAsNumber: true })} type="number" min="0" placeholder="0" className={`w-24 ${numberInputClass}`} dir="ltr" />
+                      <input {...register(`setupData.equipments.${idx}.value`, { valueAsNumber: true })} type="number" min="0" placeholder="0" className={`w-24 ${numberInputClass}`} dir="ltr" onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }} onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }} />
                       <button type="button" onClick={() => removeEquip(idx)} className="text-gray-400 hover:text-red-500 p-1">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -350,7 +352,7 @@ export default function ProjectEditDrawer({ isOpen, onClose, onSave }: ProjectEd
                   {estFields.map((field, idx) => (
                     <div key={field.id} className="flex gap-2 items-center">
                       <input {...register(`setupData.establishmentExpenses.${idx}.name`)} placeholder="اسم المصروف" className={`flex-1 ${inputClass}`} />
-                      <input {...register(`setupData.establishmentExpenses.${idx}.value`, { valueAsNumber: true })} type="number" min="0" placeholder="0" className={`w-24 ${numberInputClass}`} dir="ltr" />
+                      <input {...register(`setupData.establishmentExpenses.${idx}.value`, { valueAsNumber: true })} type="number" min="0" placeholder="0" className={`w-24 ${numberInputClass}`} dir="ltr" onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }} onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }} />
                       <button type="button" onClick={() => removeEst(idx)} className="text-gray-400 hover:text-red-500 p-1">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -380,6 +382,8 @@ export default function ProjectEditDrawer({ isOpen, onClose, onSave }: ProjectEd
                 <input
                   {...register('salesData.firstYearAverage', { valueAsNumber: true })}
                   type="number" min="0" placeholder="0" className={inputClass} dir="ltr"
+                  onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+                  onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -389,6 +393,8 @@ export default function ProjectEditDrawer({ isOpen, onClose, onSave }: ProjectEd
                     <input
                       {...register('salesData.growthRateYear2', { valueAsNumber: true })}
                       type="number" min="0" placeholder="0" className={inputClass} dir="ltr"
+                      onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+                      onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
                     />
                     <span className="absolute right-2 top-2.5 text-xs text-gray-400">%</span>
                   </div>
@@ -399,6 +405,8 @@ export default function ProjectEditDrawer({ isOpen, onClose, onSave }: ProjectEd
                     <input
                       {...register('salesData.growthRateYear3', { valueAsNumber: true })}
                       type="number" min="0" placeholder="0" className={inputClass} dir="ltr"
+                      onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+                      onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
                     />
                     <span className="absolute right-2 top-2.5 text-xs text-gray-400">%</span>
                   </div>
@@ -425,8 +433,8 @@ export default function ProjectEditDrawer({ isOpen, onClose, onSave }: ProjectEd
               {itemFields.map((field, idx) => (
                 <div key={field.id} className="flex gap-2 items-center">
                   <input {...register(`itemsData.items.${idx}.name`)} placeholder="اسم الصنف" className={`flex-1 ${inputClass}`} />
-                  <input {...register(`itemsData.items.${idx}.cost`, { valueAsNumber: true })} type="number" min="0" placeholder="0" className={`w-20 ${numberInputClass}`} dir="ltr" />
-                  <input {...register(`itemsData.items.${idx}.price`, { valueAsNumber: true })} type="number" min="0" placeholder="0" className={`w-20 ${numberInputClass}`} dir="ltr" />
+                  <input {...register(`itemsData.items.${idx}.cost`, { valueAsNumber: true })} type="number" min="0" placeholder="0" className={`w-20 ${numberInputClass}`} dir="ltr" onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }} onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }} />
+                  <input {...register(`itemsData.items.${idx}.price`, { valueAsNumber: true })} type="number" min="0" placeholder="0" className={`w-20 ${numberInputClass}`} dir="ltr" onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }} onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }} />
                   <button type="button" onClick={() => removeItem(idx)} className="text-gray-400 hover:text-red-500 p-1">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -443,6 +451,8 @@ export default function ProjectEditDrawer({ isOpen, onClose, onSave }: ProjectEd
                   <input
                     {...register('itemsData.suppliesPercentage', { valueAsNumber: true })}
                     type="number" min="0" max="100" placeholder="0" className={inputClass} dir="ltr"
+                    onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+                    onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
                   />
                   <span className="absolute right-2 top-2.5 text-xs text-gray-400">%</span>
                 </div>
@@ -465,6 +475,8 @@ export default function ProjectEditDrawer({ isOpen, onClose, onSave }: ProjectEd
                   <input
                     {...register('commissionTaxData.commissionRate', { valueAsNumber: true })}
                     type="number" min="0" max="100" placeholder="0" className={inputClass} dir="ltr"
+                    onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+                    onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
                   />
                   <span className="absolute right-2 top-2.5 text-xs text-gray-400">%</span>
                 </div>
@@ -475,6 +487,8 @@ export default function ProjectEditDrawer({ isOpen, onClose, onSave }: ProjectEd
                   <input
                     {...register('commissionTaxData.taxRate', { valueAsNumber: true })}
                     type="number" min="0" max="100" placeholder="0" className={inputClass} dir="ltr"
+                    onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+                    onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
                   />
                   <span className="absolute right-2 top-2.5 text-xs text-gray-400">%</span>
                 </div>
@@ -513,7 +527,7 @@ export default function ProjectEditDrawer({ isOpen, onClose, onSave }: ProjectEd
               {expenseFields.map((field, idx) => (
                 <div key={field.id} className="flex gap-2 items-center">
                   <input {...register(`monthlyExpensesData.expenses.${idx}.name`)} placeholder="اسم المصروف" className={`flex-1 ${inputClass}`} />
-                  <input {...register(`monthlyExpensesData.expenses.${idx}.value`, { valueAsNumber: true })} type="number" min="0" placeholder="0" className={`w-24 ${numberInputClass}`} dir="ltr" />
+                  <input {...register(`monthlyExpensesData.expenses.${idx}.value`, { valueAsNumber: true })} type="number" min="0" placeholder="0" className={`w-24 ${numberInputClass}`} dir="ltr" onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }} onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }} />
                   <button type="button" onClick={() => removeExpense(idx)} className="text-gray-400 hover:text-red-500 p-1">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

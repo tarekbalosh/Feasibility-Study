@@ -49,6 +49,8 @@ export default function FinancialData() {
                   {...register('financialData.initialCapital', { valueAsNumber: true })}
                   className={inputClass(!!errors.financialData?.initialCapital)}
                   placeholder="0"
+                  onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+                  onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
                 />
               </div>
               {errors.financialData?.initialCapital && (
@@ -67,6 +69,8 @@ export default function FinancialData() {
                   {...register('financialData.monthlyOperatingCosts', { valueAsNumber: true })}
                   className={inputClass(!!errors.financialData?.monthlyOperatingCosts)}
                   placeholder="0"
+                  onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+                  onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
                 />
               </div>
               {errors.financialData?.monthlyOperatingCosts && (
@@ -85,6 +89,8 @@ export default function FinancialData() {
                   {...register('financialData.expectedMonthlyRevenue', { valueAsNumber: true })}
                   className={inputClass(!!errors.financialData?.expectedMonthlyRevenue)}
                   placeholder="0"
+                  onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+                  onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
                 />
               </div>
               {errors.financialData?.expectedMonthlyRevenue && (

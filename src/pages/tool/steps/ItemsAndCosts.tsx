@@ -68,12 +68,16 @@ export default function ItemsAndCosts() {
                   type="number" min="0" placeholder="0"
                   className="w-20 sm:w-28 p-2.5 sm:p-3 text-sm text-center rounded-lg border border-gray-200 focus:border-indigo-500"
                   dir="ltr"
+                  onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+                  onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
                 />
                 <input
                   {...register(`itemsData.items.${index}.price`, { valueAsNumber: true })}
                   type="number" min="0" placeholder="0"
                   className="w-20 sm:w-28 p-2.5 sm:p-3 text-sm text-center rounded-lg border border-gray-200 focus:border-indigo-500"
                   dir="ltr"
+                  onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+                  onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
                 />
                 <button type="button" onClick={() => remove(index)} className="text-gray-400 hover:text-red-500 p-1 flex-shrink-0">
                   <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -102,6 +106,8 @@ export default function ItemsAndCosts() {
             type="number" min="0" max="100" placeholder="3"
             className="w-full p-3 rounded-lg border border-gray-200 focus:border-indigo-500 pr-8"
             dir="ltr"
+            onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+            onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
           />
           <span className="absolute right-3 top-3 text-gray-400 font-bold">%</span>
         </div>

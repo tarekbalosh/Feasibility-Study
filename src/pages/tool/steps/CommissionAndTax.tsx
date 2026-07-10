@@ -23,6 +23,8 @@ export default function CommissionAndTax() {
               type="number" min="0" max="100" placeholder="0"
               className={`w-full p-4 text-xl rounded-xl border-2 focus:ring-0 pr-10 ${errors.commissionTaxData?.commissionRate ? 'border-red-300' : 'border-gray-200 focus:border-indigo-500'}`}
               dir="ltr"
+              onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+              onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
             />
             <span className="absolute right-4 top-4 text-gray-400 font-bold text-xl">%</span>
           </div>
@@ -38,6 +40,8 @@ export default function CommissionAndTax() {
               type="number" min="0" max="100" placeholder="0"
               className={`w-full p-4 text-xl rounded-xl border-2 focus:ring-0 pr-10 ${errors.commissionTaxData?.taxRate ? 'border-red-300' : 'border-gray-200 focus:border-indigo-500'}`}
               dir="ltr"
+              onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+              onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
             />
             <span className="absolute right-4 top-4 text-gray-400 font-bold text-xl">%</span>
           </div>

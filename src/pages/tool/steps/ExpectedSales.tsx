@@ -45,6 +45,8 @@ export default function ExpectedSales() {
                 type="number" min="0" placeholder="0"
                 className={`w-full p-4 text-xl font-bold rounded-xl border-2 focus:ring-0 ${errors.salesData?.firstYearAverage ? 'border-red-300' : 'border-gray-200 focus:border-indigo-500'}`}
                 dir="ltr"
+                onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+                onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
               />
               <p className="text-sm text-gray-500 mt-2">سنعتمد هذا المتوسط لأشهر سنتك الأولى الاثني عشر.</p>
               {errors.salesData?.firstYearAverage && <p className="text-sm text-red-500 mt-1">{errors.salesData.firstYearAverage.message}</p>}
@@ -60,6 +62,8 @@ export default function ExpectedSales() {
                       type="number" min="0" placeholder="0"
                       className="w-full p-2.5 rounded-lg border border-gray-200 focus:border-indigo-500 text-center"
                       dir="ltr"
+                      onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+                      onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
                     />
                   </div>
                 ))}
@@ -88,6 +92,8 @@ export default function ExpectedSales() {
                   type="number" min="0" placeholder="0"
                   className="w-full p-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-0 pr-8"
                   dir="ltr"
+                  onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+                  onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
                 />
                 <span className="absolute right-3 top-3 text-gray-400 font-bold">%</span>
               </div>
@@ -101,6 +107,8 @@ export default function ExpectedSales() {
                   type="number" min="0" placeholder="0"
                   className="w-full p-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-0 pr-8"
                   dir="ltr"
+                  onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+                  onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
                 />
                 <span className="absolute right-3 top-3 text-gray-400 font-bold">%</span>
               </div>

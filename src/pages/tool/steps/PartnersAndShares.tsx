@@ -104,6 +104,8 @@ export default function PartnersAndShares() {
                       max="100"
                       className="w-full p-2.5 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-0 pr-8"
                       dir="ltr"
+                      onFocus={(e) => { if (e.target.value === '0') e.target.value = ''; }}
+                      onBlur={(e) => { if (e.target.value === '') e.target.value = '0'; }}
                     />
                     <span className="absolute right-3 top-2.5 text-gray-400">%</span>
                   </div>
