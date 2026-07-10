@@ -68,12 +68,12 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       <main className="flex-1 md:mr-64 pb-20 md:pb-0 min-h-screen flex flex-col">
         {/* Header */}
         <header className="bg-white border-b border-gray-200 sticky top-0 z-20 px-4 md:px-8 h-16 flex items-center justify-between">
-          <div className="md:hidden flex items-center gap-2">
+          <Link href="/dashboard/Projects" className="md:hidden flex items-center gap-2">
             <span className="bg-blue-600 text-white p-1.5 rounded-lg">
               <FolderGit2 size={20} />
             </span>
             <span className="font-bold text-lg text-blue-600">جدوى</span>
-          </div>
+          </Link>
 
           <div className="flex-1 md:hidden"></div> {/* Spacer for mobile */}
 
