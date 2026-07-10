@@ -84,7 +84,7 @@ const WizardContent = () => {
 
         if (!hideButtons && !disableNext) {
           e.preventDefault();
-          if ((currentStep === 11 || currentStep === 13) && !isAuthenticated) {
+          if (currentStep === 13 && !isAuthenticated) {
             setShowAuthOverlay(true);
           } else {
             nextStep();
@@ -137,7 +137,7 @@ const WizardContent = () => {
               currentStep={currentStep}
               totalSteps={totalSteps}
               onNext={() => {
-                if ((currentStep === 11 || currentStep === 13) && !isAuthenticated) {
+                if (currentStep === 13 && !isAuthenticated) {
                   setShowAuthOverlay(true);
                 } else {
                   nextStep();
