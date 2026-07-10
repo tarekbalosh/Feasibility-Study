@@ -99,38 +99,70 @@ export default function InvestorResults({ report }: Props) {
       )}
 
       {/* Investor Letter */}
-      <div className="border-2 border-dashed border-blue-200 rounded-xl p-6 bg-blue-50/50">
-        <div className="flex items-center gap-2 mb-4">
-          <Mail className="w-5 h-5 text-blue-600" />
-          <h3 className="text-lg font-bold text-gray-900">خطاب المستثمرين</h3>
+      <div className="mt-12 relative overflow-hidden rounded-2xl bg-white border border-gray-100 shadow-lg p-8 md:p-10 print:shadow-none print:border-gray-200">
+        <div className="absolute top-0 right-0 w-40 h-40 bg-blue-50 rounded-bl-full -z-10 opacity-60 print:hidden"></div>
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-50 rounded-tr-full -z-10 opacity-60 print:hidden"></div>
+        
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 pb-6 border-b border-gray-100">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-inner">
+              <Mail className="w-7 h-7" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-black text-gray-900">خطاب المستثمرين</h3>
+              <p className="text-gray-500 text-sm mt-1">ملخص تنفيذي موجّه للشركاء والممولين</p>
+            </div>
+          </div>
+          <div className="hidden sm:block text-left text-sm text-gray-400 font-medium">
+            وثيقة رسمية <br/>
+            {new Date().toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' })}
+          </div>
         </div>
-        <div className="bg-white rounded-lg p-6 border border-gray-200 text-gray-700 leading-relaxed text-sm">
-          <p className="mb-4">السادة المستثمرين الكرام،</p>
-          <p className="mb-4">
-            نتقدم إليكم بهذه الدراسة الاقتصادية لمشروع <strong>&quot;{report.projectName}&quot;</strong> والتي تبيّن أن المشروع
-            يتطلب استثماراً أولياً قدره <strong>{fmtCurrency(report.initialInvestment)}</strong>.
+        
+        <div className="text-gray-700 leading-loose text-base md:text-lg">
+          <p className="text-xl font-bold text-gray-900 mb-6">السادة المستثمرين الكرام،</p>
+          
+          <p className="mb-6">
+            يسعدنا أن نضع بين أيديكم ملخص الدراسة الاقتصادية والمالية لمشروع <span className="text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded">&quot;{report.projectName}&quot;</span>. 
+            تُشير دراساتنا وتحليلاتنا للسوق إلى أن إطلاق المشروع يتطلب استثماراً أولياً يُقدر بـ <span className="text-blue-700 font-black">{fmtCurrency(report.initialInvestment)}</span>.
           </p>
-          <p className="mb-4">
-            وفقاً للدراسة، يُتوقع أن يحقق المشروع صافي أرباح إجمالية تبلغ <strong>{fmtCurrency(report.totalProfit)}</strong> خلال
-            السنوات الثلاث الأولى، بعائد على الاستثمار يبلغ <strong>{fmtPct(report.roi)}</strong> وفترة استرداد تقديرية
-            <strong> {report.paybackMonths === Infinity ? 'غير محددة' : `${report.paybackMonths} شهر`}</strong>.
+          
+          <p className="mb-6">
+            بناءً على التوقعات المالية المدروسة، يُتوقع أن يحقق المشروع أداءً مالياً قوياً، بصافي أرباح إجمالية تقدر بـ <span className="text-emerald-700 font-black bg-emerald-50 px-2 py-0.5 rounded">{fmtCurrency(report.totalProfit)}</span> خلال السنوات الثلاث الأولى من التشغيل. 
+            كما يُتوقع أن يحقق المشروع عائداً إجمالياً على الاستثمار (ROI) بنسبة <span className="text-emerald-700 font-black">{fmtPct(report.roi)}</span>، مع فترة استرداد تقديرية لرأس المال تبلغ <span className="font-black text-gray-900">{report.paybackMonths === Infinity ? 'غير محددة' : `${report.paybackMonths} شهر`}</span>.
           </p>
+
           {report.partners.length > 0 && (
-            <p className="mb-4">
-              المبالغ المطلوبة من كل مستثمر لبدء المشروع:
-              {report.partners.map((p, i) => (
-                <span key={i}>
-                  {i > 0 ? '، ' : ' '}
-                  <strong>{p.name}</strong>: {fmtCurrency(p.contributionValue)} ({fmtPct(p.percentage)})
-                </span>
-              ))}
-            </p>
+            <div className="my-8 bg-gray-50/50 p-6 rounded-xl border border-gray-200/60 shadow-sm print:shadow-none">
+              <p className="font-bold text-gray-900 mb-4">هيكل رأس المال والمساهمات المطلوبة للبدء:</p>
+              <div className="grid sm:grid-cols-2 gap-4">
+                {report.partners.map((p, i) => (
+                  <div key={i} className="flex items-center gap-3 bg-white p-4 rounded-lg border border-gray-100 shadow-sm print:shadow-none print:border-gray-300">
+                    <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm shadow-blue-200 print:shadow-none"></div>
+                    <div className="flex-1">
+                      <div className="font-bold text-gray-900">{p.name}</div>
+                      <div className="text-xs text-gray-500 font-medium mt-0.5">حصة {fmtPct(p.percentage)}</div>
+                    </div>
+                    <div className="font-black text-blue-700">{fmtCurrency(p.contributionValue)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
-          <p className="mb-4">
-            نأمل أن تحظى هذه الفرصة الاستثمارية باهتمامكم ونتطلع إلى شراكة ناجحة ومثمرة.
+
+          <p className="mb-8">
+            نحن نؤمن إيماناً راسخاً بالفرص الواعدة التي يقدمها هذا المشروع، ونتطلع لبناء شراكة استراتيجية مثمرة تحقق تطلعاتنا المشتركة. نحن على أتم الاستعداد لمناقشة التفاصيل المالية والتشغيلية المذكورة في التقرير الشامل.
           </p>
-          <p className="text-gray-500">مع أطيب التحيات،</p>
-          <p className="font-bold mt-1">فريق {report.projectName}</p>
+          
+          <div className="mt-10 border-t border-gray-100 pt-8 flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-sm mb-1">وتفضلوا بقبول فائق الاحترام والتقدير،</p>
+              <p className="font-black text-xl text-gray-900">فريق تأسيس {report.projectName}</p>
+            </div>
+            <div className="w-16 h-16 opacity-10 flex items-center justify-center print:hidden">
+              <Trophy className="w-full h-full text-blue-900" />
+            </div>
+          </div>
         </div>
       </div>
 
