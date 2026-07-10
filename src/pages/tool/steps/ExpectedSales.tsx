@@ -72,8 +72,8 @@ export default function ExpectedSales() {
           
           <button type="button" onClick={handleGridToggle} className="text-indigo-600 font-medium text-sm flex items-center hover:text-indigo-800">
             {showGrid ? <ChevronUp className="w-4 h-4 mr-1" /> : <ChevronDown className="w-4 h-4 mr-1" />}
-            {showGrid ? 'العودة للمتوسط المبسط' : 'أدخِل شهراً بشهر (أدقّ)'}
-            {!showGrid && <span className="text-gray-400 font-normal ml-2">البدايات غالباً أهدأ — عدّل الأشهر الأولى إن شئت.</span>}
+            {showGrid ? 'العودة للمتوسط المبسط' : 'أدخل المبيعات شهرياً (أكثر دقة)'}
+            {!showGrid && <span className="text-gray-400 font-normal ml-2">المبيعات غالباً ما تكون أقل في البداية — يمكنك تعديل الأشهر الأولى.</span>}
           </button>
         </div>
 

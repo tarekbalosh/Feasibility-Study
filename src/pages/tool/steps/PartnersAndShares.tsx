@@ -23,11 +23,11 @@ export default function PartnersAndShares() {
 
   useEffect(() => {
     if (fields.length === 0) {
-      append({ name: 'أنا (صاحب المشروع)', percentage: 100 });
+      append({ name: 'أنا', percentage: 100 });
     } else {
       const currentPartners = getValues('partnersData');
-      if (currentPartners && currentPartners.length > 0 && currentPartners[0].name === 'أنا') {
-        setValue('partnersData.0.name', 'أنا (صاحب المشروع)');
+      if (currentPartners && currentPartners.length > 0 && currentPartners[0].name === 'أنا (صاحب المشروع)') {
+        setValue('partnersData.0.name', 'أنا');
       }
     }
   }, [fields.length, append, getValues, setValue]);
@@ -50,7 +50,9 @@ export default function PartnersAndShares() {
             <div key={field.id} className="p-4 border border-gray-100 bg-gray-50 rounded-xl relative">
               <div className="flex flex-col md:flex-row gap-4 mb-2">
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">اسم الشريك</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {index === 0 ? 'انا صاحب المشروع' : 'اسم الشريك'}
+                  </label>
                   <input
                     {...register(`partnersData.${index}.name`)}
                     type="text"
