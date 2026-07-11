@@ -29,7 +29,8 @@ export const getServerSideProps = async () => ({ props: {} });
 export default function Report({ forPrint = false }: ReportProps) {
   const { form, analysisResult, projectId, setProjectId, clearDraft } = useFeasibilityTool();
   const { isAuthenticated } = useAuth();
-  const data = form.getValues();
+  // Use form.watch() so the report recomputes whenever data changes (e.g. after form.reset())
+  const data = form.watch();
 
   const [showAuthOverlay, setShowAuthOverlay] = useState(false);
   const [showEditDrawer, setShowEditDrawer] = useState(false);

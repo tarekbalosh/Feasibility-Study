@@ -183,22 +183,39 @@ export const FeasibilityProvider = ({ children }: { children: ReactNode }) => {
       import('@/lib/axios').then(({ default: axios }) => {
         axios.get('/projects/' + edit).then(res => {
           const p = res.data.data;
-          form.reset({
+
+          // financialInputs contains the full form data saved during project creation
+          const fi = p.financialInputs || {};
+
+          // Build the full form state, preferring saved financialInputs over derived fields
+          const restoredFormData: Partial<FeasibilityData> = {
             projectInfo: {
               projectName: p.name,
-              activityType: p.industry as any,
-              description: p.description,
+              activityType: (fi.projectInfo?.activityType || p.industry || 'تجاري') as any,
+              description: fi.projectInfo?.description || p.description || '',
             },
             financialData: {
-              initialCapital: p.targetCapital,
-              monthlyOperatingCosts: p.financialInputs?.monthlyOperatingCosts || 0,
-              expectedMonthlyRevenue: p.financialInputs?.expectedMonthlyRevenue || 0,
-            }
-          });
-          
-          const rev = p.financialInputs?.expectedMonthlyRevenue || 0;
-          const cost = p.financialInputs?.monthlyOperatingCosts || 0;
-          const capital = p.targetCapital || 0;
+              initialCapital: fi.financialData?.initialCapital ?? p.targetCapital ?? 0,
+              monthlyOperatingCosts: fi.financialData?.monthlyOperatingCosts ?? 0,
+              expectedMonthlyRevenue: fi.financialData?.expectedMonthlyRevenue ?? 0,
+            },
+            sector: fi.sector || p.industry || '',
+            projectDetails: fi.projectDetails || { projectName: p.name, purpose: '' },
+            investmentData: fi.investmentData || { amount: p.targetCapital || 0, currency: 'SAR' },
+            partnersData: fi.partnersData || [],
+            setupData: fi.setupData || { equipments: [], establishmentExpenses: [] },
+            salesData: fi.salesData || { firstYearAverage: 0, growthRateYear2: 0, growthRateYear3: 0 },
+            itemsData: fi.itemsData || { items: [], suppliesPercentage: 0 },
+            commissionTaxData: fi.commissionTaxData || { commissionRate: 0, taxRate: 0 },
+            monthlyExpensesData: fi.monthlyExpensesData || { expenses: [] },
+          };
+
+          form.reset(restoredFormData as FeasibilityData);
+
+          // Compute analysis result from actual data
+          const rev = fi.financialData?.expectedMonthlyRevenue || 0;
+          const cost = fi.financialData?.monthlyOperatingCosts || 0;
+          const capital = fi.financialData?.initialCapital || p.targetCapital || 0;
           const profit = rev - cost;
           const roi = capital > 0 ? (profit * 12 / capital) * 100 : 0;
 
@@ -217,7 +234,7 @@ export const FeasibilityProvider = ({ children }: { children: ReactNode }) => {
               { month: 'الشهر 12', value: rev * 1.5 },
             ]
           });
-          
+
           setCurrentStep(13); // Jump directly to the Report step
         }).catch(err => console.error(err));
       });
