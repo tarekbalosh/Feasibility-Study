@@ -78,10 +78,10 @@ export default function VerifyEmailPage() {
             )}
           </div>
 
-          <p className={\`text-lg font-medium \${
+          <p className={`text-lg font-medium ${
             status === "success" ? "text-emerald-600" : 
             status === "error" ? "text-red-600" : "text-slate-600"
-          }\`}>
+          }`}>
             {message}
           </p>
 
