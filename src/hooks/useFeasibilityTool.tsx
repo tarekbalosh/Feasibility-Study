@@ -393,11 +393,11 @@ export const FeasibilityProvider = ({ children }: { children: ReactNode }) => {
         const equipTotal = (data.setupData?.equipments || []).reduce((sum, item) => sum + (Number(item.value) || 0), 0);
         const expTotal = (data.setupData?.establishmentExpenses || []).reduce((sum, item) => sum + (Number(item.value) || 0), 0);
         const grandTotalSetup = equipTotal + expTotal;
-        const depreciation = Math.round(grandTotalSetup / 36);
+        // Use investmentData.amount as fallback when no equipment/establishment items exist
+        const initialCapital = grandTotalSetup || Number(data.investmentData?.amount) || 0;
+        const depreciation = Math.round(initialCapital / 36);
 
         const monthlyOperatingCosts = fixedExpenses + variableCosts + cogs + depreciation;
-        
-        const initialCapital = grandTotalSetup;
 
         form.setValue('financialData.expectedMonthlyRevenue', Math.round(rev));
         form.setValue('financialData.monthlyOperatingCosts', Math.round(monthlyOperatingCosts));
@@ -446,10 +446,11 @@ export const FeasibilityProvider = ({ children }: { children: ReactNode }) => {
     const equipTotal = (data.setupData?.equipments || []).reduce((sum, item) => sum + (Number(item.value) || 0), 0);
     const expTotal = (data.setupData?.establishmentExpenses || []).reduce((sum, item) => sum + (Number(item.value) || 0), 0);
     const grandTotalSetup = equipTotal + expTotal;
-    const depreciation = Math.round(grandTotalSetup / 36);
+    // Use investmentData.amount as fallback when no equipment/establishment items exist
+    const initialCapital = grandTotalSetup || Number(data.investmentData?.amount) || 0;
+    const depreciation = Math.round(initialCapital / 36);
 
     const monthlyOperatingCosts = fixedExpenses + variableCosts + cogs + depreciation;
-    const initialCapital = grandTotalSetup;
 
     form.setValue('financialData.expectedMonthlyRevenue', Math.round(rev));
     form.setValue('financialData.monthlyOperatingCosts', Math.round(monthlyOperatingCosts));

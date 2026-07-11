@@ -189,8 +189,8 @@ export function computeFinancialReport(data: FeasibilityData): FinancialReport {
   const equipmentsTotal = equipments.reduce((s, e) => s + (Number(e.value) || 0), 0);
   const establishmentTotal = estExpenses.reduce((s, e) => s + (Number(e.value) || 0), 0);
   const assetsGrandTotal = equipmentsTotal + establishmentTotal;
-  const initialInvestment = assetsGrandTotal || data.financialData?.initialCapital || 0;
-  const monthlyDepreciation = Math.round(assetsGrandTotal / 36);
+  const initialInvestment = assetsGrandTotal || data.financialData?.initialCapital || Number(data.investmentData?.amount) || 0;
+  const monthlyDepreciation = Math.round((assetsGrandTotal || initialInvestment) / 36);
 
   /* — Partners — */
   const partnersRaw = data.partnersData || [];
