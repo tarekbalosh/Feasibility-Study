@@ -30,6 +30,6 @@ export const config = {
   // Frontend URL (for links)
   frontendUrl: process.env.FRONTEND_URL || "https://feasibility-study.vercel.app",
 
-  // Brevo API (Sendinblue)
-  brevoApiKey: process.env.BREVO_API_KEY || "",
+  // Google Apps Script (Free Email Webhook)
+  googleScriptUrl: process.env.GOOGLE_SCRIPT_URL || "",
 } as const;
