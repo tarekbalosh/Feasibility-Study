@@ -19,6 +19,9 @@ function getTransporter() {
         user: env.SMTP_USER,
         pass: env.SMTP_PASS,
       },
+      connectionTimeout: 10000, // 10 seconds max to wait for connection
+      greetingTimeout: 10000,   // 10 seconds max to wait for greeting
+      socketTimeout: 15000,     // 15 seconds max for inactivity
     });
   }
   return transporter;
