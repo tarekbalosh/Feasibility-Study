@@ -105,3 +105,29 @@ export const resendVerification = async (email: string): Promise<{ success: bool
   const res = await api.post('/auth/resend-verification', { email });
   return res.data;
 };
+
+/** Validate Email (real-time check: format + disposable + MX + duplicate) */
+export const validateEmailApi = async (email: string): Promise<{
+  valid: boolean;
+  message: string;
+}> => {
+  try {
+    const res = await api.post<{ success: boolean; valid: boolean; message: string }>(
+      '/auth/validate-email',
+      { email }
+    );
+    return { valid: res.data.valid, message: res.data.message };
+  } catch (error: any) {
+    // If the server returns a validation error, extract the message
+    const serverMessage =
+      error.response?.data?.error?.message ||
+      error.response?.data?.message ||
+      error.response?.data?.errors?.[0]?.msg;
+    
+    if (serverMessage) {
+      return { valid: false, message: serverMessage };
+    }
+    // Network errors — don't block the user, let server-side validation handle it
+    return { valid: true, message: '' };
+  }
+};

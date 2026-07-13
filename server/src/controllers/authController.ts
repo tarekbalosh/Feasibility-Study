@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import * as authService from "../services/authService";
+import { validateEmailQuick } from "../utils/emailValidator";
 
 // ——— POST /api/auth/register ———
 export const register = asyncHandler(async (req: Request, res: Response) => {
@@ -10,9 +11,8 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
 
   res.status(201).json({
     success: true,
-    message: "تم تسجيل الحساب بنجاح.",
-    token: result.token,
-    refreshToken: result.refreshToken,
+    needsVerification: result.needsVerification,
+    message: result.message,
     data: result.data,
   });
 });
@@ -103,6 +103,49 @@ export const resendVerification = asyncHandler(
     res.status(200).json({
       success: true,
       message: result.message,
+    });
+  }
+);
+
+// ——— POST /api/auth/validate-email ———
+// Real-time email validation for client-side feedback
+export const validateEmail = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    const result = await validateEmailQuick(email);
+
+    // Also check if the email is already registered
+    if (result.valid) {
+      const isRegistered = await authService.isEmailRegistered(email);
+      if (isRegistered) {
+        res.status(200).json({
+          success: true,
+          valid: false,
+          message: "هذا البريد الإلكتروني مسجّل مسبقاً.",
+        });
+        return;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      valid: result.valid,
+      message: result.message,
+    });
+  }
+);
+
+// ——— POST /api/auth/cleanup-unverified ———
+// Clean up expired unverified accounts (can be called by cron job)
+export const cleanupUnverified = asyncHandler(
+  async (req: Request, res: Response) => {
+    const result = await authService.cleanupUnverifiedAccounts();
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+      deletedCount: result.deletedCount,
     });
   }
 );

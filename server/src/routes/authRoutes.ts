@@ -112,4 +112,22 @@ router.post(
   authController.resendVerification
 );
 
+// ——— POST /api/auth/validate-email ———
+// Real-time email validation (format + disposable + MX + duplicate check)
+router.post(
+  "/validate-email",
+  validateRequest([
+    body("email")
+      .trim()
+      .isEmail()
+      .normalizeEmail()
+      .withMessage("صيغة البريد الإلكتروني غير صحيحة."),
+  ]),
+  authController.validateEmail
+);
+
+// ——— POST /api/auth/cleanup-unverified ———
+// Clean up expired unverified accounts
+router.post("/cleanup-unverified", authController.cleanupUnverified);
+
 export default router;

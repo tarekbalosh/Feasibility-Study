@@ -43,9 +43,23 @@ export async function register(data: {
   });
 
   if (existingUser) {
-    throw ApiError.invalidInput("هذا البريد الإلكتروني مسجّل مسبقاً.", [
-      { field: "email", issue: "البريد الإلكتروني مستخدم بالفعل." },
-    ]);
+    // If the existing account is unverified and the verification token has expired,
+    // delete it so the user can re-register with the same email
+    if (
+      !existingUser.isVerified &&
+      existingUser.verificationTokenExpiry &&
+      new Date() > existingUser.verificationTokenExpiry
+    ) {
+      await prisma.$transaction([
+        prisma.userLimit.deleteMany({ where: { userId: existingUser.id } }),
+        prisma.user.delete({ where: { id: existingUser.id } }),
+      ]);
+      // Continue with registration below
+    } else {
+      throw ApiError.invalidInput("هذا البريد الإلكتروني مسجّل مسبقاً.", [
+        { field: "email", issue: "البريد الإلكتروني مستخدم بالفعل." },
+      ]);
+    }
   }
 
   // Hash password
@@ -338,6 +352,75 @@ export async function resendVerification(email: string) {
   });
 
   return { message: "تم إرسال رابط التوثيق بنجاح." };
+}
+
+// ——————————————————————————————————————————————
+// Check if Email is Already Registered
+// ——————————————————————————————————————————————
+export async function isEmailRegistered(email: string): Promise<boolean> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const user = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+    select: { id: true, isVerified: true, verificationTokenExpiry: true },
+  });
+
+  if (!user) return false;
+
+  // If the account is unverified and the token has expired, treat as not registered
+  // (the register function will clean it up)
+  if (
+    !user.isVerified &&
+    user.verificationTokenExpiry &&
+    new Date() > user.verificationTokenExpiry
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+// ——————————————————————————————————————————————
+// Cleanup Unverified Accounts
+// ——————————————————————————————————————————————
+export async function cleanupUnverifiedAccounts() {
+  // Delete unverified accounts where the verification token has expired
+  const expiredUsers = await prisma.user.findMany({
+    where: {
+      isVerified: false,
+      verificationTokenExpiry: {
+        lt: new Date(), // Token has expired
+      },
+    },
+    select: { id: true, email: true },
+  });
+
+  if (expiredUsers.length === 0) {
+    return {
+      message: "لا توجد حسابات غير مفعلة منتهية الصلاحية.",
+      deletedCount: 0,
+    };
+  }
+
+  const userIds = expiredUsers.map((u) => u.id);
+
+  // Delete user limits first, then users (in a transaction)
+  await prisma.$transaction([
+    prisma.userLimit.deleteMany({
+      where: { userId: { in: userIds } },
+    }),
+    prisma.user.deleteMany({
+      where: { id: { in: userIds } },
+    }),
+  ]);
+
+  console.log(
+    `[Cleanup] Deleted ${expiredUsers.length} unverified accounts: ${expiredUsers.map((u) => u.email).join(", ")}`
+  );
+
+  return {
+    message: `تم حذف ${expiredUsers.length} حساب غير مفعل.`,
+    deletedCount: expiredUsers.length,
+  };
 }
 
 // ——————————————————————————————————————————————

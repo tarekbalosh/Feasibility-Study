@@ -1,15 +1,16 @@
-import React, { useState } from "react"
+import React, { useState, useCallback, useRef } from "react"
 import Head from "next/head"
 import Link from "next/link"
 import { useRouter } from "next/router"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Loader2, Eye, EyeOff, UserPlus, CheckCircle2, MailCheck } from "lucide-react"
+import { Loader2, Eye, EyeOff, UserPlus, CheckCircle2, MailCheck, XCircle, AlertCircle } from "lucide-react"
 import { AuthLayout } from "@/layouts/AuthLayout"
 import { Input } from "@/components/ui/Input"
 import { Button } from "@/components/ui/Button"
 import { useAuth } from "@/context/AuthContext"
 import { registerSchema, type RegisterFormData } from "@/lib/validations"
+import { validateEmailApi } from "@/services/auth.service"
 
 export default function RegisterPage() {
   const { register: registerUser, resendVerification } = useAuth()
@@ -19,6 +20,14 @@ export default function RegisterPage() {
   const [needsVerification, setNeedsVerification] = useState(false)
   const [isResending, setIsResending] = useState(false)
   const [resendMessage, setResendMessage] = useState("")
+
+  // ——— حالة التحقق الفوري من البريد الإلكتروني ———
+  const [emailValidation, setEmailValidation] = useState<{
+    status: "idle" | "checking" | "valid" | "invalid";
+    message: string;
+  }>({ status: "idle", message: "" })
+  const emailCheckTimer = useRef<NodeJS.Timeout | null>(null)
+  const lastCheckedEmail = useRef<string>("")
 
   const {
     register,
@@ -44,8 +53,63 @@ export default function RegisterPage() {
     { label: "رقم واحد", valid: /[0-9]/.test(password) },
   ]
 
+  // ——— التحقق الفوري من البريد الإلكتروني عبر API ———
+  const checkEmailValidity = useCallback(async (email: string) => {
+    // Don't re-check the same email
+    if (email === lastCheckedEmail.current) return
+
+    // Basic format check before hitting API
+    const basicEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!email || !basicEmailRegex.test(email)) {
+      setEmailValidation({ status: "idle", message: "" })
+      return
+    }
+
+    lastCheckedEmail.current = email
+    setEmailValidation({ status: "checking", message: "جاري التحقق من البريد الإلكتروني..." })
+
+    try {
+      const result = await validateEmailApi(email)
+      setEmailValidation({
+        status: result.valid ? "valid" : "invalid",
+        message: result.valid ? "✓ البريد الإلكتروني صالح" : result.message,
+      })
+    } catch {
+      // On network error, don't block — server will validate on submit
+      setEmailValidation({ status: "idle", message: "" })
+    }
+  }, [])
+
+  const handleEmailBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+    const email = e.target.value.trim()
+    if (emailCheckTimer.current) clearTimeout(emailCheckTimer.current)
+    // Small delay to avoid race conditions with form validation
+    emailCheckTimer.current = setTimeout(() => checkEmailValidity(email), 300)
+  }, [checkEmailValidity])
+
   const onSubmit = async (data: RegisterFormData) => {
     setApiError(null)
+
+    // Block submission if email validation failed
+    if (emailValidation.status === "invalid") {
+      setApiError(emailValidation.message || "البريد الإلكتروني غير صالح.")
+      return
+    }
+
+    // If email hasn't been validated yet, validate it first
+    if (emailValidation.status === "idle" || emailValidation.status === "checking") {
+      setEmailValidation({ status: "checking", message: "جاري التحقق من البريد الإلكتروني..." })
+      const result = await validateEmailApi(data.email)
+      setEmailValidation({
+        status: result.valid ? "valid" : "invalid",
+        message: result.valid ? "✓ البريد الإلكتروني صالح" : result.message,
+      })
+      if (!result.valid) {
+        setApiError(result.message)
+        return
+      }
+    }
+
     try {
       const returnTo = router.query.returnTo as string | undefined
       const res = await registerUser(data.fullName, data.email, data.password, returnTo)
@@ -160,16 +224,46 @@ export default function RegisterPage() {
           />
 
           {/* البريد الإلكتروني */}
-          <Input
-            id="register-email"
-            type="email"
-            label="البريد الإلكتروني"
-            placeholder="example@email.com"
-            dir="ltr"
-            className="text-left"
-            error={errors.email?.message}
-            {...register("email")}
-          />
+          <div>
+            <Input
+              id="register-email"
+              type="email"
+              label="البريد الإلكتروني"
+              placeholder="example@email.com"
+              dir="ltr"
+              className="text-left"
+              error={errors.email?.message || (emailValidation.status === "invalid" ? emailValidation.message : undefined)}
+              {...register("email", {
+                onBlur: handleEmailBlur,
+                onChange: () => {
+                  // Reset validation when user changes the email
+                  if (emailValidation.status !== "idle") {
+                    setEmailValidation({ status: "idle", message: "" })
+                    lastCheckedEmail.current = ""
+                  }
+                },
+              })}
+            />
+            {/* مؤشر حالة التحقق من البريد */}
+            {emailValidation.status === "checking" && (
+              <div className="flex items-center gap-2 mt-1.5 px-1">
+                <Loader2 className="w-3.5 h-3.5 text-indigo-500 animate-spin" />
+                <span className="text-xs text-indigo-500">{emailValidation.message}</span>
+              </div>
+            )}
+            {emailValidation.status === "valid" && !errors.email && (
+              <div className="flex items-center gap-2 mt-1.5 px-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                <span className="text-xs text-emerald-600">{emailValidation.message}</span>
+              </div>
+            )}
+            {emailValidation.status === "invalid" && !errors.email?.message && (
+              <div className="flex items-center gap-2 mt-1.5 px-1">
+                <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+                <span className="text-xs text-red-600">{emailValidation.message}</span>
+              </div>
+            )}
+          </div>
 
           {/* كلمة المرور */}
           <div className="relative">
