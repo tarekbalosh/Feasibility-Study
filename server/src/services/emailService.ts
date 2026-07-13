@@ -43,7 +43,7 @@ async function sendBrevoEmail(toEmail: string, toName: string, subject: string, 
       return false;
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as any;
     logger.info(`Email sent successfully to ${toEmail} via Brevo (Message ID: ${data.messageId})`);
     return true;
   } catch (error) {
