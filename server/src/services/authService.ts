@@ -72,10 +72,12 @@ export async function register(data: {
   const verificationToken = jwt.sign(verificationPayload, env.JWT_SECRET, { expiresIn: "24h" });
 
   // Do NOT save the user to the database here!
-  // Send verification email asynchronously
-  sendVerificationEmail(normalizedEmail, data.name, verificationToken).catch((err) => {
-    console.error("Failed to send verification email:", err);
-  });
+  // Send verification email synchronously to ensure it reaches the user
+  const emailSent = await sendVerificationEmail(normalizedEmail, data.name, verificationToken);
+  
+  if (!emailSent) {
+    throw ApiError.internal("حدث خطأ أثناء إرسال بريد التوثيق. يرجى المحاولة مرة أخرى لاحقاً.");
+  }
 
   return {
     needsVerification: true,
@@ -378,9 +380,11 @@ export async function resendVerification(email: string) {
   const verificationToken = jwt.sign(verificationPayload, env.JWT_SECRET, { expiresIn: "24h" });
 
   // Send verification email
-  sendVerificationEmail(user.email, user.name, verificationToken).catch((err) => {
-    console.error("Failed to resend verification email:", err);
-  });
+  const emailSent = await sendVerificationEmail(user.email, user.name, verificationToken);
+  
+  if (!emailSent) {
+    throw ApiError.internal("حدث خطأ أثناء إرسال بريد التوثيق. يرجى المحاولة مرة أخرى لاحقاً.");
+  }
 
   return { message: "تم إرسال رابط التوثيق بنجاح." };
 }
