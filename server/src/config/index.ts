@@ -29,4 +29,7 @@ export const config = {
 
   // Frontend URL (for links)
   frontendUrl: process.env.FRONTEND_URL || "https://feasibility-study.vercel.app",
+
+  // Brevo API (Sendinblue)
+  brevoApiKey: process.env.BREVO_API_KEY || "",
 } as const;
