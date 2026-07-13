@@ -43,18 +43,13 @@ export async function register(data: {
   });
 
   if (existingUser) {
-    // If the existing account is unverified and the verification token has expired,
-    // delete it so the user can re-register with the same email
-    if (
-      !existingUser.isVerified &&
-      existingUser.verificationTokenExpiry &&
-      new Date() > existingUser.verificationTokenExpiry
-    ) {
+    if (!existingUser.isVerified) {
+      // If the existing account is unverified, we can delete it and let them re-register
+      // This handles old unverified accounts in the DB.
       await prisma.$transaction([
         prisma.userLimit.deleteMany({ where: { userId: existingUser.id } }),
         prisma.user.delete({ where: { id: existingUser.id } }),
       ]);
-      // Continue with registration below
     } else {
       throw ApiError.invalidInput("هذا البريد الإلكتروني مسجّل مسبقاً.", [
         { field: "email", issue: "البريد الإلكتروني مستخدم بالفعل." },
@@ -65,38 +60,20 @@ export async function register(data: {
   // Hash password
   const passwordHash = await bcrypt.hash(data.password, SALT_ROUNDS);
 
-  // Generate verification token
-  const verificationToken = crypto.randomBytes(32).toString("hex");
-  const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-  const hashedVerificationToken = await bcrypt.hash(verificationToken, SALT_ROUNDS);
+  // Create verification payload
+  const verificationPayload = {
+    name: data.name,
+    email: normalizedEmail,
+    passwordHash,
+    isVerificationToken: true
+  };
 
-  // Create user + user limits in a transaction
-  const user = await prisma.$transaction(async (tx) => {
-    const newUser = await tx.user.create({
-      data: {
-        name: data.name,
-        email: normalizedEmail,
-        passwordHash,
-        isVerified: false,
-        verificationToken: hashedVerificationToken,
-        verificationTokenExpiry,
-      },
-    });
+  // Generate verification token (JWT)
+  const verificationToken = jwt.sign(verificationPayload, env.JWT_SECRET, { expiresIn: "24h" });
 
-    // Create default user limits (free tier: 1 generation)
-    await tx.userLimit.create({
-      data: {
-        userId: newUser.id,
-        generationsLimit: 1,
-        resetAt: getNextMonthDate(),
-      },
-    });
-
-    return newUser;
-  }, { timeout: 15000 });
-
+  // Do NOT save the user to the database here!
   // Send verification email asynchronously
-  sendVerificationEmail(user.email, user.name, verificationToken).catch((err) => {
+  sendVerificationEmail(normalizedEmail, data.name, verificationToken).catch((err) => {
     console.error("Failed to send verification email:", err);
   });
 
@@ -104,9 +81,9 @@ export async function register(data: {
     needsVerification: true,
     message: "تم إنشاء حسابك بنجاح! تحقق من بريدك الإلكتروني لتفعيل الحساب",
     data: {
-      userId: user.id,
-      name: user.name,
-      email: user.email,
+      userId: "", // No user ID until verified
+      name: data.name,
+      email: normalizedEmail,
     },
   };
 }
@@ -264,58 +241,114 @@ export async function refreshToken(token: string) {
 // Email Verification
 // ——————————————————————————————————————————————
 export async function verifyEmail(token: string) {
-  // Find all unverified users (we have to verify the token hash against all of them,
-  // or pass email along with token in the query. For security/simplicity, finding all unverified
-  // users with a token is okay if the DB isn't huge, but better yet: we pass token directly if we don't hash it, 
-  // or we need the user to provide their email.
-  // Wait, our DB schema just has verificationToken as String. We hashed it.
-  // We can't efficiently search by hashed token.
-  // Let's modify the approach slightly: since we only have the token, we can just fetch all users
-  // with a non-null verificationToken. But that's inefficient.
-  // We should actually pass the token unhashed, or include an email/userId in the verification link.
-  
-  // Since we already hashed it in register(), we need a different strategy.
-  // Let's just find the user whose token matches. Since we can't search by hash,
-  // we'll get all users who are NOT verified and have an expiry > now.
-  const unverifiedUsers = await prisma.user.findMany({
-    where: {
-      isVerified: false,
-      verificationToken: { not: null },
-      verificationTokenExpiry: { gt: new Date() },
-    },
-  });
+  try {
+    // Attempt to decode as JWT (new flow)
+    const decoded = jwt.verify(token, env.JWT_SECRET) as {
+      name: string;
+      email: string;
+      passwordHash: string;
+      isVerificationToken?: boolean;
+    };
 
-  let matchedUser = null;
-  for (const user of unverifiedUsers) {
-    if (user.verificationToken) {
-      const isValid = await bcrypt.compare(token, user.verificationToken);
-      if (isValid) {
-        matchedUser = user;
-        break;
+    if (!decoded.isVerificationToken || !decoded.email || !decoded.passwordHash) {
+      throw ApiError.badRequest("رابط التوثيق غير صالح.");
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { email: decoded.email }
+    });
+
+    if (existingUser && existingUser.isVerified) {
+      throw ApiError.badRequest("هذا الحساب موثق مسبقاً.");
+    }
+
+    let matchedUser = existingUser;
+
+    if (!matchedUser) {
+      // Create user + user limits in a transaction since it wasn't created yet
+      matchedUser = await prisma.$transaction(async (tx) => {
+        const newUser = await tx.user.create({
+          data: {
+            name: decoded.name,
+            email: decoded.email,
+            passwordHash: decoded.passwordHash,
+            isVerified: true,
+          },
+        });
+
+        await tx.userLimit.create({
+          data: {
+            userId: newUser.id,
+            generationsLimit: 1,
+            resetAt: getNextMonthDate(),
+          },
+        });
+
+        return newUser;
+      }, { timeout: 15000 });
+    } else {
+      // For legacy unverified users in DB
+      matchedUser = await prisma.user.update({
+        where: { id: matchedUser.id },
+        data: {
+          isVerified: true,
+          verificationToken: null,
+          verificationTokenExpiry: null,
+        }
+      });
+    }
+
+    // Send welcome email asynchronously
+    sendWelcomeEmail(matchedUser.email, matchedUser.name).catch((err) => {
+      console.error("Failed to send welcome email:", err);
+    });
+
+    return { message: "تم توثيق الحساب بنجاح." };
+
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    
+    // Fallback: check if it's an old hashed token
+    const unverifiedUsers = await prisma.user.findMany({
+      where: {
+        isVerified: false,
+        verificationToken: { not: null },
+        verificationTokenExpiry: { gt: new Date() },
+      },
+    });
+
+    let matchedUser = null;
+    for (const user of unverifiedUsers) {
+      if (user.verificationToken) {
+        const isValid = await bcrypt.compare(token, user.verificationToken);
+        if (isValid) {
+          matchedUser = user;
+          break;
+        }
       }
     }
+
+    if (!matchedUser) {
+      throw ApiError.badRequest("رابط التوثيق غير صالح أو منتهي الصلاحية.");
+    }
+
+    // Update user as verified
+    await prisma.user.update({
+      where: { id: matchedUser.id },
+      data: {
+        isVerified: true,
+        verificationToken: null,
+        verificationTokenExpiry: null,
+      },
+    });
+
+    // Send welcome email asynchronously
+    sendWelcomeEmail(matchedUser.email, matchedUser.name).catch((err) => {
+      console.error("Failed to send welcome email:", err);
+    });
+
+    return { message: "تم توثيق الحساب بنجاح." };
   }
-
-  if (!matchedUser) {
-    throw ApiError.badRequest("رابط التوثيق غير صالح أو منتهي الصلاحية.");
-  }
-
-  // Update user as verified
-  await prisma.user.update({
-    where: { id: matchedUser.id },
-    data: {
-      isVerified: true,
-      verificationToken: null,
-      verificationTokenExpiry: null,
-    },
-  });
-
-  // Send welcome email asynchronously
-  sendWelcomeEmail(matchedUser.email, matchedUser.name).catch((err) => {
-    console.error("Failed to send welcome email:", err);
-  });
-
-  return { message: "تم توثيق الحساب بنجاح." };
 }
 
 export async function resendVerification(email: string) {
@@ -325,26 +358,24 @@ export async function resendVerification(email: string) {
     where: { email: normalizedEmail },
   });
 
-  if (!user) {
-    return { message: "إذا كان البريد مسجلاً، سيتم إرسال رابط التوثيق." };
-  }
-
-  if (user.isVerified) {
+  if (user && user.isVerified) {
     throw ApiError.badRequest("هذا الحساب موثق مسبقاً.");
   }
 
-  // Generate new token
-  const verificationToken = crypto.randomBytes(32).toString("hex");
-  const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-  const hashedVerificationToken = await bcrypt.hash(verificationToken, SALT_ROUNDS);
+  // Because new users are not saved until verified, they won't be in the DB.
+  if (!user) {
+    throw ApiError.badRequest("الحساب غير موجود أو غير مسجل. يرجى إنشاء حساب جديد ليتم إرسال رابط التوثيق.");
+  }
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      verificationToken: hashedVerificationToken,
-      verificationTokenExpiry,
-    },
-  });
+  // Legacy flow for old unverified accounts
+  const verificationPayload = {
+    name: user.name,
+    email: user.email,
+    passwordHash: user.passwordHash,
+    isVerificationToken: true
+  };
+
+  const verificationToken = jwt.sign(verificationPayload, env.JWT_SECRET, { expiresIn: "24h" });
 
   // Send verification email
   sendVerificationEmail(user.email, user.name, verificationToken).catch((err) => {
