@@ -169,7 +169,8 @@ export default function RegisterPage() {
                   setIsResending(true)
                   setResendMessage("")
                   try {
-                    await resendVerification(watch("email"))
+                    // Since we do not save unverified users in DB, resend means registering again.
+                    await registerUser(watch("fullName"), watch("email"), watch("password"))
                     setResendMessage("تم إرسال الرابط بنجاح! تفقد صندوق الوارد.")
                   } catch (err: any) {
                     setResendMessage("حدث خطأ أثناء إرسال الرابط. حاول مرة أخرى.")
