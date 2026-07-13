@@ -2,43 +2,52 @@ import { env } from "../config/env";
 import { logger } from "../utils/logger";
 
 /**
- * Helper to send email via Google Apps Script Webhook (100% Free)
+ * Helper to send email via Brevo (Sendinblue) HTTP API
  * This bypasses Render's SMTP port blocks on the free tier.
  */
-async function sendGoogleScriptEmail(toEmail: string, subject: string, htmlContent: string) {
-  if (!env.GOOGLE_SCRIPT_URL) {
-    logger.warn("GOOGLE_SCRIPT_URL is not set. Email sending will fail.");
+async function sendBrevoEmail(toEmail: string, toName: string, subject: string, htmlContent: string) {
+  if (!env.BREVO_API_KEY) {
+    logger.warn("BREVO_API_KEY is not set. Email sending will fail.");
     return false;
   }
 
   const payload = {
-    to: toEmail,
+    sender: {
+      name: "Feasibility Suite",
+      email: env.SMTP_USER || "noreply@feasibility-suite.com",
+    },
+    to: [
+      {
+        email: toEmail,
+        name: toName,
+      },
+    ],
     subject: subject,
-    html: htmlContent,
+    htmlContent: htmlContent,
   };
 
   try {
-    // We send a POST request with redirect: 'follow' because Google Apps Script
-    // Web apps reply with a 302 redirect.
-    const response = await fetch(env.GOOGLE_SCRIPT_URL, {
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
-        "Content-Type": "text/plain;charset=utf-8", // GAS sometimes prefers text/plain to avoid CORS preflight
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "api-key": env.BREVO_API_KEY,
       },
       body: JSON.stringify(payload),
-      redirect: "follow"
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      logger.error(`Google Script API Error: ${response.status} ${errorText}`);
+      logger.error(`Brevo API Error: ${response.status} ${errorText}`);
       return false;
     }
 
-    logger.info(`Email sent successfully to ${toEmail} via Google Apps Script`);
+    const data = await response.json();
+    logger.info(`Email sent successfully to ${toEmail} via Brevo (Message ID: ${data.messageId})`);
     return true;
   } catch (error) {
-    logger.error(`Failed to send email to ${toEmail} via Google Script:`, error);
+    logger.error(`Failed to send email to ${toEmail} via Brevo:`, error);
     return false;
   }
 }
@@ -69,7 +78,7 @@ export async function sendVerificationEmail(email: string, name: string, token: 
     </div>
   `;
 
-  return await sendGoogleScriptEmail(email, "توثيق حسابك - Feasibility Suite", htmlContent);
+  return await sendBrevoEmail(email, name, "توثيق حسابك - Feasibility Suite", htmlContent);
 }
 
 export async function sendWelcomeEmail(email: string, name: string) {
@@ -95,5 +104,5 @@ export async function sendWelcomeEmail(email: string, name: string) {
     </div>
   `;
 
-  return await sendGoogleScriptEmail(email, "شكراً لإنشاء حسابك 🎉", htmlContent);
+  return await sendBrevoEmail(email, name, "شكراً لإنشاء حسابك 🎉", htmlContent);
 }

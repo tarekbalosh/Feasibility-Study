@@ -16,6 +16,6 @@ export const env = {
   SMTP_USER: config.smtpUser,
   SMTP_PASS: config.smtpPass,
   FRONTEND_URL: config.frontendUrl,
-  GOOGLE_SCRIPT_URL: config.googleScriptUrl,
+  BREVO_API_KEY: config.brevoApiKey,
 } as const;
 
