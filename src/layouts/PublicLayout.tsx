@@ -1,9 +1,46 @@
 import React, { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/router"
-import { Menu, X, ArrowLeftRight } from "lucide-react"
+import {
+  Menu,
+  X,
+  ArrowLeftRight,
+  ArrowLeft,
+  ChevronLeft,
+  Mail,
+  MapPin,
+  Heart,
+  Twitter,
+  Linkedin,
+  Facebook,
+} from "lucide-react"
 import { LoginModal } from "@/components/auth/LoginModal"
 import { useAuth } from "@/context/AuthContext"
+
+const footerSections = [
+  {
+    title: "الروابط السريعة",
+    links: [
+      { name: "الرئيسية", path: "/" },
+      { name: "كتالوج الأدوات", path: "/tools" },
+      { name: "المميزات", path: "/features" },
+    ],
+  },
+  {
+    title: "الدعم والخصوصية",
+    links: [
+      { name: "من نحن", path: "/about" },
+      { name: "اتصل بنا", path: "/contact" },
+      { name: "شروط الخدمة", path: "/terms" },
+    ],
+  },
+]
+
+const socialLinks = [
+  { name: "تويتر", href: "#", Icon: Twitter },
+  { name: "لينكد إن", href: "#", Icon: Linkedin },
+  { name: "فيسبوك", href: "#", Icon: Facebook },
+]
 
 interface PublicLayoutProps {
   children: React.ReactNode
@@ -146,51 +183,111 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
       </main>
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-slate-400 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="flex flex-col gap-4">
-              <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
-                <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-base shadow-sm">
+      <footer className="relative bg-slate-900 text-slate-400 overflow-hidden">
+        {/* شريط تدرّج علوي */}
+        <div className="h-px w-full bg-gradient-to-l from-transparent via-indigo-500/60 to-transparent" />
+        {/* توهّج خلفي خفيف */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-24 right-1/4 h-64 w-64 rounded-full bg-indigo-600/10 blur-3xl"
+        />
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-8">
+            {/* العلامة التجارية */}
+            <div className="lg:col-span-4 flex flex-col gap-4">
+              <Link href="/" className="flex items-center gap-2 w-fit group">
+                <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-base shadow-lg shadow-indigo-600/25 group-hover:scale-105 transition-transform duration-200">
                   FS
                 </div>
                 <span className="text-lg font-bold text-white tracking-wide">Feasibility Suite</span>
               </Link>
-              <p className="text-xs leading-relaxed text-slate-400">
+              <p className="text-sm leading-relaxed text-slate-400 max-w-xs">
                 المنصة الذكية الأولى في الوطن العربي لمساعدة رواد الأعمال على إعداد دراسات الجدوى والخطط المالية بالذكاء الاصطناعي.
               </p>
+
+              {/* شبكات التواصل */}
+              <div className="flex items-center gap-3 pt-1">
+                {socialLinks.map(({ name, href, Icon }) => (
+                  <a
+                    key={name}
+                    href={href}
+                    aria-label={name}
+                    title={name}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center justify-center text-slate-400 hover:text-white hover:bg-indigo-600 hover:border-indigo-500 transition-colors duration-200"
+                  >
+                    <Icon className="w-4 h-4" />
+                  </a>
+                ))}
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-semibold text-white tracking-wider uppercase mb-4">الروابط السريعة</h3>
-              <ul className="space-y-2 text-sm">
-                <li><Link href="/" className="hover:text-white transition-colors duration-150">الرئيسية</Link></li>
-                <li><Link href="/tools" className="hover:text-white transition-colors duration-150">كتالوج الأدوات</Link></li>
-                <li><Link href="/features" className="hover:text-white transition-colors duration-150">المميزات</Link></li>
+
+            {/* روابط */}
+            {footerSections.map((section) => (
+              <div key={section.title} className="lg:col-span-2">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-white mb-4">
+                  <span className="w-1 h-4 rounded-full bg-indigo-500" />
+                  {section.title}
+                </h3>
+                <ul className="space-y-3 text-sm">
+                  {section.links.map((link) => (
+                    <li key={link.path}>
+                      <Link
+                        href={link.path}
+                        className="group inline-flex items-center gap-1.5 text-slate-400 hover:text-white transition-colors duration-150"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5 opacity-0 -ml-4 group-hover:opacity-100 group-hover:ml-0 text-indigo-400 transition-all duration-200" />
+                        {link.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+
+            {/* تواصل معنا */}
+            <div className="lg:col-span-4">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-white mb-4">
+                <span className="w-1 h-4 rounded-full bg-indigo-500" />
+                تواصل معنا
+              </h3>
+              <ul className="space-y-3 text-sm">
+                <li>
+                  <a
+                    href="mailto:support@feasibilitysuite.com"
+                    className="flex items-start gap-2.5 text-slate-400 hover:text-white transition-colors duration-150"
+                  >
+                    <Mail className="w-4 h-4 mt-0.5 shrink-0 text-indigo-400" />
+                    <span dir="ltr" className="text-right">support@feasibilitysuite.com</span>
+                  </a>
+                </li>
+                <li className="flex items-start gap-2.5 text-slate-400">
+                  <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-indigo-400" />
+                  <span>Taman Putra Sulaiman, Selangor, 68000 Ampang.</span>
+                </li>
               </ul>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-white tracking-wider uppercase mb-4">الدعم والخصوصية</h3>
-              <ul className="space-y-2 text-sm">
-                <li><Link href="/about" className="hover:text-white transition-colors duration-150">من نحن</Link></li>
-                <li><Link href="/contact" className="hover:text-white transition-colors duration-150">اتصل بنا</Link></li>
-                <li><Link href="/terms" className="hover:text-white transition-colors duration-150">شروط الخدمة</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-white tracking-wider uppercase mb-4">تواصل معنا</h3>
-              <p className="text-sm text-slate-400">الدعم الفني: support@feasibilitysuite.com</p>
-              <p className="text-sm text-slate-400 mt-2">Taman Putra Sulaiman, Selangor, 68000 Ampang.</p>
+
+              <Link
+                href="/tools/feasibility-study/start"
+                className="mt-6 inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-lg shadow-indigo-600/20 transition-all duration-150"
+              >
+                {isAuthenticated ? "أكمل مشروعك" : "ابدأ دراستك مجاناً"}
+                <ArrowLeft className="w-4 h-4" />
+              </Link>
             </div>
           </div>
-          <div className="mt-8 border-t border-slate-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
-            <p className="text-slate-500">
+
+          {/* الشريط السفلي */}
+          <div className="mt-12 border-t border-slate-800 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
+            <p className="text-slate-500 text-center md:text-right">
               &copy; {new Date().getFullYear()} Feasibility Suite. جميع الحقوق محفوظة.
             </p>
-            <div className="flex space-x-6 space-x-reverse text-slate-500">
-              <a href="#" className="hover:text-white">تويتر</a>
-              <a href="#" className="hover:text-white">لينكد إن</a>
-              <a href="#" className="hover:text-white">فيسبوك</a>
-            </div>
+            <p className="flex items-center gap-1.5 text-slate-500">
+              صُنع بشغف لرواد الأعمال العرب
+              <Heart className="w-3.5 h-3.5 text-indigo-400 fill-indigo-400" />
+            </p>
           </div>
         </div>
       </footer>

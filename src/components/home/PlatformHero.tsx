@@ -19,19 +19,19 @@ export const PlatformHero: React.FC = () => {
   const previewTools = getAllTools().slice(0, 4)
 
   return (
-    <section className="relative overflow-hidden py-20 lg:py-28 bg-gradient-to-b from-indigo-50/50 via-white to-slate-50">
+    <section className="relative overflow-hidden pt-28 pb-20 lg:pt-36 lg:pb-28 bg-gradient-to-b from-indigo-50/50 via-white to-slate-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* المحتوى النصي */}
-          <div className="flex flex-col items-start gap-6 text-right">
+          <div className="flex flex-col items-start gap-7 text-right">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
               <Sparkles className="w-3.5 h-3.5" />
               منصة أدوات رقمية لرواد الأعمال
             </span>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 leading-tight">
-              كل أدوات تخطيط مشروعك في{" "}
-              <span className="text-indigo-600">منصة واحدة</span>
+            <h1 className="text-3xl/[1.8] sm:text-4xl/[1.8] lg:text-5xl/[1.8] font-black text-slate-900 tracking-tight py-1">
+              كل ما تحتاجه لتخطيط مشروعك، في{" "}
+              <span className="text-indigo-600">منصة واحدة</span>.
             </h1>
 
             <p className="text-lg text-slate-600 leading-relaxed max-w-xl">

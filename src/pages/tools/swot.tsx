@@ -182,17 +182,17 @@ export default function SwotLanding() {
       </Head>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden py-20 lg:py-32 bg-gradient-to-b from-sky-50/60 via-white to-slate-50">
+      <section className="relative overflow-hidden pt-28 pb-20 lg:pt-36 lg:pb-32 bg-gradient-to-b from-sky-50/60 via-white to-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Text Content */}
-            <div className="flex flex-col items-start gap-6 text-right">
+            <div className="flex flex-col items-start gap-7 text-right">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-100">
                 🧭 تحليل استراتيجي بالذكاء الاصطناعي
               </span>
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 leading-tight">
-                اعرف موقع مشروعك الحقيقي في{" "}
-                <span className="text-sky-600">تحليل واحد</span>
+              <h1 className="text-3xl/[1.8] sm:text-4xl/[1.8] lg:text-5xl/[1.8] font-black text-slate-900 tracking-tight py-1">
+                حوّل فكرة مشروعك إلى رؤية واضحة في{" "}
+                <span className="text-sky-600">تحليل واحد</span>.
               </h1>
               <p className="text-lg text-slate-600 leading-relaxed max-w-xl">
                 نقاط قوتك، مواضع ضعفك، الفرص المتاحة أمامك، والتهديدات المحيطة
