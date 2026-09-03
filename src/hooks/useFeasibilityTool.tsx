@@ -27,7 +27,7 @@ const projectDetailsSchema = z.object({
 });
 
 const investmentDataSchema = z.object({
-  amount: z.number({ invalid_type_error: 'مطلوب إدخال رقم' }).min(0, 'المبلغ مطلوب').optional(),
+  amount: z.number({ invalid_type_error: 'مطلوب إدخال رقم' }).min(1, 'قيمة الاستثمار مطلوبة ولا يمكن أن تكون صفر').optional(),
   currency: z.string().default('SAR'),
 });
 
@@ -358,9 +358,18 @@ export const FeasibilityProvider = ({ children }: { children: ReactNode }) => {
       const isFieldsValid = await form.trigger('itemsData');
       const items = form.getValues('itemsData.items') || [];
       const hasValidItem = items.some(item => !!item.name && (Number(item.price) || 0) > 0);
+      
+      // Show validation errors on fields
+      if (!isFieldsValid) {
+        items.forEach((_, index) => {
+          form.trigger(`itemsData.items.${index}.name`);
+        });
+      }
+      
       isValid = isFieldsValid && hasValidItem;
-      if (!hasValidItem) {
-        alert('أدخل صنفاً واحداً على الأقل بتكلفته وسعره — عليه تُبنى دراسة تكاليفك.');
+      if (!hasValidItem && isFieldsValid) {
+        form.setError('itemsData', { message: 'أدخل صنفاً واحداً على الأقل بسعر بيع — عليه تُبنى دراسة تكاليفك.' });
+        isValid = false;
       }
     } else if (currentStep === 8) {
       isValid = await form.trigger('commissionTaxData');

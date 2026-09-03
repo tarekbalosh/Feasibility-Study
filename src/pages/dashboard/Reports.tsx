@@ -141,7 +141,7 @@ const ReportCard = ({ report, onDelete, index }: { report: Report; onDelete: (id
       <div className="border-t border-gray-100 bg-gradient-to-l from-gray-50/80 to-white px-5 py-3">
         <div className="flex items-center justify-between gap-2">
           <Link
-            href={`/tool/FeasibilityTool?edit=${report.projectId}`}
+            href={`/tools/feasibility-study/start?edit=${report.projectId}`}
             className={`flex items-center gap-2 text-sm font-semibold ${theme.text} hover:opacity-80 transition-opacity`}
           >
             <Eye size={16} />
@@ -267,7 +267,7 @@ export default function Reports() {
               قم بإنشاء دراسة جدوى جديدة واكتمل خطواتها لتظهر التقارير هنا.
             </p>
             <Link 
-              href="/tool/FeasibilityTool" 
+              href="/tools/feasibility-study/start" 
               className="inline-flex items-center gap-2 bg-gradient-to-l from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-3.5 rounded-xl font-semibold transition-all shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:-translate-y-0.5"
             >
               <FileText size={20} />

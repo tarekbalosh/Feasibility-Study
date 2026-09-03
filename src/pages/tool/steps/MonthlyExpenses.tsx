@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useFeasibilityTool } from '@/hooks/useFeasibilityTool';
 import { useFieldArray } from 'react-hook-form';
 import { Plus, Trash2, AlertCircle } from 'lucide-react';
@@ -10,6 +10,7 @@ export const getServerSideProps = async () => ({ props: {} });
 export default function MonthlyExpenses() {
   const { form, projectDetails } = useFeasibilityTool();
   const { control, register, watch } = form;
+  const hasInitialized = useRef(false);
   
   const projectName = projectDetails?.projectName || 'مشروعك';
   
@@ -29,7 +30,8 @@ export default function MonthlyExpenses() {
   const totalMonthly = currentExpensesTotal + depreciation;
 
   useEffect(() => {
-    if (fields.length === 0) {
+    if (fields.length === 0 && !hasInitialized.current) {
+      hasInitialized.current = true;
       defaultExpensesList.forEach(name => append({ name, value: 0 }));
     }
   }, []);

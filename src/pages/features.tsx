@@ -154,7 +154,7 @@ export default function Features() {
           <p className="text-slate-600 text-sm sm:text-base max-w-md">
             التسجيل يستغرق أقل من دقيقة، ولا يتطلب أي بطاقة ائتمانية للتجربة الأولى.
           </p>
-          <Link href="/signup" passHref>
+          <Link href="/auth/register" passHref>
             <Button variant="primary" className="px-8 py-3">
               أنشئ دراستك الأولى الآن
             </Button>

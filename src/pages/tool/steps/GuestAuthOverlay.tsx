@@ -14,7 +14,7 @@ interface GuestAuthOverlayProps {
 export default function GuestAuthOverlay({ onClose }: GuestAuthOverlayProps = {}) {
   const { register: registerUser, login, isLoading: authLoading } = useAuth();
   const router = useRouter();
-  const returnTo = (router.query.returnTo as string) || '/tool/FeasibilityTool';
+  const returnTo = (router.query.returnTo as string) || '/tools/feasibility-study/start';
 
   const [mode, setMode] = useState<FormMode>('login');
   const [name, setName] = useState('');

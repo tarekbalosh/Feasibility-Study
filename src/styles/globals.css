@@ -122,3 +122,67 @@
     overflow: visible !important;
   }
 }
+
+/* ── مستند تقرير SWOT عند التصدير ──────────────────
+   مقصورة كلها على .swot-doc فلا تمسّ طباعة أي تقرير آخر.
+   الترويسة والتذييل مثبّتان فيعيد المتصفح رسمهما في كل صفحة.
+   ملاحظة: ترقيم «صفحة X من Y» غير ممكن عبر window.print في كروم
+   (صناديق هوامش @page غير مدعومة) — يحتاج توليد PDF على الخادم. */
+@media print {
+  .swot-doc {
+    position: relative;
+    color: #0f172a;
+  }
+
+  .swot-doc__header,
+  .swot-doc__footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: #fff;
+  }
+
+  .swot-doc__header {
+    top: 0;
+    padding-bottom: 2mm;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .swot-doc__footer {
+    bottom: 0;
+    padding-top: 2mm;
+    border-top: 1px solid #e2e8f0;
+    font-size: 8pt;
+    color: #64748b;
+  }
+
+  /* مساحة تعويض ارتفاع الترويسة والتذييل المثبّتين */
+  .swot-doc__body {
+    padding-top: 12mm;
+    padding-bottom: 10mm;
+  }
+
+  /* شعار المنصة — مربّع FS نفسه المستخدم في ترويسة الموقع */
+  .swot-doc__mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    background: #4f46e5;
+    color: #fff;
+    font-size: 8pt;
+    font-weight: 700;
+  }
+
+  /* لا يُقطع بند بين صفحتين */
+  .swot-doc__block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

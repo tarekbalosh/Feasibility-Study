@@ -17,6 +17,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
 
   const navLinks = [
     { name: "الرئيسية", path: "/" },
+    { name: "الأدوات", path: "/tools" },
     { name: "المميزات", path: "/features" },
     { name: "من نحن", path: "/about" },
     { name: "تواصل معنا", path: "/contact" },
@@ -73,7 +74,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
                 </button>
               )}
               <Link
-                href="/tool/FeasibilityTool"
+                href="/tools/feasibility-study/start"
                 className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm transition-all duration-150"
               >
                 {isAuthenticated ? "أكمل مشروعك" : "ابدأ مجاناً"}
@@ -128,7 +129,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
                 </button>
               )}
               <Link
-                href="/tool/FeasibilityTool"
+                href="/tools/feasibility-study/start"
                 onClick={() => setIsOpen(false)}
                 className="block text-center bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2.5 rounded-md text-base font-semibold"
               >
@@ -163,6 +164,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
               <h3 className="text-sm font-semibold text-white tracking-wider uppercase mb-4">الروابط السريعة</h3>
               <ul className="space-y-2 text-sm">
                 <li><Link href="/" className="hover:text-white transition-colors duration-150">الرئيسية</Link></li>
+                <li><Link href="/tools" className="hover:text-white transition-colors duration-150">كتالوج الأدوات</Link></li>
                 <li><Link href="/features" className="hover:text-white transition-colors duration-150">المميزات</Link></li>
               </ul>
             </div>

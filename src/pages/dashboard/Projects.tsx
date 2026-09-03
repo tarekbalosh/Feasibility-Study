@@ -185,7 +185,7 @@ const ProjectCard = ({
                   <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                   <div className="absolute left-0 top-full mt-1 w-44 bg-white border border-gray-100 shadow-xl shadow-gray-200/50 rounded-xl overflow-hidden z-50 animate-in slide-in-from-top-2 duration-200">
                     <Link
-                      href={`/tool/FeasibilityTool?edit=${project.id}`}
+                      href={`/tools/feasibility-study/start?edit=${project.id}`}
                       className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       <Edit2 size={15} className="text-gray-400" /> تعديل المشروع
@@ -262,7 +262,7 @@ const ProjectCard = ({
         {isDraft ? (
           <div className="flex items-center justify-center w-full">
             <Link
-              href="/tool/FeasibilityTool"
+              href="/tools/feasibility-study/start"
               className="flex items-center justify-center w-full gap-2 text-sm font-semibold text-slate-700 bg-slate-200/60 hover:bg-slate-200 px-4 py-2.5 rounded-lg transition-colors"
             >
               <Edit2 size={16} />
@@ -272,7 +272,7 @@ const ProjectCard = ({
         ) : (
           <div className="flex items-center justify-between gap-2">
             <Link
-              href={`/tool/FeasibilityTool?edit=${project.id}`}
+              href={`/tools/feasibility-study/start?edit=${project.id}`}
               className={`flex items-center gap-2 text-sm font-semibold ${config.accent} hover:opacity-80 transition-opacity`}
             >
               <Eye size={16} />
@@ -419,7 +419,7 @@ export default function Projects() {
           <p className="text-gray-500 text-sm mr-12">إدارة جميع دراسات الجدوى الخاصة بك</p>
         </div>
         <Link 
-          href="/tool/FeasibilityTool" 
+          href="/tools/feasibility-study/start" 
           className="flex items-center gap-2 bg-gradient-to-l from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0"
         >
           <Plus size={20} />
@@ -469,7 +469,7 @@ export default function Projects() {
               قم بإنشاء أول دراسة جدوى لمشروعك الآن لتبدأ رحلتك في التخطيط الناجح.
             </p>
             <Link 
-              href="/tool/FeasibilityTool" 
+              href="/tools/feasibility-study/start" 
               className="inline-flex items-center gap-2 bg-gradient-to-l from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-3.5 rounded-xl font-semibold transition-all shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:-translate-y-0.5"
             >
               <Plus size={20} />

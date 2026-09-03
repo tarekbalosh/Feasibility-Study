@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useFeasibilityTool } from '@/hooks/useFeasibilityTool';
 import { useFieldArray } from 'react-hook-form';
 import { Plus, Trash2 } from 'lucide-react';
@@ -8,6 +8,7 @@ export const getServerSideProps = async () => ({ props: {} });
 export default function PartnersAndShares() {
   const { form } = useFeasibilityTool();
   const { control, register, watch, formState: { errors }, setValue, getValues } = form;
+  const hasInitialized = useRef(false);
   
   const projectName = watch('projectDetails.projectName') || 'مشروعك';
   const investmentAmount = watch('investmentData.amount') || 0;
@@ -22,15 +23,16 @@ export default function PartnersAndShares() {
   const totalPercentage = partners.reduce((sum, p) => sum + (Number(p.percentage) || 0), 0);
 
   useEffect(() => {
-    if (fields.length === 0) {
+    if (fields.length === 0 && !hasInitialized.current) {
+      hasInitialized.current = true;
       append({ name: 'أنا', percentage: 100 });
-    } else {
+    } else if (fields.length > 0 && hasInitialized.current) {
       const currentPartners = getValues('partnersData');
       if (currentPartners && currentPartners.length > 0 && currentPartners[0].name === 'أنا (صاحب المشروع)') {
         setValue('partnersData.0.name', 'أنا');
       }
     }
-  }, [fields.length, append, getValues, setValue]);
+  }, []);
 
   const isTotal100 = totalPercentage === 100;
 

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useFeasibilityTool } from '@/hooks/useFeasibilityTool';
 import { useFieldArray } from 'react-hook-form';
 import { Plus, Trash2, AlertCircle } from 'lucide-react';
@@ -7,7 +7,8 @@ export const getServerSideProps = async () => ({ props: {} });
 
 export default function ItemsAndCosts() {
   const { form } = useFeasibilityTool();
-  const { control, register, watch } = form;
+  const { control, register, watch, formState: { errors } } = form;
+  const hasInitialized = useRef(false);
   
   const sector = watch('sector');
   const title = sector === 'مطاعم وأغذية' ? 'ما أبرز أصناف قائمتك؟' : 'ما أبرز منتجاتك أو خدماتك؟';
@@ -19,7 +20,8 @@ export default function ItemsAndCosts() {
   const items = watch('itemsData.items') || [];
   
   useEffect(() => {
-    if (fields.length === 0) {
+    if (fields.length === 0 && !hasInitialized.current) {
+      hasInitialized.current = true;
       for (let i = 0; i < 4; i++) {
         append({ name: '', cost: 0, price: 0 });
       }
@@ -54,14 +56,19 @@ export default function ItemsAndCosts() {
           const c = Number(items[index]?.cost) || 0;
           const p = Number(items[index]?.price) || 0;
           const warning = p > 0 && c >= p;
+          const nameError = errors.itemsData?.items?.[index]?.name;
           
           return (
             <div key={field.id}>
               <div className="flex gap-2 sm:gap-3 items-center">
                 <input
-                  {...register(`itemsData.items.${index}.name`)}
+                  {...register(`itemsData.items.${index}.name`, { required: 'اسم الصنف مطلوب' })}
                   placeholder="اسم الصنف"
-                  className="flex-1 p-2.5 sm:p-3 text-sm rounded-lg border border-gray-200 focus:border-indigo-500"
+                  className={`flex-1 p-2.5 sm:p-3 text-sm rounded-lg border transition-colors focus:border-indigo-500 ${
+                    nameError 
+                      ? 'border-red-500 bg-red-50' 
+                      : 'border-gray-200'
+                  }`}
                 />
                 <input
                   {...register(`itemsData.items.${index}.cost`, { valueAsNumber: true })}
@@ -83,7 +90,12 @@ export default function ItemsAndCosts() {
                   <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
-              {warning && (
+              {nameError && (
+                <p className="text-xs text-red-600 mt-1 font-medium flex items-center">
+                  <AlertCircle className="w-3 h-3 mr-1 inline" /> {nameError.message}
+                </p>
+              )}
+              {warning && !nameError && (
                 <p className="text-xs text-amber-600 mt-1 font-medium flex items-center">
                   <AlertCircle className="w-3 h-3 mr-1 inline" /> تكلفة هذا الصنف تساوي سعره أو تتجاوزه — تربح منه شيئاً؟
                 </p>
@@ -95,6 +107,13 @@ export default function ItemsAndCosts() {
           <button type="button" onClick={() => append({ name: '', cost: 0, price: 0 })} className="mt-3 flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-800">
             <Plus className="w-4 h-4 mr-1" /> أضف صنفاً
           </button>
+        )}
+        
+        {errors.itemsData?.message && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-300 rounded-lg flex items-start gap-2">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-red-700 font-medium">{errors.itemsData.message}</p>
+          </div>
         )}
       </div>
 

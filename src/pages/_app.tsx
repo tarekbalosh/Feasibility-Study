@@ -4,6 +4,7 @@ import { AuthProvider } from "@/context/AuthContext"
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState } from 'react'
 import Script from "next/script"
+import { Toaster } from "react-hot-toast"
 
 export default function App({ Component, pageProps }: AppProps) {
   const [queryClient] = useState(() => new QueryClient({
@@ -19,6 +20,14 @@ export default function App({ Component, pageProps }: AppProps) {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Component {...pageProps} />
+        {/* التنبيهات المنبثقة — تستهلكها الخدمات والهوكس عبر toast.* */}
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            style: { fontFamily: "Cairo, sans-serif", direction: "rtl" },
+            duration: 4000,
+          }}
+        />
         <Script id="tawk-to-script" strategy="afterInteractive">
           {`
             var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();

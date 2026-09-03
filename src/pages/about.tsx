@@ -98,7 +98,7 @@ export default function About() {
       <section className="py-16 bg-white border-t border-slate-200 animate-fade-in-up" style={{ animationDelay: '400ms' }}>
         <div className="max-w-4xl mx-auto px-4 text-center flex flex-col items-center gap-6">
           <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">انضم إلينا واصنع مستقبلك الاستثماري</h2>
-          <Link href="/signup" passHref>
+          <Link href="/auth/register" passHref>
             <Button variant="primary" className="px-8 py-3">
               أنشئ حسابك الآن مجاناً
             </Button>

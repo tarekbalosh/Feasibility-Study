@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useFeasibilityTool } from '@/hooks/useFeasibilityTool';
 import { useFieldArray } from 'react-hook-form';
 import { Plus, Trash2, AlertCircle } from 'lucide-react';
@@ -11,6 +11,7 @@ export const getServerSideProps = async () => ({ props: {} });
 export default function SetupAndEstablishment() {
   const { form } = useFeasibilityTool();
   const { control, register, watch } = form;
+  const hasInitialized = useRef(false);
   
   const investmentAmount = watch('investmentData.amount') || 0;
   
@@ -29,7 +30,8 @@ export default function SetupAndEstablishment() {
   const grandTotal = equipTotal + expTotal;
 
   useEffect(() => {
-    if (equipments.length === 0 && expenses.length === 0 && equipFields.length === 0 && expFields.length === 0) {
+    if (equipments.length === 0 && expenses.length === 0 && equipFields.length === 0 && expFields.length === 0 && !hasInitialized.current) {
+      hasInitialized.current = true;
       defaultEquipments.forEach(name => appendEquip({ name, value: 0 }));
       defaultExpenses.forEach(name => appendExp({ name, value: 0 }));
     }
