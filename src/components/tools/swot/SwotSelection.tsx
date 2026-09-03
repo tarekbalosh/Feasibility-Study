@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/Button"
+import { SwotDetailedLists } from "@/components/tools/swot/SwotDetailedLists"
 import {
   MAX_CUSTOM_ITEM_LENGTH,
   SEARCH_VISIBILITY_THRESHOLD,
@@ -186,6 +187,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
   const style = CATEGORY_STYLES[category]
   const Icon = style.icon
   const selection = selections[category]
+  const panelId = `swot-group-${category}`
 
   const isDesktop = useIsDesktop()
   const [open, setOpen] = React.useState(true)
@@ -232,39 +234,68 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
 
   return (
     <section className="flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-      {/* ترويسة المجموعة — زر طيّ على الجوال، وثابتة على سطح المكتب */}
-      <button
-        type="button"
-        onClick={isDesktop ? undefined : () => setOpen((prev) => !prev)}
-        aria-expanded={isDesktop ? undefined : open}
+      {/*
+        ترويسة المجموعة — صفّ واحد يضمّ زرّ الطيّ (جوال) وزرّ القوائم
+        التفصيلية. الزرّان متجاوران لا متداخلان: زرّ داخل زرّ ترميز
+        غير صالح، ولذا صارت الترويسة عنصر div يحوي أزرارها.
+      */}
+      <div
         className={clsx(
-          "flex items-center gap-3 px-4 py-3 text-right w-full border-b",
-          isDesktop && "cursor-default",
+          "flex flex-wrap items-center gap-x-2 gap-y-2 px-4 py-3 w-full border-b",
           style.header
         )}
       >
-        <span
+        <button
+          type="button"
+          onClick={isDesktop ? undefined : () => setOpen((prev) => !prev)}
+          aria-expanded={isDesktop ? undefined : open}
+          aria-controls={isDesktop ? undefined : panelId}
           className={clsx(
-            "w-9 h-9 rounded-xl text-white text-sm font-black flex items-center justify-center shrink-0 shadow-sm",
-            style.badge
+            "order-1 flex items-center gap-3 flex-1 min-w-0 text-right",
+            isDesktop && "cursor-default"
           )}
         >
-          {style.letter}
-        </span>
+          <span
+            className={clsx(
+              "w-9 h-9 rounded-xl text-white text-sm font-black flex items-center justify-center shrink-0 shadow-sm",
+              style.badge
+            )}
+          >
+            {style.letter}
+          </span>
 
-        <span className="flex flex-col flex-1 min-w-0">
-          <span className="flex items-center gap-1.5">
-            <span className="text-[15px] font-bold text-slate-900">
-              {style.title}
+          <span className="flex flex-col flex-1 min-w-0">
+            <span className="flex items-center gap-1.5">
+              <span className="text-[15px] font-bold text-slate-900">
+                {style.title}
+              </span>
+              <Icon className="w-3.5 h-3.5 shrink-0 text-slate-400" />
             </span>
-            <Icon className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+            <span className="text-[11px] text-slate-500 truncate">
+              {style.subtitle}
+            </span>
           </span>
-          <span className="text-[11px] text-slate-500 truncate">
-            {style.subtitle}
-          </span>
-        </span>
+        </button>
 
-        <span className="flex items-center gap-2 shrink-0">
+        {/*
+          ميزة مدفوعة — الزرّ ظاهر للجميع، والقفل داخل النافذة.
+          على الشاشات الضيّقة ينزل إلى سطر خاص به حتى لا يزاحم
+          عنوان المجموعة على مساحة لا تكفيهما معاً.
+        */}
+        <div className="order-3 basis-full sm:order-2 sm:basis-auto">
+          <SwotDetailedLists
+            category={category}
+            accent={{
+              letter: style.letter,
+              title: style.title,
+              badge: style.badge,
+              header: style.header,
+              text: style.count,
+            }}
+          />
+        </div>
+
+        <span className="order-2 sm:order-3 flex items-center gap-1.5 shrink-0">
           <span className="text-sm font-bold tabular-nums">
             <span className={style.count}>{ar(selectedCount)}</span>
             <span className="text-slate-400 font-medium">
@@ -272,14 +303,23 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
               {ar(chips.length)}
             </span>
           </span>
-          <ChevronDown
-            className={clsx(
-              "w-5 h-5 text-slate-400 lg:hidden transition-transform duration-200",
-              open && "rotate-180"
-            )}
-          />
+          <button
+            type="button"
+            onClick={() => setOpen((prev) => !prev)}
+            aria-expanded={open}
+            aria-controls={panelId}
+            aria-label={`${open ? "طيّ" : "فتح"} بنود ${style.title}`}
+            className="lg:hidden w-7 h-7 -ml-1 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white/60 transition-colors duration-150"
+          >
+            <ChevronDown
+              className={clsx(
+                "w-5 h-5 transition-transform duration-200",
+                open && "rotate-180"
+              )}
+            />
+          </button>
         </span>
-      </button>
+      </div>
 
       {/* شريط تقدّم رفيع — نسبة ما اختير من المجموعة */}
       <div className="h-[3px] bg-slate-100 shrink-0">
@@ -291,6 +331,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
 
       {/* المحتوى — مفتوح افتراضياً على الجوال، ولا يُطوى على سطح المكتب */}
       <div
+        id={panelId}
         className={clsx(
           "flex flex-col flex-1 min-h-0",
           !open && !isDesktop && "hidden"
