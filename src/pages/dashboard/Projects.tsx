@@ -4,6 +4,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { useProjects, useDeleteProject } from '@/hooks/useProjects';
+import { useToolRuns, useDeleteToolRun } from '@/hooks/useToolRuns';
+import { ToolRunCard } from '@/components/dashboard/ToolRunCard';
+import { useAuth } from '@/context/AuthContext';
 import {
   Plus, MoreVertical, FileText, Edit2, Trash2, AlertCircle,
   Save, Loader2, Info, TrendingUp, Calendar, DollarSign,
@@ -333,6 +336,17 @@ export default function Projects() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const router = useRouter();
 
+  // ── تحليلات الأدوات المحفوظة ─────────────────────────────
+  // لوحة واحدة تجمع مخرجات كل الأدوات، لا دراسات الجدوى وحدها.
+  const { isAuthenticated } = useAuth();
+  const { data: toolRuns, isLoading: isLoadingRuns } = useToolRuns(isAuthenticated);
+  const { mutate: deleteToolRun } = useDeleteToolRun();
+  const [deleteRunId, setDeleteRunId] = useState<string | null>(null);
+
+  const runsCount = toolRuns?.length ?? 0;
+  const projectsCount = projects?.length ?? 0;
+
+
   // Unsaved project handling
   const [unsavedData, setUnsavedData] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -386,6 +400,16 @@ export default function Projects() {
     }
   };
 
+  /** إجمالي ما يظهر في الشبكة — مشاريع + تحليلات + مسودة */
+  const totalCount = projectsCount + runsCount + (unsavedData ? 1 : 0);
+
+  const handleDeleteRun = () => {
+    if (deleteRunId) {
+      deleteToolRun(deleteRunId);
+      setDeleteRunId(null);
+    }
+  };
+
   const handleDelete = () => {
     if (deleteId) {
       if (deleteId === 'draft') {
@@ -404,7 +428,7 @@ export default function Projects() {
   return (
     <DashboardLayout>
       <Head>
-        <title>مشاريعي - أداة دراسة الجدوى</title>
+        <title>مشاريعي - Feasibility Suite</title>
       </Head>
 
       {/* ── Page Header ─────────────────────────────────── */}
@@ -416,7 +440,7 @@ export default function Projects() {
             </div>
             <h1 className="text-2xl font-bold text-gray-900">مشاريعي</h1>
           </div>
-          <p className="text-gray-500 text-sm mr-12">إدارة جميع دراسات الجدوى الخاصة بك</p>
+          <p className="text-gray-500 text-sm mr-12">كل ما أنتجته أدوات المنصة داخل مساحة عملك — في مكان واحد</p>
         </div>
         <Link 
           href="/tools/feasibility-study/start" 
@@ -438,23 +462,29 @@ export default function Projects() {
       )}
 
       {/* ── Stats Bar (only when projects exist) ─────── */}
-      {!isLoading && (projects?.length || 0) + (unsavedData ? 1 : 0) > 0 && (
+      {!isLoading && !isLoadingRuns && totalCount > 0 && (
         <div className="flex items-center gap-3 mb-6 flex-wrap">
           <span className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 shadow-sm">
             <BarChart3 size={16} className="text-blue-500" />
-            {(projects?.length || 0) + (unsavedData ? 1 : 0)} {(projects?.length || 0) + (unsavedData ? 1 : 0) === 1 ? 'مشروع' : 'مشاريع'}
+            {totalCount} {totalCount === 1 ? 'عنصر محفوظ' : 'عنصر محفوظ'}
           </span>
+          {runsCount > 0 && (
+            <span className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 shadow-sm">
+              <Sparkles size={16} className="text-indigo-500" />
+              {runsCount} تحليل من الأدوات
+            </span>
+          )}
         </div>
       )}
 
       {/* ── Loading State ──────────────────────────────── */}
-      {isLoading ? (
+      {isLoading || isLoadingRuns ? (
         <div className="dashboard-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {[0, 1, 2, 3, 4, 5].map((i) => (
             <SkeletonCard key={i} index={i} />
           ))}
         </div>
-      ) : (projects?.length === 0 && !unsavedData) ? (
+      ) : totalCount === 0 ? (
         /* ── Empty State ───────────────────────────────── */
         <div className="bg-white rounded-3xl border-2 border-dashed border-gray-200 p-12 text-center flex flex-col items-center justify-center relative overflow-hidden">
           {/* Decorative background */}
@@ -464,16 +494,16 @@ export default function Projects() {
             <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-600 rounded-2xl flex items-center justify-center mb-6 mx-auto shadow-lg shadow-blue-100/50 rotate-3">
               <FileText size={36} />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">لا توجد مشاريع حالياً</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">لا توجد أعمال محفوظة بعد</h3>
             <p className="text-gray-500 mb-8 max-w-md leading-relaxed">
-              قم بإنشاء أول دراسة جدوى لمشروعك الآن لتبدأ رحلتك في التخطيط الناجح.
+              كل تحليل تنتجه أي أداة يُحفظ هنا تلقائياً. ابدأ بأداة وسيظهر عملك في هذه الصفحة.
             </p>
             <Link 
-              href="/tools/feasibility-study/start" 
+              href="/tools" 
               className="inline-flex items-center gap-2 bg-gradient-to-l from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-3.5 rounded-xl font-semibold transition-all shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:-translate-y-0.5"
             >
               <Plus size={20} />
-              إنشاء مشروع جديد
+              استعرض الأدوات
             </Link>
           </div>
         </div>
@@ -499,15 +529,55 @@ export default function Projects() {
              />
           )}
 
+          {/* تحليلات الأدوات المحفوظة — أحدثها أولاً */}
+          {toolRuns?.map((run, index) => (
+            <ToolRunCard
+              key={run.id}
+              run={run}
+              onDelete={(id) => setDeleteRunId(id)}
+              index={unsavedData ? index + 1 : index}
+            />
+          ))}
+
           {/* Saved Projects */}
           {projects?.map((project: any, index: number) => (
             <ProjectCard
               key={project.id}
               project={project}
               onDelete={(id) => setDeleteId(id)}
-              index={unsavedData ? index + 1 : index}
+              index={runsCount + (unsavedData ? 1 : 0) + index}
             />
           ))}
+        </div>
+      )}
+
+      {/* ── تأكيد حذف تحليل أداة ───────────────────────── */}
+      {deleteRunId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-7 animate-in zoom-in-95 duration-200">
+            <div className="w-14 h-14 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mb-5 rotate-3">
+              <Trash2 size={26} />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">حذف هذا التحليل؟</h3>
+            <p className="text-gray-500 mb-7 leading-relaxed">
+              سيُحذف التحليل من لوحة تحكّم مساحة عملك نهائياً، ولن يتمكّن أعضاء
+              فريقك من الاطّلاع عليه بعد ذلك.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteRunId(null)}
+                className="px-5 py-2.5 rounded-xl font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleDeleteRun}
+                className="px-5 py-2.5 rounded-xl font-medium text-white bg-gradient-to-l from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 transition-all shadow-lg shadow-red-500/25"
+              >
+                تأكيد الحذف
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

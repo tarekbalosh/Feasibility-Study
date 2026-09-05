@@ -57,6 +57,9 @@ export const logout = async (): Promise<void> => {
   }
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
+  // بيانات المستخدم تُخزَّن مع الرمز، فتُمسح معه — وإلا بقي كائن
+  // مستخدم يتيم في المتصفح بعد انتهاء الجلسة.
+  localStorage.removeItem('user');
 };
 
 /** Request password reset */

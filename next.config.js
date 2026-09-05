@@ -1,3 +1,12 @@
+/**
+ * عنوان الخادم الخلفي — مصدر واحد يشترك فيه:
+ *   • الـ rewrite أدناه (نداءات المتصفح تمرّ عبر البروكسي فلا CORS)
+ *   • src/lib/requireWorkspaceApi.ts (نداءات مسارات Next API من الخادم)
+ * الأخير لا يستطيع استخدام المسار النسبي /local-api، فـ fetch في Node
+ * يرفض أي عنوان غير مطلق.
+ */
+const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:8080/api'
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -10,12 +19,12 @@ const nextConfig = {
    */
   distDir: process.env.NEXT_DIST_DIR || '.next',
 
-  // Proxy /local-api/* → http://localhost:8080/api/* (server-side, no CORS)
+  // Proxy /local-api/* → BACKEND_API_URL/* (server-side, no CORS)
   async rewrites() {
     return [
       {
         source: '/local-api/:path*',
-        destination: 'http://localhost:8080/api/:path*',
+        destination: `${BACKEND_API_URL}/:path*`,
       },
     ]
   },

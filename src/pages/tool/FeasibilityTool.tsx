@@ -21,6 +21,9 @@ import AuthGate from './steps/AuthGate';
 import Report from './steps/Report';
 import Export from './steps/Export';
 import GuestAuthOverlay from './steps/GuestAuthOverlay';
+
+import { WorkspaceGuard } from '@/components/workspace/WorkspaceGuard';
+
 const WizardContent = () => {
   const { currentStep, totalSteps, nextStep, prevStep, isAnalyzing, form } = useFeasibilityTool();
   const { isAuthenticated } = useAuth();
@@ -161,10 +164,19 @@ const WizardContent = () => {
 
 export const getServerSideProps = async () => ({ props: {} });
 
+/**
+ * المسار القديم /tool/FeasibilityTool ما زال قابلاً للفتح مباشرةً،
+ * فيُلَفّ بحارس مساحة العمل هو أيضاً — وإلا لَفُتحت الأداة من هذا
+ * الباب دون المرور بـ /tools/feasibility-study/start.
+ * الحارس المتداخل (عند التحميل عبر مشغّل الأدوات) بلا أثر: كلا
+ * النسختين تقرأ الحالة نفسها من WorkspaceContext.
+ */
 export default function FeasibilityToolPage() {
   return (
-    <FeasibilityProvider>
-      <WizardContent />
-    </FeasibilityProvider>
+    <WorkspaceGuard>
+      <FeasibilityProvider>
+        <WizardContent />
+      </FeasibilityProvider>
+    </WorkspaceGuard>
   );
 }

@@ -1,12 +1,16 @@
 import type { NextApiRequest, NextApiResponse } from "next"
 import { z } from "zod"
 import { generateSwotAnalysis } from "@/services/swot.service"
+import { requireWorkspaceApi } from "@/lib/requireWorkspaceApi"
 import type { SwotApiResponse } from "@/types/swot"
 
 /**
  * POST /api/tools/swot
  * يستقبل مدخلات المشروع ويعيد تحليلاً رباعياً (SWOT) كاملاً.
  * التوليد يجري على الخادم حتى لا يُكشف مفتاح OpenAI للمتصفح.
+ *
+ * المسار مقصور على أعضاء مساحة عمل فعّالة: الحارس على الواجهة وحده
+ * يُتجاوَز بنداء مباشر، فالتحقق يتكرّر هنا أيضاً.
  */
 
 /**
@@ -59,7 +63,7 @@ const swotInputSchema = z.object({
 })
 
 // ── محدِّد معدّل الطلبات: 10 طلبات/ساعة لكل عنوان IP ──────────
-// التوليد يستهلك رصيد OpenAI، فالمسار مفتوح دون تسجيل دخول.
+// التوليد يستهلك رصيد OpenAI، فالحد قائم فوق حارس مساحة العمل.
 const RATE_LIMIT = 10
 const RATE_WINDOW_MS = 60 * 60 * 1000
 const requestLog = new Map<string, number[]>()
@@ -106,6 +110,10 @@ export default async function handler(
       message: `تم تجاوز الحد المسموح (${RATE_LIMIT} تحليلات/ساعة). يرجى المحاولة لاحقاً.`,
     })
   }
+
+  // حارس مساحة العمل — يكتب استجابة الرفض بنفسه ويعيد null عند الفشل
+  const workspace = await requireWorkspaceApi(req, res)
+  if (!workspace) return
 
   try {
     const { selections, ...input } = parsed.data

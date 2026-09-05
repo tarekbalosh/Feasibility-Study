@@ -6,6 +6,7 @@ import { env } from "../config/env";
 import { ApiError } from "../utils/ApiError";
 import { validateEmail } from "../utils/emailValidator";
 import { sendVerificationEmail, sendWelcomeEmail } from "./emailService";
+import { hasActiveWorkspace, linkPendingMemberships } from "./workspaceService";
 
 const SALT_ROUNDS = 12;
 
@@ -24,6 +25,18 @@ function generateRefreshToken(userId: string, email: string): string {
     expiresIn: env.JWT_REFRESH_EXPIRES_IN as string & SignOptions["expiresIn"],
   };
   return jwt.sign({ userId, email }, env.JWT_REFRESH_SECRET, options);
+}
+
+/**
+ * إصدار رموز الجلسة لمسارات دخول أخرى (الدخول بالبريد فقط مثلاً).
+ * يُبقي توليد الرموز في ملف واحد، فلا تتباعد إعدادات الصلاحية بين
+ * طريقتَي الدخول.
+ */
+export function issueSessionTokens(userId: string, email: string) {
+  return {
+    token: generateAccessToken(userId, email),
+    refreshToken: generateRefreshToken(userId, email),
+  };
 }
 
 // ——————————————————————————————————————————————
@@ -115,9 +128,20 @@ export async function login(data: { email: string; password: string }) {
   const token = generateAccessToken(user.id, user.email);
   const refreshToken = generateRefreshToken(user.id, user.email);
 
+  // ربط أي عضويات مساحات عمل دُعي إليها هذا البريد قبل وجود الحساب.
+  // الربط يملأ user_id فقط ولا يغيّر الحالة: العضوية تبقى 'invited'
+  // حتى يفتح المستخدم رابط الدعوة ويقبلها صراحةً.
+  const pendingLinked = await linkPendingMemberships(user.id, user.email).catch(
+    () => 0
+  );
+
+  const hasWorkspace = await hasActiveWorkspace(user.id);
+
   return {
     token,
     refreshToken,
+    hasWorkspace,
+    pendingInvites: pendingLinked,
     data: {
       userId: user.id,
       name: user.name,

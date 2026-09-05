@@ -9,7 +9,8 @@ import { PlatformHero } from "@/components/home/PlatformHero"
 import { PlatformFeatures } from "@/components/home/PlatformFeatures"
 import { AboutSection } from "@/components/home/AboutSection"
 import { ContactSection } from "@/components/home/ContactSection"
-import { getFeaturedTools, getToolStartPath } from "@/config/tools.registry"
+import { getFeaturedTools } from "@/config/tools.registry"
+import { StartWorkspaceButton } from "@/components/workspace/StartWorkspaceButton"
 
 /**
  * الصفحة الرئيسية للمنصة.
@@ -46,8 +47,8 @@ export default function Home() {
               اختر الأداة التي تحتاجها الآن
             </h2>
             <p className="text-slate-600">
-              كل أداة مستقلة بذاتها وتعمل بلا تسجيل — ابدأ بالتي تجيب عن سؤالك
-              الحالي، وانتقل لغيرها متى احتجت.
+              كل أداة مستقلة بذاتها وتعمل داخل مساحة عملك — ابدأ بالتي تجيب عن
+              سؤالك الحالي، وانتقل لغيرها متى احتجت.
             </p>
           </div>
 
@@ -79,17 +80,10 @@ export default function Home() {
             جاهز لإطلاق فكرة مشروعك القادم؟
           </h2>
           <p className="text-indigo-200 max-w-xl text-base leading-relaxed">
-            ابدأ بأي أداة من أدوات المنصة مجاناً وبلا تسجيل، واحصل على أول
-            مخرجاتك خلال دقائق معدودة.
+            أنشئ مساحة عملك مجاناً في أقل من دقيقة، وافتح بها كل أدوات
+            المنصة — بمفردك أو مع فريقك.
           </p>
-          <Link href={getToolStartPath("feasibility-study")} passHref>
-            <Button
-              variant="secondary"
-              className="px-8 py-3 text-base font-bold shadow-lg shadow-emerald-950/20"
-            >
-              ابدأ الآن مجاناً
-            </Button>
-          </Link>
+          <StartWorkspaceButton className="bg-secondary hover:bg-secondary-dark text-white px-8 py-3 text-base font-bold rounded-lg shadow-lg shadow-emerald-950/20 transition-all duration-200" />
         </div>
       </section>
     </PublicLayout>

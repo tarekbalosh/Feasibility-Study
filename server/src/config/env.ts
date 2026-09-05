@@ -17,5 +17,8 @@ export const env = {
   SMTP_PASS: config.smtpPass,
   FRONTEND_URL: config.frontendUrl,
   BREVO_API_KEY: config.brevoApiKey,
+  MAIL_FROM: config.mailFrom,
+  MAIL_FROM_NAME: config.mailFromName,
+  MAIL_REPLY_TO: config.mailReplyTo,
 } as const;
 

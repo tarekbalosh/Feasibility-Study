@@ -194,7 +194,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                 onClick={onClose}
                 className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors"
               >
-                إنشاء حساب مجاني
+                أنشئ مساحة عملك الخاصة
               </Link>
             </p>
           </form>

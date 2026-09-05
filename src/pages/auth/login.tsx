@@ -10,11 +10,14 @@ import { Input } from "@/components/ui/Input"
 import { Button } from "@/components/ui/Button"
 import { useAuth } from "@/context/AuthContext"
 import { loginSchema, type LoginFormData } from "@/lib/validations"
+import { PasswordlessForm } from "@/components/auth/PasswordlessForm"
 
 export default function LoginPage() {
   const { login } = useAuth()
   const [apiError, setApiError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
+  // الدخول بالبريد هو الطريق الأساسي؛ كلمة المرور تُكشف عند الطلب
+  const [usePassword, setUsePassword] = useState(false)
 
   const {
     register,
@@ -63,8 +66,37 @@ export default function LoginPage() {
 
       <AuthLayout
         title="مرحباً بعودتك"
-        subtitle="سجّل دخولك للوصول إلى لوحة التحكم ومشاريعك"
+        subtitle={
+          usePassword
+            ? "سجّل دخولك بكلمة المرور للوصول إلى مساحة عملك"
+            : "أدخل بريدك الإلكتروني وسنرسل لك رمز الدخول"
+        }
       >
+        {!usePassword ? (
+          <>
+            <PasswordlessForm mode="login" redirectTo={returnTo} />
+
+            <div className="mt-8 space-y-3 border-t border-slate-200 pt-6 text-center text-sm">
+              <p className="text-slate-500">
+                ليس لديك حساب؟{" "}
+                <Link
+                  href={registerHref}
+                  className="font-semibold text-indigo-600 transition-colors hover:text-indigo-700"
+                >
+                  أنشئ مساحة عملك الخاصة
+                </Link>
+              </p>
+              {/* مسار احتياطي للحسابات القديمة التي أُنشئت بكلمة مرور */}
+              <button
+                type="button"
+                onClick={() => setUsePassword(true)}
+                className="text-xs text-slate-400 underline transition-colors hover:text-slate-600"
+              >
+                لديك كلمة مرور؟ سجّل الدخول بها
+              </button>
+            </div>
+          </>
+        ) : (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
           {/* رسالة الخطأ */}
           {apiError && (
@@ -146,17 +178,26 @@ export default function LoginPage() {
             )}
           </Button>
 
-          {/* رابط إنشاء حساب */}
-          <p className="text-center text-sm text-slate-500 mt-4">
-            ليس لديك حساب؟{" "}
-            <Link
-              href={registerHref}
-              className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors"
+          <div className="mt-4 space-y-3 text-center text-sm">
+            <button
+              type="button"
+              onClick={() => setUsePassword(false)}
+              className="font-semibold text-indigo-600 transition-colors hover:text-indigo-700"
             >
-              إنشاء حساب مجاني
-            </Link>
-          </p>
+              ← الرجوع للدخول بالبريد فقط
+            </button>
+            <p className="text-slate-500">
+              ليس لديك حساب؟{" "}
+              <Link
+                href={registerHref}
+                className="font-semibold text-indigo-600 transition-colors hover:text-indigo-700"
+              >
+                أنشئ مساحة عملك الخاصة
+              </Link>
+            </p>
+          </div>
         </form>
+        )}
       </AuthLayout>
     </>
   )

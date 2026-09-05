@@ -5,8 +5,15 @@ import { generateReport, classifyProject } from '../../engine/aiAnalysisEngine';
 import { interpretFinancial } from '../../engine/interpretationEngine';
 import { validateConsistency, FinancialInsight } from '../../engine/types';
 import { prisma } from '../config/prisma';
+import { authMiddleware } from '../middleware/authMiddleware';
+import { requireWorkspace } from '../middleware/workspaceMiddleware';
 
 const router = Router();
+
+// توليد دراسة الجدوى مقصور على أعضاء مساحة عمل فعّالة — نفس القاعدة
+// المطبَّقة على الواجهة، مُنفَّذة هنا حتى لا يُتجاوز الحارس بنداء مباشر.
+router.use(authMiddleware);
+router.use(requireWorkspace);
 
 router.post('/', async (req: Request, res: Response) => {
   try {

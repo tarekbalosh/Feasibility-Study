@@ -52,7 +52,7 @@ export default function SectorSelection() {
       </div>
 
       <div className="text-center">
-        <p className="text-sm text-gray-400">بلا تسجيل، وبلا بطاقة دفع — دراستك تُبنى الآن مباشرةً.</p>
+        <p className="text-sm text-gray-400">بلا بطاقة دفع — دراستك تُبنى الآن مباشرةً داخل مساحة عملك.</p>
       </div>
     </div>
   );

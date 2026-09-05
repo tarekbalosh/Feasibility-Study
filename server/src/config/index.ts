@@ -32,4 +32,14 @@ export const config = {
 
   // Brevo API (Sendinblue) - 300 free emails/day
   brevoApiKey: process.env.BREVO_API_KEY || "",
+
+  // ——— عنوان المرسِل ———
+  // مستقل عن SMTP_USER عمداً: الأخير بيانات اعتماد، وهذا هوية ظاهرة
+  // للمستلم. فصلهما يسمح بالتحوّل إلى نطاق موثَّق (no-reply@yourdomain)
+  // بتغيير متغيّر واحد، دون المساس بإعدادات الاتصال.
+  // مهم: أي نطاق هنا يجب أن يكون موثَّقاً في Brevo (SPF + DKIM)، وإلا
+  // فشل تحقّق DMARC وذهبت الرسائل إلى السبام.
+  mailFrom: process.env.MAIL_FROM || process.env.SMTP_USER || "",
+  mailFromName: process.env.MAIL_FROM_NAME || "Feasibility Suite",
+  mailReplyTo: process.env.MAIL_REPLY_TO || "",
 } as const;

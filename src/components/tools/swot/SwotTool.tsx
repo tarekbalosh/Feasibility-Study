@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import Head from "next/head"
 import Link from "next/link"
+import { useRouter } from "next/router"
 import { Grid2x2, Loader2 } from "lucide-react"
 import { useSwotTool } from "@/hooks/useSwotTool"
 import { SwotForm } from "@/components/tools/swot/SwotForm"
@@ -52,6 +53,42 @@ const GeneratingScreen: React.FC<{ projectName: string }> = ({ projectName }) =>
 }
 
 /**
+ * مؤشّر حفظ التحليل في لوحة التحكم.
+ * الحفظ تلقائي وصامت، لكن المستخدم يحتاج تأكيداً بصرياً أن عمله
+ * لم يضِع — وتحذيراً حين يفشل، لأن التحليل حينها في متصفحه وحده.
+ */
+const SaveStatus: React.FC<{ state: "idle" | "saving" | "saved" | "error" }> = ({
+  state,
+}) => {
+  if (state === "idle") return null
+
+  const config = {
+    saving: {
+      className: "bg-slate-50 border-slate-200 text-slate-500",
+      text: "جارٍ الحفظ في لوحة التحكم...",
+    },
+    saved: {
+      className: "bg-emerald-50 border-emerald-200 text-emerald-700",
+      text: "محفوظ في لوحة التحكم ✓",
+    },
+    error: {
+      className: "bg-amber-50 border-amber-200 text-amber-800",
+      text: "تعذّر الحفظ في لوحة التحكم — التحليل محفوظ في متصفحك، وسيُحاول الحفظ مجدداً عند أي تعديل.",
+    },
+  }[state]
+
+  return (
+    <div
+      className={`mb-4 flex items-center justify-center gap-2 rounded-xl border px-4 py-2 text-xs font-semibold ${config.className}`}
+      role="status"
+    >
+      {state === "saving" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+      {config.text}
+    </div>
+  )
+}
+
+/**
  * أداة تحليل SWOT — تُحمّل عبر سجلّ الأدوات على المسار
  * /tools/swot/start
  */
@@ -82,7 +119,25 @@ export const SwotTool: React.FC = () => {
     editSelection,
     showResult,
     reset,
+    saveState,
+    loadSavedRun,
   } = useSwotTool()
+
+  // ── فتح تحليل محفوظ قادم من لوحة التحكم (/tools/swot/start?run=...) ──
+  const router = useRouter()
+  const loadedRunRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!router.isReady) return
+
+    const raw = router.query.run
+    const runId = Array.isArray(raw) ? raw[0] : raw
+    if (!runId || loadedRunRef.current === runId) return
+
+    // المرجع يمنع إعادة التحميل عند كل تصيير، فيبقى تعديل المستخدم
+    loadedRunRef.current = runId
+    void loadSavedRun(runId)
+  }, [router.isReady, router.query.run, loadSavedRun])
 
   return (
     <div
@@ -141,15 +196,19 @@ export const SwotTool: React.FC = () => {
               onBack={backToForm}
             />
           ) : phase === "result" && analysis ? (
-            <SwotResult
-              input={input}
-              analysis={analysis}
-              onEditInput={editInput}
-              onEditSelection={editSelection}
-              onRegenerate={generate}
-              onReset={reset}
-              removeItem={removeItem}
-            />
+            <>
+              {/* حالة الحفظ في لوحة التحكم — سطر خفيف لا يزاحم النتيجة */}
+              <SaveStatus state={saveState} />
+              <SwotResult
+                input={input}
+                analysis={analysis}
+                onEditInput={editInput}
+                onEditSelection={editSelection}
+                onRegenerate={generate}
+                onReset={reset}
+                removeItem={removeItem}
+              />
+            </>
           ) : (
             <SwotForm
               input={input}

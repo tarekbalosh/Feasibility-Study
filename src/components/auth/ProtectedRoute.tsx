@@ -13,7 +13,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   React.useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.replace(`/auth/login?redirect=${encodeURIComponent(router.asPath)}`)
+      // صفحة الدخول تقرأ returnTo — أي اسم آخر يُسقط وجهة العودة بصمت
+      router.replace(`/auth/login?returnTo=${encodeURIComponent(router.asPath)}`)
     }
   }, [isAuthenticated, isLoading, router])
 

@@ -28,7 +28,7 @@ export default function ToolsCatalog() {
           </h1>
           <p className="text-lg text-slate-600 max-w-2xl leading-relaxed">
             {availableCount} أدوات متاحة الآن من أصل {tools.length} على خارطة
-            الطريق. كل أداة مستقلة، تعمل بلا تسجيل، وتجيب عن سؤال واحد محدّد في
+            الطريق. كل أداة مستقلة داخل مساحة عملك، وتجيب عن سؤال واحد محدّد في
             تخطيط مشروعك.
           </p>
         </div>

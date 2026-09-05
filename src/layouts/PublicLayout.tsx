@@ -16,6 +16,8 @@ import {
 } from "lucide-react"
 import { LoginModal } from "@/components/auth/LoginModal"
 import { useAuth } from "@/context/AuthContext"
+import { useWorkspace } from "@/context/WorkspaceContext"
+import { StartWorkspaceButton } from "@/components/workspace/StartWorkspaceButton"
 
 const footerSections = [
   {
@@ -51,6 +53,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
   const router = useRouter()
   const { isAuthenticated } = useAuth()
+  const { workspace } = useWorkspace()
 
   const navLinks = [
     { name: "الرئيسية", path: "/" },
@@ -69,11 +72,26 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-sm">
+            <Link href="/" className="flex items-center gap-2 min-w-0">
+              <div className="w-10 h-10 shrink-0 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-sm">
                 FS
               </div>
-              <span className="text-xl font-bold text-slate-900 tracking-wide">Feasibility Suite</span>
+              <span className="text-base sm:text-xl font-bold text-slate-900 tracking-wide shrink-0">Feasibility Suite</span>
+              {/* اسم مساحة العمل الحالية — يظهر لعضو مساحة قائمة.
+                  يظهر على الجوال أيضاً (كان مخفياً تحت sm فيغيب عن أكثر
+                  الشاشات استخداماً)، والقصّ يمنع تكسير الترويسة: العرض
+                  الأقصى ضيّق على الجوال ويتّسع على الشاشات الأكبر. */}
+              {workspace && (
+                <span className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <span className="w-px h-5 bg-slate-300 shrink-0" aria-hidden="true" />
+                  <span
+                    title={workspace.name}
+                    className="text-xs sm:text-sm font-semibold text-indigo-600 truncate max-w-[4.5rem] sm:max-w-[10rem]"
+                  >
+                    {workspace.name}
+                  </span>
+                </span>
+              )}
             </Link>
 
             {/* Desktop Navigation */}
@@ -110,12 +128,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
                   تسجيل الدخول
                 </button>
               )}
-              <Link
-                href="/tools/feasibility-study/start"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm transition-all duration-150"
-              >
-                {isAuthenticated ? "أكمل مشروعك" : "ابدأ مجاناً"}
-              </Link>
+              <StartWorkspaceButton className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm transition-all duration-150 whitespace-nowrap" />
             </div>
 
             {/* Mobile menu button */}
@@ -133,6 +146,12 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
         {/* Mobile Menu */}
         {isOpen && (
           <div className="md:hidden bg-white border-b border-slate-200 px-4 pt-2 pb-4 space-y-1">
+            {workspace && (
+              <div className="px-3 pb-2 mb-1 border-b border-slate-100 text-sm">
+                <span className="text-slate-400">مساحة العمل: </span>
+                <span className="font-semibold text-indigo-600">{workspace.name}</span>
+              </div>
+            )}
             {navLinks.map((link) => (
               <Link
                 key={link.path}
@@ -165,13 +184,10 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
                   تسجيل الدخول
                 </button>
               )}
-              <Link
-                href="/tools/feasibility-study/start"
-                onClick={() => setIsOpen(false)}
-                className="block text-center bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2.5 rounded-md text-base font-semibold"
-              >
-                {isAuthenticated ? "أكمل مشروعك" : "ابدأ مجاناً"}
-              </Link>
+              <StartWorkspaceButton
+                onNavigate={() => setIsOpen(false)}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2.5 rounded-md text-base font-semibold"
+              />
             </div>
           </div>
         )}
@@ -269,13 +285,10 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
                 </li>
               </ul>
 
-              <Link
-                href="/tools/feasibility-study/start"
-                className="mt-6 inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-lg shadow-indigo-600/20 transition-all duration-150"
-              >
-                {isAuthenticated ? "أكمل مشروعك" : "ابدأ دراستك مجاناً"}
-                <ArrowLeft className="w-4 h-4" />
-              </Link>
+              <StartWorkspaceButton
+                icon={<ArrowLeft className="w-4 h-4" />}
+                className="mt-6 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-lg shadow-indigo-600/20 transition-all duration-150"
+              />
             </div>
           </div>
 

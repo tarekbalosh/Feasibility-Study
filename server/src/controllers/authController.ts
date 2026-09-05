@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import * as authService from "../services/authService";
+import * as otpService from "../services/otpService";
 import { validateEmailQuick } from "../utils/emailValidator";
 
 // ——— POST /api/auth/register ———
@@ -27,6 +28,8 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     success: true,
     token: result.token,
     refreshToken: result.refreshToken,
+    // الواجهة تعتمد عليه لتوجيه من لا يملك مساحة عمل إلى إنشائها
+    hasWorkspace: result.hasWorkspace,
     data: result.data,
   });
 });
@@ -149,3 +152,57 @@ export const cleanupUnverified = asyncHandler(
     });
   }
 );
+
+// ——— POST /api/auth/request-code ———
+// الدخول بالبريد فقط: إصدار رمز من 6 أرقام وإرساله.
+export const requestCode = asyncHandler(async (req: Request, res: Response) => {
+  const { email, name } = req.body;
+
+  const result = await otpService.requestLoginCode({ email, name });
+
+  res.status(200).json({
+    success: true,
+    message: result.message,
+    email: result.email,
+    expiresInSeconds: result.expiresInSeconds,
+  });
+});
+
+// ——— POST /api/auth/verify-code ———
+// التحقق من الرمز، وإنشاء الحساب إن لزم، ثم إصدار رموز الجلسة.
+export const verifyCode = asyncHandler(async (req: Request, res: Response) => {
+  const { email, code, name } = req.body;
+
+  const result = await otpService.verifyLoginCode({ email, code, name });
+
+  // بريد جديد بلا اسم: الرمز ما زال صالحاً، ننتظر الاسم فقط
+  if (result.needsName) {
+    res.status(200).json({
+      success: true,
+      needsName: true,
+      email: result.email,
+      message: "أدخل اسمك لإكمال إنشاء مساحة عملك.",
+    });
+    return;
+  }
+
+  const { token, refreshToken } = authService.issueSessionTokens(
+    result.userId,
+    result.email
+  );
+
+  res.status(200).json({
+    success: true,
+    needsName: false,
+    token,
+    refreshToken,
+    hasWorkspace: result.hasWorkspace,
+    data: {
+      userId: result.userId,
+      name: result.name,
+      email: result.email,
+      subscriptionTier: result.subscriptionTier,
+      subscriptionStatus: result.subscriptionStatus,
+    },
+  });
+});

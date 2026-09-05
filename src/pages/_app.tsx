@@ -1,6 +1,7 @@
 import "@/styles/globals.css"
 import type { AppProps } from "next/app"
 import { AuthProvider } from "@/context/AuthContext"
+import { WorkspaceProvider } from "@/context/WorkspaceContext"
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState } from 'react'
 import Script from "next/script"
@@ -19,7 +20,10 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Component {...pageProps} />
+        {/* حالة مساحة العمل تعتمد على الجلسة، فتُركَّب داخل AuthProvider */}
+        <WorkspaceProvider>
+          <Component {...pageProps} />
+        </WorkspaceProvider>
         {/* التنبيهات المنبثقة — تستهلكها الخدمات والهوكس عبر toast.* */}
         <Toaster
           position="top-center"

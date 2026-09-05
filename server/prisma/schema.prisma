@@ -31,6 +31,10 @@ model User {
   payments  Payment[]
   userLimit UserLimit?
 
+  ownedWorkspaces      Workspace[]       @relation("WorkspaceOwner")
+  workspaceMemberships WorkspaceMember[]
+  toolRuns             ToolRun[]
+
   @@map("users")
 }
 
@@ -90,6 +94,126 @@ model UserLimit {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_limits")
+}
+
+// ——————————————————————————————————————————————
+// Workspaces — مساحة العمل: الحاوية الإلزامية لأي استخدام للأدوات
+// ——————————————————————————————————————————————
+model Workspace {
+  id        String   @id @default(uuid())
+  name      String
+  industry  String?
+  ownerId   String   @map("owner_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  owner    User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members  WorkspaceMember[]
+  invites  WorkspaceInvite[]
+  toolRuns ToolRun[]
+
+  @@index([ownerId])
+  @@map("workspaces")
+}
+
+// ——————————————————————————————————————————————
+// Workspace members — العضوية الفعلية (والمعلّقة) داخل مساحة العمل
+//   role:   owner | admin | member | viewer
+//   status: active | invited | pending
+// القيود الفعلية (CHECK) تُطبَّق عبر prisma/sql/workspace_constraints.sql
+// لأن Prisma لا يعبّر عن CHECK في المخطط.
+// ——————————————————————————————————————————————
+model WorkspaceMember {
+  id          String    @id @default(uuid())
+  workspaceId String    @map("workspace_id")
+  userId      String?   @map("user_id")
+  email       String
+  role        String    @default("member")
+  status      String    @default("invited")
+  invitedAt   DateTime  @default(now()) @map("invited_at")
+  joinedAt    DateTime? @map("joined_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // البريد مخزَّن بحروف صغيرة دائماً، فالمفتاح المركّب يمنع تكرار العضو
+  @@unique([workspaceId, email])
+  @@index([userId, status])
+  @@index([workspaceId, status])
+  @@map("workspace_members")
+}
+
+// ——————————————————————————————————————————————
+// Workspace invites — دعوة بالبريد مع رمز عشوائي وتاريخ انتهاء
+// ——————————————————————————————————————————————
+model WorkspaceInvite {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  email       String
+  token       String   @unique
+  role        String   @default("member")
+  expiresAt   DateTime @map("expires_at")
+  accepted    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([workspaceId])
+  @@map("workspace_invites")
+}
+
+// ——————————————————————————————————————————————
+// Login codes — الدخول بالبريد فقط (رمز من 6 أرقام)
+// ——————————————————————————————————————————————
+//  الرمز لا يُخزَّن نصاً: نحفظ HMAC-SHA256 مفتاحه JWT_SECRET، فتسريب
+//  قاعدة البيانات وحده لا يكفي لاشتقاق الرموز.
+//  name يُملأ حين يأتي الطلب من شاشة إنشاء مساحة العمل، فيُستخدم
+//  لإنشاء الحساب عند التحقق دون سؤال المستخدم مرّتين.
+// ——————————————————————————————————————————————
+model LoginCode {
+  id         String    @id @default(uuid())
+  email      String
+  codeHash   String    @map("code_hash")
+  name       String?
+  attempts   Int       @default(0)
+  consumedAt DateTime? @map("consumed_at")
+  expiresAt  DateTime  @map("expires_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([email, consumedAt])
+  @@index([expiresAt])
+  @@map("login_codes")
+}
+
+// ——————————————————————————————————————————————
+// Tool runs — مخرجات الأدوات المحفوظة
+// ——————————————————————————————————————————————
+//  سجل موحّد لكل الأدوات بدل جدول لكل أداة: الأداة الجديدة تُحفظ
+//  وتظهر في لوحة التحكم دون أي تغيير في المخطط.
+//  input/output نصوص JSON — يطابق أسلوب Project في هذا المشروع
+//  ويُبقي شكل كل أداة حرّاً.
+//  الملكية لمساحة العمل لا للمستخدم: زميلك يرى تحليلك، وخروج عضو
+//  من الفريق لا يُفقد الفريق عمله. userId يبقى للنسبة (من أنشأه).
+// ——————————————————————————————————————————————
+model ToolRun {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  userId      String   @map("user_id")
+  toolSlug    String   @map("tool_slug")
+  title       String
+  summary     String?
+  input       String
+  output      String
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, updatedAt])
+  @@index([workspaceId, toolSlug])
+  @@map("tool_runs")
 }
 
 model FeasibilityStudy {

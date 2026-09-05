@@ -13,6 +13,19 @@ if (baseURL.includes('vercel.app') && !baseURL.includes('/api')) {
   baseURL = PRODUCTION_API_URL;
 }
 
+/**
+ * طلب صامت: لا يعرض الاعتراضُ تنبيهاً عند فشله.
+ * يُستخدم لأمرين:
+ *  • الفحوص الخلفية (حالة مساحة العمل) — يجري بعضها على صفحات
+ *    عامة، فلا يجوز أن يرى الزائر تنبيه «خطأ في الخادم» وهو يتصفّح.
+ *  • الطلبات التي يعالج مُستدعيها الخطأ بنفسه — وإلا ظهر تنبيهان.
+ */
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    silent?: boolean
+  }
+}
+
 // Create Axios instance – withCredentials enables sending httpOnly refresh‑token cookie
 const api: AxiosInstance = axios.create({
   baseURL,
@@ -79,18 +92,46 @@ api.interceptors.response.use(
           return api.request(originalRequest);
         }
       } catch (refreshErr) {
-        // Refresh failed → logout & redirect
+        // Refresh failed → the session is dead; clear it either way.
         await authService.logout();
-        if (typeof window !== 'undefined') {
+
+        // ...لكن التحويل القسري للطلبات التي بدأها المستخدم وحدها:
+        // فحصٌ خلفي (حالة مساحة العمل) يجري على الصفحة الرئيسية أيضاً،
+        // ورمزٌ منتهٍ في المتصفح كان يقتلع الزائر من الصفحة التي يقرؤها
+        // ويرميه في شاشة تسجيل الدخول بلا سبب ظاهر له.
+        if (typeof window !== 'undefined' && !(originalRequest as any)?.silent) {
           window.location.href = '/auth/login';
         }
         return Promise.reject(refreshErr);
       }
     }
 
-    // 3️⃣ Unified error handling – map to Arabic message, show toast
+    // 3️⃣ Handle 403 WORKSPACE_REQUIRED – the account has no workspace yet.
+    //    الحارس على الخادم يرفع هذا الرمز على كل مسارات الأدوات، فالتقاطه
+    //    هنا يغطّي أي صفحة تنادي الـ API حتى لو لم تُلَفّ بحارس الواجهة.
+    const errorCode = (error.response?.data as any)?.error?.code
+    if (
+      error.response?.status === 403 &&
+      errorCode === 'WORKSPACE_REQUIRED' &&
+      !(originalRequest as any)?.silent
+    ) {
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/workspace/create')) {
+        toast.error('يجب إنشاء مساحة عمل أولاً لاستخدام الأدوات.', {
+          id: 'workspace-required',
+        })
+        const returnTo = encodeURIComponent(
+          window.location.pathname + window.location.search
+        )
+        window.location.href = `/workspace/create?returnTo=${returnTo}`
+      }
+      return Promise.reject(error)
+    }
+
+    // 4️⃣ Unified error handling – map to Arabic message, show toast
     //    Skip toast for auth endpoints (they handle their own error UI)
-    if (!isAuthEndpoint) {
+    //    and for requests explicitly marked silent.
+    const isSilent = Boolean((originalRequest as any)?.silent);
+    if (!isAuthEndpoint && !isSilent) {
       const friendly = mapError(error);
       toast.error(friendly);
     }

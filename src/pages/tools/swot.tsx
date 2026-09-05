@@ -176,7 +176,7 @@ export default function SwotLanding() {
         <title>أداة تحليل SWOT الذكية | Feasibility Suite</title>
         <meta
           name="description"
-          content="ما هو تحليل SWOT (التحليل الرباعي / مصفوفة سوات)؟ وأنشئ مصفوفتك الرباعية بالذكاء الاصطناعي: نقاط القوة والضعف والفرص والتهديدات، مع استراتيجيات عملية مستخرجة من تقاطعات المصفوفة — مجاناً وبلا تسجيل."
+          content="ما هو تحليل SWOT (التحليل الرباعي / مصفوفة سوات)؟ وأنشئ مصفوفتك الرباعية بالذكاء الاصطناعي: نقاط القوة والضعف والفرص والتهديدات، مع استراتيجيات عملية مستخرجة من تقاطعات المصفوفة — مجاناً داخل مساحة عملك."
         />
         <link rel="canonical" href="https://feasibilitysuite.com/tools/swot" />
       </Head>
@@ -218,7 +218,7 @@ export default function SwotLanding() {
                 </Link>
               </div>
               <p className="text-xs text-slate-400">
-                بلا تسجيل، وبلا بطاقة دفع — التحليل يبدأ مباشرةً.
+                بلا بطاقة دفع — أنشئ مساحة عملك ويبدأ التحليل مباشرةً.
               </p>
             </div>
 
@@ -494,7 +494,7 @@ export default function SwotLanding() {
                 الأداة مجانية بالكامل
               </h3>
               <p className="text-sm text-slate-600 leading-relaxed">
-                تحليل غير محدود، تحرير للبنود، وطباعة أو تصدير PDF — بلا تسجيل
+                تحليل غير محدود، تحرير للبنود، وطباعة أو تصدير PDF — بلا بطاقة دفع
                 ولا بطاقة دفع. الإضافة المدفوعة الوحيدة هي «القوائم التفصيلية»:
                 تصنيف معمّق بأمثلة جاهزة لكل ربع من أرباع المصفوفة، ولا يؤثّر
                 غيابها على استخدام الأداة.
@@ -513,7 +513,7 @@ export default function SwotLanding() {
           </h2>
           <p className="text-sky-200 max-w-xl text-base leading-relaxed">
             صِف مشروعك في سطرين، واحصل على مصفوفة SWOT كاملة واستراتيجياتها خلال
-            ثوانٍ — مجاناً وبلا تسجيل.
+            ثوانٍ — مجاناً داخل مساحة عملك.
           </p>
           <Link href={START_PATH} passHref>
             <Button

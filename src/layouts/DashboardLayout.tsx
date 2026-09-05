@@ -3,11 +3,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { FolderGit2, FileText, Settings, LogOut, Menu, X, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useWorkspace } from '@/context/WorkspaceContext';
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, logout } = useAuth();
+  const { workspace } = useWorkspace();
 
   const navigation = [
     { name: 'مشاريعي', href: '/dashboard/Projects', icon: FolderGit2 },
@@ -72,8 +74,31 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             <span className="bg-blue-600 text-white p-1.5 rounded-lg">
               <FolderGit2 size={20} />
             </span>
-            <span className="font-bold text-lg text-blue-600">جدوى</span>
+            <span className="flex flex-col min-w-0">
+              <span className="font-bold text-lg text-blue-600 leading-tight">جدوى</span>
+              {workspace && (
+                <span className="text-[11px] text-gray-500 truncate max-w-[9rem] leading-tight">
+                  {workspace.name}
+                </span>
+              )}
+            </span>
           </Link>
+
+          {/* هوية المنصة ومساحة العمل الحالية — "Feasibility Suite | اسم الشركة" */}
+          <div className="flex-1 min-w-0 hidden md:flex items-center gap-2">
+            <span className="text-sm font-bold text-gray-900 shrink-0">Feasibility Suite</span>
+            {workspace && (
+              <>
+                <span className="text-gray-300 shrink-0" aria-hidden="true">|</span>
+                <span
+                  title={workspace.name}
+                  className="text-sm font-semibold text-blue-600 truncate max-w-[16rem]"
+                >
+                  {workspace.name}
+                </span>
+              </>
+            )}
+          </div>
 
           <div className="flex-1 md:hidden"></div> {/* Spacer for mobile */}
 

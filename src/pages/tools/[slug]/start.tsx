@@ -2,7 +2,7 @@ import React, { useEffect } from "react"
 import Head from "next/head"
 import { useRouter } from "next/router"
 import { Loader2 } from "lucide-react"
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute"
+import { WorkspaceGuard } from "@/components/workspace/WorkspaceGuard"
 import { getToolComponent } from "@/config/tools.components"
 import { getToolBySlug, getToolPath } from "@/config/tools.registry"
 
@@ -24,6 +24,9 @@ const Waiting: React.FC<{ message: string }> = ({ message }) => (
  * يقرأ الأداة من السجلّ ويحمّل مكوّنها من خريطة المكوّنات، فإضافة
  * أداة جديدة لا تتطلب صفحةً جديدة هنا. الأدوات التي لم يُربط لها
  * مكوّن بعد تُحوَّل إلى صفحة تعريفها.
+ *
+ * كل ما تحت هذا المسار محروس بـ WorkspaceGuard، فأي أداة تُضاف
+ * لاحقاً ترث الحماية دون تعديل.
  */
 export default function ToolStartPage() {
   const router = useRouter()
@@ -65,5 +68,9 @@ export default function ToolStartPage() {
     </>
   )
 
-  return tool.requiresAuth ? <ProtectedRoute>{content}</ProtectedRoute> : content
+  // كل الأدوات خلف حارس مساحة العمل — لا استثناء لأداة «بلا تسجيل»:
+  // الحارس يتكفّل بسلسلة تسجيل الدخول ثم إنشاء المساحة، وحقل
+  // requiresAuth في السجلّ لم يعد يميّز أداةً عن أخرى بعد أن صار
+  // إنشاء المساحة إجبارياً للجميع.
+  return <WorkspaceGuard>{content}</WorkspaceGuard>
 }

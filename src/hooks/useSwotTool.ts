@@ -10,6 +10,7 @@ import {
   validateCustomItem,
 } from "@/utils/swotSelections"
 import { withReportDefaults } from "@/utils/swotReport"
+import * as toolRunsService from "@/services/toolRuns.service"
 import {
   emptySwotSelections,
   type SwotAnalysis,
@@ -47,6 +48,8 @@ interface StoredDraft {
   input: SwotInput
   analysis: SwotAnalysis | null
   selections: SwotSelections
+  /** معرّف السجل في لوحة التحكم — وجوده يعني تحديثاً لا إضافة */
+  runId?: string | null
 }
 
 /**
@@ -77,6 +80,7 @@ const readDraft = (): StoredDraft | null => {
     return {
       input: { ...emptyInput, ...parsed.input },
       analysis,
+      runId: parsed.runId ?? null,
       selections: normalizeStoredSelections(parsed.selections),
     }
   } catch {
@@ -120,20 +124,74 @@ export const useSwotTool = () => {
   const [generateError, setGenerateError] = useState<string | null>(null)
   const [draftRestored, setDraftRestored] = useState(false)
 
+  /**
+   * معرّف التحليل في لوحة التحكم.
+   * يُحفظ مع المسودة، فإعادة التوليد أو تعديل البنود تُحدّث السجل نفسه
+   * بدل أن تُراكم نسخاً من المشروع ذاته.
+   */
+  const runIdRef = useRef<string | null>(null)
+
+  /** حالة المزامنة مع لوحة التحكم — تعرضها الواجهة بسطر خفيف */
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
+
   /** عدّاد تصاعدي لمعرّفات البنود المخصّصة — يضمن التفرّد داخل الجلسة */
   const customSeq = useRef(0)
 
   // ── استعادة المسودة عند أول تحميل ─────────────────────────
+  // تُتخطّى حين يفتح المستخدم تحليلاً محفوظاً من لوحة التحكم: السجل
+  // المطلوب صراحةً يسبق مسودة المتصفح.
   useEffect(() => {
+    if (typeof window !== "undefined" && window.location.search.includes("run=")) {
+      return
+    }
+
     const draft = readDraft()
     if (!draft) return
     setInput(draft.input)
     setSelections(draft.selections)
+    runIdRef.current = draft.runId ?? null
     if (draft.analysis) {
       setAnalysis(draft.analysis)
       setPhase("result")
     }
     setDraftRestored(true)
+  }, [])
+
+  /**
+   * تحميل تحليل محفوظ من لوحة التحكم إلى داخل الأداة.
+   * يُبقي المعرّف، فأي تعديل بعد الفتح يُحدّث السجل نفسه لا ينسخه.
+   */
+  const loadSavedRun = useCallback(async (runId: string) => {
+    setPhase("generating")
+
+    try {
+      const run = await toolRunsService.getToolRun<SwotInput, SwotAnalysis>(runId)
+
+      if (!run.output) {
+        throw new Error("التحليل المحفوظ فارغ أو تالف.")
+      }
+
+      runIdRef.current = run.id
+      if (run.input) setInput({ ...emptyInput, ...run.input })
+
+      const stored = run.output as any
+      setAnalysis(
+        withReportDefaults({
+          ...stored,
+          strengths: toSwotItems(stored.strengths),
+          weaknesses: toSwotItems(stored.weaknesses),
+          opportunities: toSwotItems(stored.opportunities),
+          threats: toSwotItems(stored.threats),
+        })
+      )
+      setPhase("result")
+      setSaveState("saved")
+    } catch {
+      setGenerateError(
+        "تعذّر فتح التحليل المحفوظ. قد يكون حُذف أو أنك لا تملك صلاحية الوصول إليه."
+      )
+      setPhase("form")
+    }
   }, [])
 
   // ── حفظ المسودة عند كل تغيير ──────────────────────────────
@@ -149,7 +207,7 @@ export const useSwotTool = () => {
     try {
       window.localStorage.setItem(
         DRAFT_KEY,
-        JSON.stringify({ input, analysis, selections })
+        JSON.stringify({ input, analysis, selections, runId: runIdRef.current })
       )
     } catch {
       // تجاهُل تجاوز حجم التخزين — المسودة ميزة مساعدة لا أكثر
@@ -268,6 +326,46 @@ export const useSwotTool = () => {
    * withSelections = false يعني «تخطّي» — نمرّر للتوليد بلا اختيارات
    * دون مسح ما اختاره المستخدم، حتى يجده كما هو إن رجع للخطوة.
    */
+  /**
+   * حفظ التحليل في لوحة التحكم.
+   *
+   * يجري في الخلفية ولا يُوقف المستخدم: فشلُه يُسجَّل في حالة المزامنة
+   * فقط، لأن التحليل ظاهر أمامه ومحفوظ في المتصفح على أي حال — وقطعُ
+   * تجربته بتنبيه أحمر بسبب تعثّر شبكة عقوبةٌ بلا مقابل.
+   *
+   * الزائر غير المسجَّل لا يُحاول أصلاً: المسار محروس بمساحة العمل.
+   */
+  const persist = useCallback(
+    async (currentInput: SwotInput, currentAnalysis: SwotAnalysis) => {
+      if (typeof window === "undefined") return
+      if (!window.localStorage.getItem("accessToken")) return
+
+      setSaveState("saving")
+
+      try {
+        const saved = await toolRunsService.saveToolRun({
+          id: runIdRef.current ?? undefined,
+          toolSlug: "swot",
+          title: currentInput.projectName.trim() || "تحليل SWOT",
+          summary: currentAnalysis.summary?.slice(0, 300) || undefined,
+          input: currentInput,
+          output: currentAnalysis,
+        })
+
+        runIdRef.current = saved.id
+        setSaveState("saved")
+      } catch (error: any) {
+        // سجل حُذف من لوحة التحكم في تبويب آخر: ننسى معرّفه ليُنشأ
+        // سجل جديد في المحاولة التالية بدل الفشل الأبدي.
+        if (error?.response?.status === 404) {
+          runIdRef.current = null
+        }
+        setSaveState("error")
+      }
+    },
+    []
+  )
+
   const runGeneration = useCallback(
     async (withSelections: boolean) => {
       const validationErrors = validate(input)
@@ -283,9 +381,19 @@ export const useSwotTool = () => {
       setPhase("generating")
 
       try {
+        // المسار محروس بمساحة العمل، فيلزمه رمز الدخول. fetch الخام
+        // لا يمرّ باعتراض lib/axios الذي يرفق الرمز تلقائياً.
+        const token =
+          typeof window !== "undefined"
+            ? window.localStorage.getItem("accessToken")
+            : null
+
         const response = await fetch("/api/tools/swot", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
           body: JSON.stringify({
             ...input,
             projectName: input.projectName.trim(),
@@ -306,8 +414,12 @@ export const useSwotTool = () => {
         const { analysis: result } = (await response.json()) as SwotApiResponse
         // تطبيع عند حدود الحالة أيضاً لا عند قراءة المسودة وحدها: لا يدخل
         // الحالة تحليل ناقص المعرّف أو التاريخ أو الأولويات مهما كان مصدره
-        setAnalysis(withReportDefaults(result))
+        const normalized = withReportDefaults(result)
+        setAnalysis(normalized)
         setPhase("result")
+
+        // الحفظ في لوحة التحكم لا يُنتظر: النتيجة معروضة أصلاً
+        void persist(input, normalized)
       } catch (error: any) {
         const message =
           error?.message || "تعذّر إنشاء التحليل. يرجى المحاولة مرة أخرى."
@@ -316,7 +428,7 @@ export const useSwotTool = () => {
         setPhase("selection")
       }
     },
-    [input, selections]
+    [input, selections, persist]
   )
 
   /** توليد التحليل مع اختيارات المستخدم */
@@ -392,6 +504,10 @@ export const useSwotTool = () => {
     clearCategory,
     generateError,
     dismissGenerateError,
+    // المزامنة مع لوحة التحكم
+    saveState,
+    savedRunId: runIdRef.current,
+    loadSavedRun,
     // التوليد والنتيجة
     generate,
     skipSelection,

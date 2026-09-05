@@ -252,7 +252,7 @@ export const SwotForm: React.FC<SwotFormProps> = ({
         )}
 
         <p className="text-xs text-slate-400 sm:mr-auto text-center sm:text-right">
-          بلا تسجيل، وبلا بطاقة دفع.
+          داخل مساحة عملك، وبلا بطاقة دفع.
         </p>
       </div>
     </form>

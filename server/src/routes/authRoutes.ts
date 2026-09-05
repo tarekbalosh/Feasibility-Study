@@ -130,4 +130,49 @@ router.post(
 // Clean up expired unverified accounts
 router.post("/cleanup-unverified", authController.cleanupUnverified);
 
+// ─────────────────────────────────────────────────────────────
+//  الدخول بالبريد فقط (رمز من 6 أرقام) — الطريق الأساسي
+//  كلمة المرور أعلاه تبقى مساراً احتياطياً للحسابات القديمة.
+// ─────────────────────────────────────────────────────────────
+
+// ——— POST /api/auth/request-code ———
+router.post(
+  "/request-code",
+  validateRequest([
+    body("email")
+      .trim()
+      .isEmail()
+      .normalizeEmail()
+      .withMessage("صيغة البريد الإلكتروني غير صحيحة."),
+    body("name")
+      .optional({ values: "falsy" })
+      .trim()
+      .isLength({ min: 2, max: 100 })
+      .withMessage("الاسم يجب أن يكون بين 2 و 100 حرف."),
+  ]),
+  authController.requestCode
+);
+
+// ——— POST /api/auth/verify-code ———
+router.post(
+  "/verify-code",
+  validateRequest([
+    body("email")
+      .trim()
+      .isEmail()
+      .normalizeEmail()
+      .withMessage("صيغة البريد الإلكتروني غير صحيحة."),
+    body("code")
+      .trim()
+      .matches(/^\d{6}$/)
+      .withMessage("الرمز يجب أن يكون 6 أرقام."),
+    body("name")
+      .optional({ values: "falsy" })
+      .trim()
+      .isLength({ min: 2, max: 100 })
+      .withMessage("الاسم يجب أن يكون بين 2 و 100 حرف."),
+  ]),
+  authController.verifyCode
+);
+
 export default router;

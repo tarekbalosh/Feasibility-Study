@@ -4,6 +4,7 @@ import clsx from "clsx"
 import { ArrowLeft, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { getAllTools, getAvailableTools } from "@/config/tools.registry"
+import { StartWorkspaceButton } from "@/components/workspace/StartWorkspaceButton"
 
 /** إحصاءات المنصة — تُحتسب من سجلّ الأدوات فلا تحتاج تحديثاً يدوياً */
 const useToolStats = () => {
@@ -41,21 +42,17 @@ export const PlatformHero: React.FC = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+              {/* الإجراء الأساسي: إنشاء مساحة العمل — بوابة كل الأدوات */}
+              <StartWorkspaceButton
+                icon={<ArrowLeft className="w-4 h-4" />}
+                className="w-full sm:w-auto text-base px-8 py-3 rounded-lg font-medium bg-primary hover:bg-primary-dark text-white shadow-sm transition-all duration-200"
+              />
               <Link href="#tools" passHref>
-                <Button
-                  variant="primary"
-                  className="w-full sm:w-auto text-base px-8 py-3 gap-2"
-                >
-                  استعرض الأدوات
-                  <ArrowLeft className="w-4 h-4" />
-                </Button>
-              </Link>
-              <Link href="/features" passHref>
                 <Button
                   variant="ghost"
                   className="w-full sm:w-auto text-base border border-slate-200 bg-white hover:bg-slate-50 px-8 py-3"
                 >
-                  اكتشف الميزات
+                  استعرض الأدوات
                 </Button>
               </Link>
             </div>
