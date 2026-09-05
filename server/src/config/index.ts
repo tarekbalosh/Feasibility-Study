@@ -28,7 +28,11 @@ export const config = {
   smtpPass: process.env.SMTP_PASS || "",
 
   // Frontend URL (for links)
-  frontendUrl: process.env.FRONTEND_URL || "https://feasibility-study.vercel.app",
+  // النطاق الرسمي هو مشروع Vercel المربوط بالمستودع (feasibility-study-saas).
+  // مشروع feasibility-study القديم لا يستقبل النشر، وكان يجعل روابط الدعوة
+  // تصل إلى 404 لأن المسار /invite/accept غير موجود في نسخته المنشورة.
+  frontendUrl:
+    process.env.FRONTEND_URL || "https://feasibility-study-saas.vercel.app",
 
   // Brevo API (Sendinblue) - 300 free emails/day
   brevoApiKey: process.env.BREVO_API_KEY || "",
