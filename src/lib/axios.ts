@@ -3,15 +3,10 @@ import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig, AxiosResp
 import { toast } from 'react-hot-toast'; // adjust if using a different toast library
 import { mapError } from '../utils/errorMessages';
 import * as authService from '../services/auth.service';
+import { API_BASE_URL } from './apiBaseUrl';
 
-// API URL – falls back to production if NEXT_PUBLIC_API_BASE_URL is not set
-const PRODUCTION_API_URL = 'https://feasibility-study.onrender.com/api';
-let baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || PRODUCTION_API_URL;
-
-// Fix for incorrect Vercel environment variable pointing to the frontend URL
-if (baseURL.includes('vercel.app') && !baseURL.includes('/api')) {
-  baseURL = PRODUCTION_API_URL;
-}
+// API URL – يُشتق في lib/apiBaseUrl حتى لا ينحرف عن بقية المستهلكين
+const baseURL = API_BASE_URL;
 
 /**
  * طلب صامت: لا يعرض الاعتراضُ تنبيهاً عند فشله.

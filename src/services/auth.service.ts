@@ -1,8 +1,9 @@
 import api from '../lib/axios';
 import axios from 'axios';
+import { API_BASE_URL } from '../lib/apiBaseUrl';
 
-const PRODUCTION_API_URL = 'https://feasibility-study.onrender.com/api';
-const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || PRODUCTION_API_URL;
+// نفس العنوان الذي يستعمله lib/axios — لا اشتقاق موازٍ.
+const baseURL = API_BASE_URL;
 
 interface RegisterPayload {
   name: string;

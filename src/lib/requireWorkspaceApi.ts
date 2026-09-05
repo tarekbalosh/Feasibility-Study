@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next"
+import { PRODUCTION_API_URL, sanitizeApiBaseUrl } from "./apiBaseUrl"
 
 /**
  * حارس مساحة العمل لمسارات Next API (المسارات التي تعمل على Vercel
@@ -10,7 +11,6 @@ import type { NextApiRequest, NextApiResponse } from "next"
  * التحقق في طبقتين قد تتباعدان.
  */
 
-const PRODUCTION_API_URL = "https://feasibility-study.onrender.com/api"
 
 /** نفس القيمة الافتراضية في next.config.js — العنوان المحلي للخادم الخلفي */
 const LOCAL_API_URL = "http://localhost:8080/api"
@@ -30,7 +30,7 @@ const getApiBaseUrl = (): string => {
   const explicit = process.env.BACKEND_API_URL
   if (explicit) return explicit.replace(/\/$/, "")
 
-  let baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || ""
+  const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || ""
 
   // مسار نسبي: صالح للمتصفح، عديم المعنى على الخادم
   if (!/^https?:\/\//i.test(baseURL)) {
@@ -39,12 +39,7 @@ const getApiBaseUrl = (): string => {
       : LOCAL_API_URL
   }
 
-  // نفس التصحيح المطبَّق في lib/axios: متغيّر Vercel قد يشير للواجهة
-  if (baseURL.includes("vercel.app") && !baseURL.includes("/api")) {
-    baseURL = PRODUCTION_API_URL
-  }
-
-  return baseURL.replace(/\/$/, "")
+  return sanitizeApiBaseUrl(baseURL).replace(/\/$/, "")
 }
 
 export interface WorkspaceContext {
