@@ -96,8 +96,17 @@ export default function AcceptInvitePage() {
     try {
       const workspace = await workspaceService.acceptInvite(token)
 
-      if (workspace) setWorkspace(workspace)
-      void refresh()
+      if (workspace) {
+        // تحديث فوري لتجنب وميض الشاشة
+        setWorkspace(workspace)
+        // بعد إعادة جلب قائمة المساحات من الخادم، نُعيد تثبيت
+        // المساحة المقبولة لأن الخادم قد يُعيد "current" ≠ المساحة الجديدة
+        refresh().then(() => setWorkspace(workspace)).catch(() => {
+          /* فشل silent — المساحة مُعيَّنة مسبقاً فوق */
+        })
+      } else {
+        void refresh()
+      }
 
       setPhase("accepted")
       toast.success(
