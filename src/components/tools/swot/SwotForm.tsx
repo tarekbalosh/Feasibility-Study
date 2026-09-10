@@ -24,8 +24,9 @@ const SECTORS = [
   { id: "خدمات", icon: Briefcase },
   { id: "تقني وناشئ", icon: Cpu },
   { id: "صناعي", icon: Factory },
-  { id: "مجال آخر", icon: PlusCircle },
 ]
+
+const OTHER_SECTOR_LABEL = "مجال آخر"
 
 const STAGES: { id: SwotStage; label: string; hint: string; icon: typeof Rocket }[] = [
   {
@@ -70,6 +71,9 @@ export const SwotForm: React.FC<SwotFormProps> = ({
   onBackToResult,
 }) => {
   const descriptionLength = input.description.trim().length
+  const [otherSectorMode, setOtherSectorMode] = React.useState(
+    () => input.sector !== "" && !SECTORS.some((s) => s.id === input.sector)
+  )
 
   return (
     <form
@@ -93,12 +97,15 @@ export const SwotForm: React.FC<SwotFormProps> = ({
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {SECTORS.map((sector) => {
             const Icon = sector.icon
-            const isSelected = input.sector === sector.id
+            const isSelected = !otherSectorMode && input.sector === sector.id
             return (
               <button
                 key={sector.id}
                 type="button"
-                onClick={() => setField("sector", sector.id)}
+                onClick={() => {
+                  setOtherSectorMode(false)
+                  setField("sector", sector.id)
+                }}
                 className={clsx(
                   "flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all duration-200",
                   isSelected
@@ -116,6 +123,42 @@ export const SwotForm: React.FC<SwotFormProps> = ({
               </button>
             )
           })}
+
+          {otherSectorMode ? (
+            <div className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border-2 border-sky-600 bg-sky-50">
+              <input
+                autoFocus
+                type="text"
+                value={input.sector}
+                onChange={(e) => setField("sector", e.target.value)}
+                placeholder="اكتب نشاط مشروعك"
+                maxLength={60}
+                className="w-full px-2 py-1.5 text-sm text-center text-slate-900 placeholder-slate-400 bg-white border border-sky-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-sky-500"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setOtherSectorMode(false)
+                  setField("sector", "")
+                }}
+                className="text-[11px] text-slate-400 hover:text-slate-600 underline"
+              >
+                رجوع للقائمة
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setOtherSectorMode(true)
+                setField("sector", "")
+              }}
+              className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-slate-100 bg-white hover:border-sky-200 hover:bg-slate-50 text-slate-700 transition-all duration-200"
+            >
+              <PlusCircle className="w-6 h-6 text-slate-400" />
+              <span className="text-sm font-medium text-center">{OTHER_SECTOR_LABEL}</span>
+            </button>
+          )}
         </div>
         {errors.sector && (
           <span className="text-xs text-red-500 font-medium">{errors.sector}</span>
@@ -168,7 +211,7 @@ export const SwotForm: React.FC<SwotFormProps> = ({
 
       {/* اسم المشروع */}
       <Input
-        label="اسم المشروع أو الفكرة *"
+        label="اسم التحليل *"
         value={input.projectName}
         onChange={(e) => setField("projectName", e.target.value)}
         error={errors.projectName}
@@ -180,7 +223,7 @@ export const SwotForm: React.FC<SwotFormProps> = ({
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between gap-2">
           <label className="text-sm font-semibold text-slate-700">
-            وصف المشروع ونشاطه <span className="text-red-500">*</span>
+            الهدف من التحليل <span className="text-red-500">*</span>
           </label>
           <span
             className={clsx(
@@ -211,24 +254,6 @@ export const SwotForm: React.FC<SwotFormProps> = ({
         )}
       </div>
 
-      {/* حقول اختيارية تُحسّن دقة التحليل */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Input
-          label="الفئة أو السوق المستهدف (اختياري)"
-          value={input.targetMarket ?? ""}
-          onChange={(e) => setField("targetMarket", e.target.value)}
-          placeholder="مثال: موظفو المكاتب من 25 إلى 40 سنة"
-          maxLength={200}
-        />
-        <Input
-          label="المنافسون الرئيسيون (اختياري)"
-          value={input.competitors ?? ""}
-          onChange={(e) => setField("competitors", e.target.value)}
-          placeholder="مثال: مقهيان في نفس الحي وسلسلة كبرى"
-          maxLength={300}
-        />
-      </div>
-
       {/* أزرار الإجراء */}
       <div className="flex flex-col sm:flex-row items-center gap-3 pt-2 border-t border-slate-100">
         <Button
@@ -237,7 +262,7 @@ export const SwotForm: React.FC<SwotFormProps> = ({
           className="w-full sm:w-auto px-8 py-3 text-base font-bold gap-2 bg-sky-600 hover:bg-sky-700 focus:ring-sky-500"
         >
           <Sparkles className="w-5 h-5" />
-          التالي — اختر عناصر مشروعك
+          ابدأ التحليل
         </Button>
 
         {hasAnalysis && onBackToResult && (

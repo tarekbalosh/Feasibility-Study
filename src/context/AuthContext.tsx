@@ -22,12 +22,13 @@ interface AuthState {
 interface AuthContextType extends AuthState {
   login: (email: string, password: string, rememberMe?: boolean, redirectUrl?: string) => Promise<void>
   register: (fullName: string, email: string, password: string, redirectUrl?: string) => Promise<any>
-  /** طلب رمز الدخول (6 أرقام) — الطريق الأساسي، بلا كلمة مرور */
-  requestLoginCode: (email: string, name?: string) => Promise<{ expiresInSeconds: number }>
-  /** التحقق من الرمز — يفتح الجلسة، أو يطلب الاسم إن كان البريد جديداً */
-  verifyLoginCode: (
+  /**
+   * دخول فوري بالبريد واسم الشركة — بلا كلمة مرور وبلا رمز تحقق.
+   * الطريق الوحيد الآن؛ يعمل تسجيلاً ودخولاً في آن: بريد جديد ينشئ
+   * الحساب، وبريد قائم يفتح جلسته مباشرة.
+   */
+  instantAccess: (
     email: string,
-    code: string,
     name?: string,
     redirectUrl?: string
   ) => Promise<{ needsName: boolean }>
@@ -161,25 +162,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [router]
   )
 
-  // ——— طلب رمز الدخول ———
-  const requestLoginCode = useCallback(async (email: string, name?: string) => {
-    const { data: res } = await apiClient.post("/auth/request-code", {
-      email,
-      ...(name ? { name } : {}),
-    })
-    return { expiresInSeconds: res.expiresInSeconds ?? 600 }
-  }, [])
-
-  // ——— التحقق من رمز الدخول ———
-  const verifyLoginCode = useCallback(
-    async (email: string, code: string, name?: string, redirectUrl?: string) => {
-      const { data: res } = await apiClient.post("/auth/verify-code", {
+  // ——— الدخول الفوري (بريد + اسم شركة، بلا كلمة مرور ولا رمز تحقق) ———
+  const instantAccess = useCallback(
+    async (email: string, name?: string, redirectUrl?: string) => {
+      const { data: res } = await apiClient.post("/auth/instant-access", {
         email,
-        code,
         ...(name ? { name } : {}),
       })
 
-      // بريد جديد بلا اسم: الرمز ما زال صالحاً، والشاشة تطلب الاسم
+      // بريد جديد بلا اسم شركة بعد: الشاشة تطلبه قبل إنشاء الحساب
       if (res.needsName) {
         return { needsName: true }
       }
@@ -248,8 +239,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...state,
         login,
         register,
-        requestLoginCode,
-        verifyLoginCode,
+        instantAccess,
         logout,
         forgotPassword,
         resetPassword,

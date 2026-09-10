@@ -95,7 +95,7 @@ api.interceptors.response.use(
         // ورمزٌ منتهٍ في المتصفح كان يقتلع الزائر من الصفحة التي يقرؤها
         // ويرميه في شاشة تسجيل الدخول بلا سبب ظاهر له.
         if (typeof window !== 'undefined' && !(originalRequest as any)?.silent) {
-          window.location.href = '/auth/login';
+          window.location.href = '/auth/register';
         }
         return Promise.reject(refreshErr);
       }

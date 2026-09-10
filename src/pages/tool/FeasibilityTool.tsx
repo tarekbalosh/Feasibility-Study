@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
+import { Home } from 'lucide-react';
 import { FeasibilityProvider, useFeasibilityTool } from '@/hooks/useFeasibilityTool';
 import { useAuth } from '@/context/AuthContext';
 import { StepIndicator } from '@/components/tool/StepIndicator';
@@ -109,6 +111,15 @@ const WizardContent = () => {
 
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-10 print:hidden">
+          <div className="flex justify-start mb-4">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-primary-600 transition-colors"
+            >
+              <Home className="w-4 h-4" />
+              العودة للصفحة الرئيسية
+            </Link>
+          </div>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3">أداة دراسة الجدوى الذكية</h1>
           <p className="text-gray-500 text-base sm:text-lg">قم بإدخال بيانات مشروعك وسنقوم بتحليلها وتقديم تقرير مبدئي</p>
         </div>

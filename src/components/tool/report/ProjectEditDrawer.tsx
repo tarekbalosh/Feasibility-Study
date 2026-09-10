@@ -77,7 +77,8 @@ const labelClass = 'block text-xs font-semibold text-gray-600 mb-1.5';
 const numberInputClass = `${inputClass} text-center`;
 
 /* ——— Sectors ——— */
-const sectors = ['مطاعم وأغذية', 'تجارة وتجزئة', 'خدمات', 'تقني وناشئ', 'صناعي', 'مجال آخر'];
+const sectors = ['مطاعم وأغذية', 'تجارة وتجزئة', 'خدمات', 'تقني وناشئ', 'صناعي'];
+const OTHER_SECTOR_LABEL = 'مجال آخر';
 const currencies = ['ر.ع', 'د.إ', 'ر.س', 'د.ك', '$'];
 
 /* ——— Main Component ——— */
@@ -88,6 +89,7 @@ export default function ProjectEditDrawer({ isOpen, onClose, onSave }: ProjectEd
   // Store a snapshot to allow cancel/revert
   const [snapshot, setSnapshot] = useState<FeasibilityData | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [otherSectorMode, setOtherSectorMode] = useState(false);
 
   // Accordion state
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
@@ -126,6 +128,8 @@ export default function ProjectEditDrawer({ isOpen, onClose, onSave }: ProjectEd
   useEffect(() => {
     if (isOpen) {
       setSnapshot(structuredClone(form.getValues()));
+      const currentSector = form.getValues('sector');
+      setOtherSectorMode(!!currentSector && !sectors.includes(currentSector));
     }
   }, [isOpen]);
 
@@ -223,9 +227,45 @@ export default function ProjectEditDrawer({ isOpen, onClose, onSave }: ProjectEd
               </div>
               <div>
                 <label className={labelClass}>القطاع</label>
-                <select {...register('sector')} className={`${inputClass} appearance-none`}>
-                  {sectors.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                {otherSectorMode ? (
+                  <div className="space-y-1.5">
+                    <input
+                      {...register('sector')}
+                      type="text"
+                      autoFocus
+                      maxLength={60}
+                      className={inputClass}
+                      placeholder="اكتب نشاط مشروعك"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOtherSectorMode(false);
+                        setValue('sector', '', { shouldValidate: true });
+                      }}
+                      className="text-xs text-gray-400 hover:text-gray-600 underline"
+                    >
+                      رجوع للقائمة
+                    </button>
+                  </div>
+                ) : (
+                  <select
+                    value={sectors.includes(watch('sector')) ? watch('sector') : ''}
+                    onChange={(e) => {
+                      if (e.target.value === OTHER_SECTOR_LABEL) {
+                        setOtherSectorMode(true);
+                        setValue('sector', '', { shouldValidate: true });
+                      } else {
+                        setValue('sector', e.target.value, { shouldValidate: true });
+                      }
+                    }}
+                    className={`${inputClass} appearance-none`}
+                  >
+                    <option value="" disabled>اختر القطاع</option>
+                    {sectors.map(s => <option key={s} value={s}>{s}</option>)}
+                    <option value={OTHER_SECTOR_LABEL}>{OTHER_SECTOR_LABEL}</option>
+                  </select>
+                )}
               </div>
               <div>
                 <label className={labelClass}>الغرض من الدراسة</label>

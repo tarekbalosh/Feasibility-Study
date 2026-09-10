@@ -32,9 +32,9 @@ export default function VerifyEmailPage() {
         setStatus("success")
         setMessage(res.message || "تم توثيق حسابك بنجاح!")
         
-        // Redirect to login after 3 seconds
+        // Redirect to the unified sign-in/create-workspace screen after 3 seconds
         setTimeout(() => {
-          router.push("/auth/login")
+          router.push("/auth/register")
         }, 3000)
       } catch (error: any) {
         setStatus("error")
@@ -99,7 +99,7 @@ export default function VerifyEmailPage() {
                 </Button>
               </Link>
             ) : status === "success" ? (
-              <Link href="/auth/login" passHref>
+              <Link href="/auth/register" passHref>
                 <Button variant="primary" className="w-full">
                   الانتقال لتسجيل الدخول
                 </Button>

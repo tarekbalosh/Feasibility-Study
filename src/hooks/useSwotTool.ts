@@ -8,6 +8,7 @@ import {
   normalizeStoredSelections,
   toSwotItems,
   validateCustomItem,
+  validateEditCustomItem,
 } from "@/utils/swotSelections"
 import { withReportDefaults } from "@/utils/swotReport"
 import * as toolRunsService from "@/services/toolRuns.service"
@@ -284,6 +285,36 @@ export const useSwotTool = () => {
     [selections]
   )
 
+  /** تعديل نص بند مخصّص قائم — بلا تغيير حالة تحديده */
+  const editCustomItem = useCallback(
+    (category: SwotQuadrantKey, id: string, rawLabel: string): boolean => {
+      const error = validateEditCustomItem(
+        rawLabel,
+        category,
+        selections[category],
+        id
+      )
+      if (error) {
+        setCustomErrors((prev) => ({ ...prev, [category]: error }))
+        return false
+      }
+
+      const label = rawLabel.trim()
+      setSelections((prev) => ({
+        ...prev,
+        [category]: {
+          ...prev[category],
+          customItems: prev[category].customItems.map((item) =>
+            item.id === id ? { ...item, label } : item
+          ),
+        },
+      }))
+      setCustomErrors((prev) => ({ ...prev, [category]: undefined }))
+      return true
+    },
+    [selections]
+  )
+
   /** حذف بند مخصّص — بنود القوائم الجاهزة تُلغى فقط ولا تُحذف */
   const removeCustomItem = useCallback(
     (category: SwotQuadrantKey, id: string) => {
@@ -453,6 +484,28 @@ export const useSwotTool = () => {
     )
   }, [])
 
+  /** تعديل نص بند بعد التوليد — عنوانه وشرحه، تعديلٌ يُحدِّث تاريخ التقرير */
+  const editItem = useCallback(
+    (
+      quadrant: SwotQuadrantKey,
+      index: number,
+      updates: { title: string; detail?: string }
+    ) => {
+      setAnalysis((prev) =>
+        prev
+          ? {
+              ...prev,
+              [quadrant]: prev[quadrant].map((item, i) =>
+                i === index ? { ...item, ...updates } : item
+              ),
+              updatedAt: new Date().toISOString(),
+            }
+          : prev
+      )
+    },
+    []
+  )
+
   /** العودة إلى نموذج المدخلات دون فقدان التحليل الحالي */
   const editInput = useCallback(() => setPhase("form"), [])
 
@@ -499,6 +552,7 @@ export const useSwotTool = () => {
     backToForm,
     toggleSelection,
     addCustomItem,
+    editCustomItem,
     removeCustomItem,
     clearCustomError,
     clearCategory,
@@ -512,6 +566,7 @@ export const useSwotTool = () => {
     generate,
     skipSelection,
     removeItem,
+    editItem,
     editInput,
     editSelection,
     showResult,

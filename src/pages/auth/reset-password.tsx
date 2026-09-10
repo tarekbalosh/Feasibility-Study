@@ -87,7 +87,7 @@ export default function ResetPasswordPage() {
             <p className="text-slate-700 text-sm leading-relaxed max-w-sm">
               تم إعادة تعيين كلمة المرور بنجاح! يمكنك الآن تسجيل الدخول بكلمة المرور الجديدة.
             </p>
-            <Link href="/auth/login" className="w-full mt-2">
+            <Link href="/auth/register" className="w-full mt-2">
               <Button variant="primary" className="w-full py-3 text-base font-semibold">
                 <span className="flex items-center justify-center gap-2">
                   <ArrowRight className="w-5 h-5" />

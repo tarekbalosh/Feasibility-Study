@@ -210,6 +210,7 @@ model ToolRun {
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  swotCustomGoals SwotCustomGoal[]
 
   @@index([workspaceId, updatedAt])
   @@index([workspaceId, toolSlug])
@@ -225,4 +226,24 @@ model FeasibilityStudy {
   resultData     String  // store JSON as string
   reportHtml     String?
   reportPdf      String?
+}
+
+// ——————————————————————————————————————————————
+// SWOT Custom Goals — أهداف استراتيجية مخصصة للعميل
+// ——————————————————————————————————————————————
+model SwotCustomGoal {
+  id                  String   @id @default(uuid())
+  swotAnalysisId      String   @map("swot_analysis_id")
+  goalText            String   @map("goal_text")
+  linkedStrengths     String[] @map("linked_strengths")
+  linkedWeaknesses    String[] @map("linked_weaknesses")
+  linkedOpportunities String[] @map("linked_opportunities")
+  linkedThreats       String[] @map("linked_threats")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  // swotAnalysisId is actually the toolRun id
+  toolRun ToolRun @relation(fields: [swotAnalysisId], references: [id], onDelete: Cascade)
+
+  @@index([swotAnalysisId])
+  @@map("swot_custom_goals")
 }

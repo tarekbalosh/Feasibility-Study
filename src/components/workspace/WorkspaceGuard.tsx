@@ -46,7 +46,7 @@ export const WorkspaceGuard: React.FC<WorkspaceGuardProps> = ({ children }) => {
     const returnTo = encodeURIComponent(router.asPath)
 
     if (!isAuthenticated) {
-      router.replace(`/auth/login?returnTo=${returnTo}`)
+      router.replace(`/auth/register?returnTo=${returnTo}`)
       return
     }
 

@@ -131,13 +131,14 @@ router.post(
 router.post("/cleanup-unverified", authController.cleanupUnverified);
 
 // ─────────────────────────────────────────────────────────────
-//  الدخول بالبريد فقط (رمز من 6 أرقام) — الطريق الأساسي
+//  الدخول الفوري بالبريد واسم الشركة — بلا كلمة مرور وبلا رمز تحقق
+//  الطريق الوحيد الآن؛ يعمل تسجيلاً ودخولاً في آن.
 //  كلمة المرور أعلاه تبقى مساراً احتياطياً للحسابات القديمة.
 // ─────────────────────────────────────────────────────────────
 
-// ——— POST /api/auth/request-code ———
+// ——— POST /api/auth/instant-access ———
 router.post(
-  "/request-code",
+  "/instant-access",
   validateRequest([
     body("email")
       .trim()
@@ -148,31 +149,13 @@ router.post(
       .optional({ values: "falsy" })
       .trim()
       .isLength({ min: 2, max: 100 })
-      .withMessage("الاسم يجب أن يكون بين 2 و 100 حرف."),
+      .withMessage("اسم الشركة يجب أن يكون بين 2 و 100 حرف."),
   ]),
-  authController.requestCode
+  authController.instantAccess
 );
 
-// ——— POST /api/auth/verify-code ———
-router.post(
-  "/verify-code",
-  validateRequest([
-    body("email")
-      .trim()
-      .isEmail()
-      .normalizeEmail()
-      .withMessage("صيغة البريد الإلكتروني غير صحيحة."),
-    body("code")
-      .trim()
-      .matches(/^\d{6}$/)
-      .withMessage("الرمز يجب أن يكون 6 أرقام."),
-    body("name")
-      .optional({ values: "falsy" })
-      .trim()
-      .isLength({ min: 2, max: 100 })
-      .withMessage("الاسم يجب أن يكون بين 2 و 100 حرف."),
-  ]),
-  authController.verifyCode
-);
+// ——— POST /api/auth/logout ———
+router.post("/logout", authController.logout);
 
 export default router;
+

@@ -5,9 +5,25 @@ interface AuthLayoutProps {
   children: React.ReactNode
   title: string
   subtitle?: string
+  /** عنوان اللوحة الجانبية (البراندينق) — بشقّين لسطرين */
+  brandHeading?: React.ReactNode
+  /** الفقرة تحت العنوان في اللوحة الجانبية */
+  brandSubtitle?: string
 }
 
-export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title, subtitle }) => {
+export const AuthLayout: React.FC<AuthLayoutProps> = ({
+  children,
+  title,
+  subtitle,
+  brandHeading = (
+    <>
+      أنشئ دراسة جدوى
+      <br />
+      احترافية في دقائق
+    </>
+  ),
+  brandSubtitle = "منصة ذكية تعتمد على الذكاء الاصطناعي لمساعدتك في تحويل أفكارك إلى خطط عمل ممولة وقابلة للتنفيذ.",
+}) => {
   return (
     <div className="min-h-screen flex font-cairo" dir="rtl">
       {/* الجانب الأيسر — البراندينق */}
@@ -30,10 +46,10 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title, subtitl
           </Link>
 
           <h2 className="text-3xl font-bold leading-tight mb-4">
-            أنشئ دراسة جدوى<br />احترافية في دقائق
+            {brandHeading}
           </h2>
           <p className="text-indigo-200 text-base leading-relaxed max-w-md">
-            منصة ذكية تعتمد على الذكاء الاصطناعي لمساعدتك في تحويل أفكارك إلى خطط عمل ممولة وقابلة للتنفيذ.
+            {brandSubtitle}
           </p>
 
           {/* مؤشرات الثقة */}

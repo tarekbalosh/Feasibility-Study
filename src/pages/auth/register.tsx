@@ -6,11 +6,11 @@ import { AuthLayout } from "@/layouts/AuthLayout"
 import { PasswordlessForm } from "@/components/auth/PasswordlessForm"
 
 /**
- * بوّابة إنشاء مساحة العمل — بالبريد فقط، بلا كلمة مرور.
+ * بوّابة إنشاء مساحة العمل — بالبريد فقط، بلا كلمة مرور وبلا رمز تحقق.
  *
- * الاسم والبريد ثم رمز من 6 أرقام: الحساب يُنشأ عند أول تحقّق ناجح،
- * فلا خطوة توثيق بريد منفصلة بعدها. من كان له حساب قديم بكلمة مرور
- * يجد الرابط الاحتياطي أسفل الصفحة.
+ * البريد وحده يدخلك فوراً إن كان لك حساب قائم؛ إن كان بريداً جديداً
+ * تُطلب منك بعده اسم شركتك خطوة أخيرة قبل إنشاء الحساب. هذه الصفحة
+ * نفسها هي "تسجيل الدخول" الوحيد على المنصة الآن — لا صفحة دخول منفصلة.
  */
 export default function RegisterPage() {
   const router = useRouter()
@@ -26,17 +26,13 @@ export default function RegisterPage() {
 
   const isJoiningWorkspace = Boolean(safeReturnTo?.startsWith("/invite/accept"))
 
-  const loginHref = safeReturnTo
-    ? `/auth/login?returnTo=${encodeURIComponent(safeReturnTo)}`
-    : "/auth/login"
-
   const title = isJoiningWorkspace
     ? "انضم إلى مساحة العمل"
     : "أنشئ مساحة عملك الخاصة"
 
   const subtitle = isJoiningWorkspace
-    ? "أدخل اسمك وبريدك المدعو، وسنرسل لك رمز الدخول"
-    : "أدخل اسمك وبريدك الإلكتروني — ونرسل لك رمز الدخول فوراً"
+    ? "أدخل بريدك المدعو، وستدخل مباشرةً"
+    : "أدخل بريدك الإلكتروني وستدخل مباشرةً — نطلب اسم شركتك فقط إن كان بريدك جديداً"
 
   return (
     <>
@@ -48,19 +44,21 @@ export default function RegisterPage() {
         />
       </Head>
 
-      <AuthLayout title={title} subtitle={subtitle}>
-        <PasswordlessForm mode="signup" redirectTo={safeReturnTo} />
+      <AuthLayout
+        title={title}
+        subtitle={subtitle}
+        brandHeading={
+          <>
+            أنشئ مساحة عملك
+            <br />
+            الخاصة في دقائق
+          </>
+        }
+        brandSubtitle="بيت واحد لأدواتك ودراساتك وفريقك — أنشئها بلا كلمة مرور، وابدأ استخدام أدوات دراسة الجدوى والتحليل فوراً."
+      >
+        <PasswordlessForm mode="login" redirectTo={safeReturnTo} />
 
         <div className="mt-8 space-y-3 border-t border-slate-200 pt-6 text-center text-sm">
-          <p className="text-slate-500">
-            لديك حساب بالفعل؟{" "}
-            <Link
-              href={loginHref}
-              className="font-semibold text-indigo-600 transition-colors hover:text-indigo-700"
-            >
-              تسجيل الدخول
-            </Link>
-          </p>
           <p className="text-xs leading-relaxed text-slate-400">
             بمتابعتك فإنك توافق على{" "}
             <Link href="/terms" className="text-slate-500 underline hover:text-slate-700">

@@ -27,7 +27,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 bg-white border-l border-gray-200 fixed h-full z-10 shadow-sm">
         <div className="p-6">
-          <Link href="/dashboard/Projects" className="text-2xl font-bold text-blue-600 flex items-center gap-2">
+          <Link href="/" className="text-2xl font-bold text-blue-600 flex items-center gap-2">
             <span className="bg-blue-600 text-white p-1.5 rounded-lg">
               <FolderGit2 size={24} />
             </span>
@@ -70,7 +70,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       <main className="flex-1 md:mr-64 pb-20 md:pb-0 min-h-screen flex flex-col">
         {/* Header */}
         <header className="bg-white border-b border-gray-200 sticky top-0 z-20 px-4 md:px-8 h-16 flex items-center justify-between">
-          <Link href="/dashboard/Projects" className="md:hidden flex items-center gap-2">
+          <Link href="/" className="md:hidden flex items-center gap-2">
             <span className="bg-blue-600 text-white p-1.5 rounded-lg">
               <FolderGit2 size={20} />
             </span>
@@ -86,7 +86,9 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
 
           {/* هوية المنصة ومساحة العمل الحالية — "Feasibility Suite | اسم الشركة" */}
           <div className="flex-1 min-w-0 hidden md:flex items-center gap-2">
-            <span className="text-sm font-bold text-gray-900 shrink-0">Feasibility Suite</span>
+            <Link href="/" className="text-sm font-bold text-gray-900 hover:text-blue-600 transition-colors shrink-0">
+              Feasibility Suite
+            </Link>
             {workspace && (
               <>
                 <span className="text-gray-300 shrink-0" aria-hidden="true">|</span>

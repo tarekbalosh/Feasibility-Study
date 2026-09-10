@@ -108,6 +108,7 @@ export const SwotTool: React.FC = () => {
     backToForm,
     toggleSelection,
     addCustomItem,
+    editCustomItem,
     removeCustomItem,
     clearCustomError,
     clearCategory,
@@ -115,6 +116,7 @@ export const SwotTool: React.FC = () => {
     generate,
     skipSelection,
     removeItem,
+    editItem,
     editInput,
     editSelection,
     showResult,
@@ -167,10 +169,10 @@ export const SwotTool: React.FC = () => {
             صِف مشروعك، وسنبني لك مصفوفة رباعية واستراتيجيات عملية مستخرجة منها.
           </p>
           <Link
-            href="/tools/swot"
-            className="inline-block mt-3 text-sm text-sky-600 hover:text-sky-700 font-medium"
+            href="/"
+            className="inline-flex items-center gap-2 mt-5 px-5 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:text-sky-600 hover:border-sky-200 transition-all shadow-sm"
           >
-            ← تعرّف على الأداة أولاً
+            العودة إلى الصفحة الرئيسية
           </Link>
         </div>
 
@@ -188,6 +190,7 @@ export const SwotTool: React.FC = () => {
               generateError={generateError}
               onToggle={toggleSelection}
               onAddCustom={addCustomItem}
+              onEditCustom={editCustomItem}
               onRemoveCustom={removeCustomItem}
               onClearCustomError={clearCustomError}
               onClearCategory={clearCategory}
@@ -207,6 +210,7 @@ export const SwotTool: React.FC = () => {
                 onRegenerate={generate}
                 onReset={reset}
                 removeItem={removeItem}
+                editItem={editItem}
               />
             </>
           ) : (

@@ -267,7 +267,7 @@ const PaywallOverlay: React.FC<{
           <>
             مشترك بالفعل؟{" "}
             <Link
-              href="/auth/login"
+              href="/auth/register"
               className="font-semibold text-sky-600 hover:text-sky-700"
             >
               سجّل الدخول

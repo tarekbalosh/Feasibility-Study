@@ -164,6 +164,37 @@ export const validateCustomItem = (
   return null
 }
 
+/**
+ * يتحقّق من نص معدَّل لبند مخصّص قائم. يطابق validateCustomItem في كل شيء
+ * عدا سقفَي العدد والتكرار مع الذات: التعديل لا يضيف بنداً جديداً، والبند
+ * نفسه — بصياغته القديمة — لا يُحتسب تكراراً لصياغته الجديدة.
+ */
+export const validateEditCustomItem = (
+  rawValue: string,
+  category: SwotQuadrantKey,
+  selection: SwotCategorySelection,
+  itemId: string
+): string | null => {
+  const value = rawValue.trim()
+
+  if (!value) return "اكتب نص البند قبل الحفظ"
+  if (value.length > MAX_CUSTOM_ITEM_LENGTH) {
+    return `الحد الأقصى ${MAX_CUSTOM_ITEM_LENGTH} حرفاً (الحالي ${value.length})`
+  }
+
+  const normalized = normalizeArabic(value)
+  const existing = getCategoryChips(category, selection)
+  if (
+    existing.some(
+      (chip) => chip.id !== itemId && normalizeArabic(chip.label) === normalized
+    )
+  ) {
+    return "هذا البند موجود في القائمة بالفعل"
+  }
+
+  return null
+}
+
 // ─────────────────────────────────────────────────────────────
 //  توافُق المسودات القديمة
 // ─────────────────────────────────────────────────────────────

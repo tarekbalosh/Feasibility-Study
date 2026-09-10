@@ -4,16 +4,22 @@ import { useRouter } from "next/router"
 import {
   ArrowLeft,
   ArrowRight,
+  Briefcase,
   Building2,
   Check,
+  Cpu,
+  Factory,
   Loader2,
+  MoreHorizontal,
   Rocket,
+  ShoppingBag,
   Users,
 } from "lucide-react"
 import { toast } from "react-hot-toast"
 import { Input } from "@/components/ui/Input"
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute"
 import { EmailChipsInput } from "@/components/workspace/EmailChipsInput"
+import { useAuth } from "@/context/AuthContext"
 import { useWorkspace } from "@/context/WorkspaceContext"
 import * as workspaceService from "@/services/workspace.service"
 import type { WorkspaceInviteDraft } from "@/types/workspace"
@@ -24,8 +30,20 @@ const DEFAULT_DESTINATION = "/tools"
 /** طريقة البدء المختارة في الخطوة الثانية */
 type StartMode = "solo" | "team" | null
 
+/**
+ * خيارات نوع النشاط — نفس التصنيف المستخدم في أداة دراسة الجدوى
+ * (SectorSelector وProjectInfo)، فيبقى المصطلح موحّداً عبر المنصة.
+ */
+const INDUSTRY_OPTIONS = [
+  { value: "تجاري", label: "تجاري", icon: ShoppingBag },
+  { value: "صناعي", label: "صناعي", icon: Factory },
+  { value: "خدمي", label: "خدمي", icon: Briefcase },
+  { value: "تقني", label: "تقني", icon: Cpu },
+  { value: "أخرى", label: "أخرى", icon: MoreHorizontal },
+] as const
+
 const STEPS = [
-  { id: 1, title: "معلومات مساحة العمل", hint: "اسم الشركة ومجال نشاطها" },
+  { id: 1, title: "نشاط عملك", hint: "نوع النشاط (اختياري)" },
   { id: 2, title: "طريقة البدء", hint: "بمفردك أم مع فريق" },
 ]
 
@@ -117,20 +135,63 @@ const ModeCard: React.FC<{
 )
 
 // ─────────────────────────────────────────────────────────────
+//  زر اختيار نوع النشاط
+// ─────────────────────────────────────────────────────────────
+const IndustryButton: React.FC<{
+  active: boolean
+  icon: React.ReactNode
+  label: string
+  onClick: () => void
+}> = ({ active, icon, label, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-pressed={active}
+    className={[
+      "flex flex-col items-center gap-2 rounded-xl border-2 px-4 py-4 text-center transition-all duration-150",
+      active
+        ? "border-indigo-600 bg-indigo-50/60 text-indigo-700 shadow-sm shadow-indigo-100"
+        : "border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:bg-slate-50",
+    ].join(" ")}
+  >
+    <span
+      className={[
+        "flex h-9 w-9 items-center justify-center rounded-lg",
+        active ? "bg-indigo-100 text-indigo-600" : "bg-slate-50 text-slate-500",
+      ].join(" ")}
+    >
+      {icon}
+    </span>
+    <span className="text-sm font-semibold">{label}</span>
+  </button>
+)
+
+// ─────────────────────────────────────────────────────────────
 //  الصفحة
 // ─────────────────────────────────────────────────────────────
 function CreateWorkspacePage() {
   const router = useRouter()
+  const { user } = useAuth()
   const { hasWorkspace, isLoading: isWorkspaceLoading, setWorkspace, refresh } =
     useWorkspace()
 
+  /**
+   * اسم مساحة العمل — سبق أن أدخله المستخدم كاسم شركته في شاشة الدخول
+   * الفوري (register)، فلا داعي لسؤاله عنه مرة ثانية هنا. مصدره الوحيد
+   * الآن حساب المستخدم؛ لا حقل يعيد طلبه.
+   */
+  const name = user?.name?.trim() ?? ""
+
   const [step, setStep] = useState(1)
-  const [name, setName] = useState("")
-  const [industry, setIndustry] = useState("")
+  const [industryChoice, setIndustryChoice] = useState<(typeof INDUSTRY_OPTIONS)[number]["value"] | null>(null)
+  const [customIndustry, setCustomIndustry] = useState("")
   const [mode, setMode] = useState<StartMode>(null)
   const [invites, setInvites] = useState<WorkspaceInviteDraft[]>([])
-  const [nameError, setNameError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [customIndustryError, setCustomIndustryError] = useState<string | null>(null)
+
+  /** القيمة الفعلية المُرسَلة للخادم — نص الزر المختار، أو ما كتبه المستخدم عند اختيار «أخرى» */
+  const industry = industryChoice === "أخرى" ? customIndustry.trim() : industryChoice ?? ""
 
   /**
    * حارس التحويل — يضمن استدعاء router.replace مرّة واحدة.
@@ -160,28 +221,34 @@ function CreateWorkspacePage() {
   }, [router, router.isReady, isWorkspaceLoading, hasWorkspace, destination])
 
   const goToStepTwo = useCallback(() => {
-    const trimmed = name.trim()
-
-    if (trimmed.length < 2) {
-      setNameError("اسم الشركة / المشروع مطلوب (حرفان على الأقل).")
-      return
-    }
-    if (trimmed.length > 100) {
-      setNameError("الحد الأقصى 100 حرف.")
+    // نوع النشاط اختياري — الحقل الوحيد الذي يستوجب تحققاً هو نص
+    // «أخرى» المخصّص، ولا يُطلب إلا حين يختاره المستخدم فعلاً.
+    if (industryChoice === "أخرى" && customIndustry.trim().length < 2) {
+      setCustomIndustryError("اكتب نوع نشاطك (حرفان على الأقل) أو اختر تصنيفاً آخر.")
       return
     }
 
-    setNameError(null)
+    setCustomIndustryError(null)
     setStep(2)
-  }, [name])
+  }, [industryChoice, customIndustry])
 
   const submit = useCallback(
     async (withInvites: WorkspaceInviteDraft[]) => {
+      const trimmedName = name.trim()
+
+      // احتياط لا يُفترض بلوغه: كل مستخدم يملك اسماً منذ شاشة الدخول
+      // الفوري، لكن جلسة معطوبة أو حساباً قديماً استثناءً يستحق رسالة
+      // واضحة بدل فشل صامت في الخادم.
+      if (trimmedName.length < 2) {
+        toast.error("تعذّر التعرّف على اسم شركتك — يرجى تسجيل الخروج والدخول مجدداً.")
+        return
+      }
+
       setIsSubmitting(true)
 
       try {
         const result = await workspaceService.createWorkspace({
-          name: name.trim(),
+          name: trimmedName,
           industry: industry.trim() || undefined,
           invites: withInvites,
         })
@@ -278,40 +345,50 @@ function CreateWorkspacePage() {
                 </span>
                 <div className="flex flex-col">
                   <h2 className="text-lg font-bold text-slate-900">
-                    معلومات مساحة العمل
+                    ما نوع نشاط «{name}»؟
                   </h2>
                   <p className="text-xs text-slate-500">
-                    يمكنك تعديلها لاحقاً من الإعدادات
+                    اختياري، ويمكنك تعديله لاحقاً من الإعدادات
                   </p>
                 </div>
               </div>
 
-              <Input
-                label="اسم الشركة / المشروع *"
-                placeholder="مثال: شركة الأفق للتجارة"
-                value={name}
-                maxLength={100}
-                autoFocus
-                error={nameError ?? undefined}
-                onChange={(event) => {
-                  setName(event.target.value)
-                  if (nameError) setNameError(null)
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault()
-                    goToStepTwo()
-                  }
-                }}
-              />
+              <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+                {INDUSTRY_OPTIONS.map((option) => (
+                  <IndustryButton
+                    key={option.value}
+                    active={industryChoice === option.value}
+                    icon={<option.icon className="h-4 w-4" />}
+                    label={option.label}
+                    onClick={() => {
+                      setIndustryChoice(option.value)
+                      if (customIndustryError) setCustomIndustryError(null)
+                    }}
+                  />
+                ))}
+              </div>
 
-              <Input
-                label="نوع النشاط / المجال (اختياري)"
-                placeholder="مثال: تجارة تجزئة، تقنية، مطاعم"
-                value={industry}
-                maxLength={100}
-                onChange={(event) => setIndustry(event.target.value)}
-              />
+              {/* حقل نص حرّ — يظهر فقط حين لا يطابق نشاطُ العميل أياً من الأزرار أعلاه */}
+              {industryChoice === "أخرى" && (
+                <Input
+                  label="حدّد نوع نشاطك"
+                  placeholder="مثال: زراعة، طاقة متجددة، استشارات..."
+                  value={customIndustry}
+                  maxLength={100}
+                  autoFocus
+                  error={customIndustryError ?? undefined}
+                  onChange={(event) => {
+                    setCustomIndustry(event.target.value)
+                    if (customIndustryError) setCustomIndustryError(null)
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault()
+                      goToStepTwo()
+                    }
+                  }}
+                />
+              )}
 
               <div className="flex justify-end pt-2">
                 <button
@@ -319,7 +396,7 @@ function CreateWorkspacePage() {
                   onClick={goToStepTwo}
                   className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:bg-indigo-700"
                 >
-                  التالي
+                  {industryChoice ? "التالي" : "تخطّي"}
                   <ArrowLeft className="h-4 w-4" />
                 </button>
               </div>
@@ -351,7 +428,7 @@ function CreateWorkspacePage() {
                 <ModeCard
                   active={mode === "team"}
                   icon={<Users className="h-5 w-5" />}
-                  title="ابدأ مع فريق"
+                  title="ادعُ فريق العمل الخاص بك"
                   description="ادعُ زملاءك بالبريد الإلكتروني وحدّد دور كل واحد منهم، وستصلهم روابط الانضمام فوراً."
                   onClick={() => setMode("team")}
                 />

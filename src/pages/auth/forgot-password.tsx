@@ -83,7 +83,7 @@ export default function ForgotPasswordPage() {
               >
                 إعادة الإرسال
               </Button>
-              <Link href="/auth/login" className="flex-1">
+              <Link href="/auth/register" className="flex-1">
                 <Button variant="primary" className="w-full">
                   <span className="flex items-center justify-center gap-2">
                     <ArrowRight className="w-4 h-4" />
@@ -136,7 +136,7 @@ export default function ForgotPasswordPage() {
             <p className="text-center text-sm text-slate-500 mt-4">
               تذكّرت كلمة المرور؟{" "}
               <Link
-                href="/auth/login"
+                href="/auth/register"
                 className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors"
               >
                 تسجيل الدخول

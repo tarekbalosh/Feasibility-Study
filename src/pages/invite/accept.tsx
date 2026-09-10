@@ -204,24 +204,18 @@ export default function AcceptInvitePage() {
             </p>
           </div>
 
-          {/* غير مسجَّل دخول — يجب تسجيل الدخول أو إنشاء حساب أولاً */}
+          {/* غير مسجَّل دخول — يدخل بالبريد المدعو من نفس شاشة إنشاء المساحة */}
           {!isAuthenticated && (
             <div className="flex w-full flex-col gap-3">
               <p className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-800">
-                سجّل الدخول بالبريد المدعو، أو أنشئ حساباً به، ثم ستعود إلى هذه
+                أدخل بريدك المدعو في شاشة إنشاء مساحة العمل، ثم ستعود إلى هذه
                 الصفحة تلقائياً لإتمام الانضمام.
               </p>
               <Link
-                href={`/auth/login?returnTo=${returnTo}`}
+                href={`/auth/register?returnTo=${returnTo}`}
                 className="w-full rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
               >
-                تسجيل الدخول
-              </Link>
-              <Link
-                href={`/auth/register?returnTo=${returnTo}`}
-                className="w-full rounded-lg border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-              >
-                إنشاء حساب جديد
+                متابعة بالبريد المدعو
               </Link>
             </div>
           )}
@@ -241,10 +235,10 @@ export default function AcceptInvitePage() {
                 . سجّل الخروج ثم ادخل بالبريد المدعو لقبول الدعوة.
               </p>
               <Link
-                href={`/auth/login?returnTo=${returnTo}`}
+                href={`/auth/register?returnTo=${returnTo}`}
                 className="w-full rounded-lg border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
               >
-                تسجيل الدخول بحساب آخر
+                الدخول بحساب آخر
               </Link>
             </div>
           )}

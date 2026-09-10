@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import * as authService from "../services/authService";
-import * as otpService from "../services/otpService";
+import * as instantAccessService from "../services/instantAccessService";
 import { validateEmailQuick } from "../utils/emailValidator";
 
 // ——— POST /api/auth/register ———
@@ -153,35 +153,22 @@ export const cleanupUnverified = asyncHandler(
   }
 );
 
-// ——— POST /api/auth/request-code ———
-// الدخول بالبريد فقط: إصدار رمز من 6 أرقام وإرساله.
-export const requestCode = asyncHandler(async (req: Request, res: Response) => {
+// ——— POST /api/auth/instant-access ———
+// دخول فوري بالبريد واسم الشركة — بلا كلمة مرور وبلا رمز تحقق.
+// يُنشئ الحساب عند أول دخول ببريد جديد، ويفتح الجلسة مباشرة لبريد
+// قائم. هذا المسار هو "تسجيل الدخول" الوحيد على المنصة الآن.
+export const instantAccess = asyncHandler(async (req: Request, res: Response) => {
   const { email, name } = req.body;
 
-  const result = await otpService.requestLoginCode({ email, name });
+  const result = await instantAccessService.instantAccess({ email, name });
 
-  res.status(200).json({
-    success: true,
-    message: result.message,
-    email: result.email,
-    expiresInSeconds: result.expiresInSeconds,
-  });
-});
-
-// ——— POST /api/auth/verify-code ———
-// التحقق من الرمز، وإنشاء الحساب إن لزم، ثم إصدار رموز الجلسة.
-export const verifyCode = asyncHandler(async (req: Request, res: Response) => {
-  const { email, code, name } = req.body;
-
-  const result = await otpService.verifyLoginCode({ email, code, name });
-
-  // بريد جديد بلا اسم: الرمز ما زال صالحاً، ننتظر الاسم فقط
+  // بريد جديد بلا اسم شركة بعد: ننتظره قبل إنشاء الحساب
   if (result.needsName) {
     res.status(200).json({
       success: true,
       needsName: true,
       email: result.email,
-      message: "أدخل اسمك لإكمال إنشاء مساحة عملك.",
+      message: "أدخل اسم شركتك لإكمال إنشاء مساحة عملك.",
     });
     return;
   }
@@ -206,3 +193,12 @@ export const verifyCode = asyncHandler(async (req: Request, res: Response) => {
     },
   });
 });
+
+// ——— POST /api/auth/logout ———
+export const logout = asyncHandler(async (_req: Request, res: Response) => {
+  res.status(200).json({
+    success: true,
+    message: "تم تسجيل الخروج بنجاح.",
+  });
+});
+

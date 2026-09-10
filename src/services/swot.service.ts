@@ -20,6 +20,7 @@ import {
   type SwotSelectionPayload,
   type SwotStage,
   type SwotStrategies,
+  type SwotStrategyKey,
 } from "@/types/swot"
 
 /**
@@ -97,7 +98,7 @@ ${blocks.join("\n\n")}${conflictBlock}
 2. ضع "source": "user" لكل بند مصدره اختيار المستخدم، و"source": "ai" لكل بند أضفته من عندك.
 3. لا تُضف أي بند من عندك في ربع اختار فيه صاحب المشروع بنوداً — اقتصر على بنوده هو موسَّعةً. أمّا الأرباع التي لم يختر فيها شيئاً فاملأها أنت بالكامل.
 4. إذا تعارض بند اختاره المستخدم بوضوح مع بيانات المشروع، لا تحذفه: أبقِه ووضّح تحفّظك داخل الشرح نفسه.
-5. ابنِ استراتيجيات التقاطعات على القائمة المدمجة كاملةً (اختيارات المستخدم + إضافاتك).`
+5. ملزم جداً في استراتيجيات التقاطعات (strategies): عند وجود اختيارات للمستخدم في أي محورين، يجب صياغة كل استراتيجية تقاطعية (so, wo, st, wt) بالربط المباشر بين نصوص/مفاهيم العناصر المختارة من قبل المستخدم حصراً. يمنع إدخال استراتيجيات تعتمد على مفاهيم غير موجودة في الاختيارات (مثل وعي العلامة أو سرعة القرار إن لم تكن مختارة صراحة).`
 }
 
 const buildSwotPrompt = (
@@ -129,7 +130,7 @@ ${lines.join("\n")}${buildSelectionsSection(selections)}
 - كل بند: عنوان مختصر (title) لا يتجاوز ثمانِ كلمات، وشرح (detail) من جملة إلى جملتين محددتين وقابلتين للتنفيذ أو القياس، مرتبطتين بهذا المشروع بعينه وبقطاعه — لا عبارات عامة تصلح لأي مشروع.
 - درجة أهمية لكل بند (importance): high أو medium أو low.
 - التزم بالتمييز الصحيح: نقاط القوة والضعف عوامل داخلية يملكها المشروع، والفرص والمخاطر عوامل خارجية في السوق والمحيط.
-- استخرج استراتيجيات من تقاطعات المصفوفة: من بندين إلى ثلاثة في كل تقاطع.
+- استخرج استراتيجيات من تقاطعات المصفوفة: من بندين إلى ثلاثة في كل تقاطع، بشرط الإلزام: إذا كان المستخدم قد حدد اختيارات في أي ربع، فيجب أن تُشير الاستراتيجيات التقاطعية صراحةً لنصوص أو مفاهيم العناصر المختارة فقط دون إدخال عناوين أو مفاهيم خارجية غير مختارة.
 - ثلاث أولويات تنفيذية (priorities) لأول ٩٠ يوماً، بهذه القيود الملزِمة:
   • كل أولوية مشتقّة من استراتيجية موجودة فعلاً في strategies أعلاه — ممنوع إدخال فكرة جديدة لم تظهر في التحليل.
   • sourceStrategyId يشير إلى تلك الاستراتيجية بالصيغة «so-1» أي أول عنصر في strategies.so، و«wt-2» أي ثاني عنصر في strategies.wt. لا تشر إلى عنصر غير موجود.
@@ -137,7 +138,12 @@ ${lines.join("\n")}${buildSelectionsSection(selections)}
   • rationale: سطر واحد يربط الإجراء ببند محدد من المصفوفة.
   • successMetric: رقم أو حدث يُعرف به الإنجاز، لا عبارة إنشائية.
   • horizon: إحدى القيم 30d أو 60d أو 90d، وليكن لكل أولوية أفق مختلف.
-- ملخص تنفيذي من جملتين إلى ثلاث يوضّح الموقف الاستراتيجي العام للمشروع.
+- ملخص تنفيذي احترافي مُحكَم من 3 إلى 4 جمل يوضّح الموقف الاستراتيجي العام للمشروع، ملتزماً بالهيكل والمحتوى التالي بدقة:
+  • لمحة سريعة عن المشروع: يذكر اسم المشروع وقطاعه ومرحلته التشغيلية.
+  • الموقف الاستراتيجي الإيجابي (القوة × الفرص): يذكر صراحةً أهم نقاط القوة والفرص المختارة من صاحب المشروع (بأسمائها أو مفاهيمها المباشرة) مبيّناً كيف تُستغل نقاط القوة لاقتناص تلك الفرص.
+  • التحديات الرئيسية (الضعف × المخاطر): يذكر صراحةً أبرز نقاط الضعف والمخاطر المختارة (بأسمائها أو مفاهيمها المباشرة) كتحديات يتعين التعامل معها.
+  • التوصية والأولوية الاستراتيجية: توصية واحدة محددة وقابلة للتنفيذ للمرحلة القادمة مبنية على التوفيق بين عناصر التحليل.
+  * يُمنع منعاً باتاً استخدام عبارات افتراضية عامة غير مذكورة في عناصر SWOT (مثل: "استثمار مرونته"، "قربه من فئته المستهدفة"، "محدودية الموارد أمام المنافسين").
 - اكتب كل المخرجات بالعربية الفصحى المبسّطة، دون ترقيم أو رموز في بداية البنود.
 
 أعِد النتيجة بصيغة JSON حصراً وبهذا الشكل تماماً:
@@ -369,7 +375,300 @@ const toPriorities = (
   return sortPriorities(priorities)
 }
 
+// ─────────────────────────────────────────────────────────────
+//  توليد وتحقق استراتيجيات التقاطعات المبنية على اختيارات المستخدم
+// ─────────────────────────────────────────────────────────────
+
+const QUADRANT_PAIRS: Record<SwotStrategyKey, [SwotQuadrantKey, SwotQuadrantKey]> = {
+  so: ["strengths", "opportunities"],
+  wo: ["weaknesses", "opportunities"],
+  st: ["strengths", "threats"],
+  wt: ["weaknesses", "threats"],
+}
+
+/** استخراج الكلمات المفتاحية ذات المعنى من نص العنصر */
+const getSignificantKeywords = (text: string): string[] => {
+  const normalized = normalizeArabic(text)
+  const stopWords = new Set(["في", "من", "على", "عن", "إلى", "مع", "أو", "و", "أن", "ما", "هذا", "هذه", "تم", "عدم", "عبر"])
+  return normalized
+    .split(/\s+/)
+    .map((w) => w.replace(/[^\w\u0600-\u06FF]/g, ""))
+    .filter((w) => w.length >= 3 && !stopWords.has(w))
+}
+
+/** فحص ما إذا كان نص الاستراتيجية يذكر أو يرتبط بأي من عناصر القائمة */
+const matchesAnyItem = (strategyText: string, items: string[]): boolean => {
+  if (!items || items.length === 0) return true
+  const normStrategy = normalizeArabic(strategyText)
+
+  for (const item of items) {
+    const normItem = normalizeArabic(item)
+    if (normStrategy.includes(normItem) || normItem.includes(normStrategy)) {
+      return true
+    }
+    const keywords = getSignificantKeywords(item)
+    if (keywords.length > 0 && keywords.some((kw) => normStrategy.includes(kw))) {
+      return true
+    }
+  }
+  return false
+}
+
+/** التأكد من أن الاستراتيجية التقاطعية ترتبط بعناصر المحورين المختارة */
+const isStrategyValidForSelections = (
+  strategyText: string,
+  userItems1: string[],
+  userItems2: string[]
+): boolean => {
+  const matches1 = matchesAnyItem(strategyText, userItems1)
+  const matches2 = matchesAnyItem(strategyText, userItems2)
+  return matches1 && matches2
+}
+
 /**
+ * توليد استراتيجيات تقاطعية ديناميكياً ومباشرة من العناصر المختارة
+ */
+export const buildDynamicStrategiesFromSelections = (
+  quadrants: Record<SwotQuadrantKey, SwotItem[]>,
+  selections?: SwotSelectionPayload | null
+): SwotStrategies => {
+  const getItems = (key: SwotQuadrantKey): string[] => {
+    const userSelected = selections?.items[key]
+    if (userSelected && userSelected.length > 0) {
+      return userSelected
+    }
+    return (quadrants[key] ?? []).map((i) => i.title).filter(Boolean)
+  }
+
+  const sList = getItems("strengths")
+  const wList = getItems("weaknesses")
+  const oList = getItems("opportunities")
+  const tList = getItems("threats")
+
+  // SO: Strengths x Opportunities
+  const so: string[] = []
+  if (sList.length && oList.length) {
+    const s1 = sList[0]
+    const o1 = oList[0]
+    so.push(`استثمار «${s1}» اقتناصاً لـ «${o1}» والتوسع عبرها`)
+    if (sList.length > 1 || oList.length > 1) {
+      const s2 = sList[1] ?? s1
+      const o2 = oList[1] ?? o1
+      so.push(`توظيف «${s2}» للاستفادة المباشرة من «${o2}»`)
+    }
+  }
+
+  // WO: Weaknesses x Opportunities
+  const wo: string[] = []
+  if (wList.length && oList.length) {
+    const w1 = wList[0]
+    const o1 = oList[0]
+    wo.push(`معالجة «${w1}» عبر استغلال «${o1}»`)
+    if (wList.length > 1 || oList.length > 1) {
+      const w2 = wList[1] ?? w1
+      const o2 = oList[1] ?? o1
+      wo.push(`التغلب على «${w2}» بالاستفادة من «${o2}»`)
+    }
+  }
+
+  // ST: Strengths x Threats
+  const st: string[] = []
+  if (sList.length && tList.length) {
+    const s1 = sList[0]
+    const t1 = tList[0]
+    st.push(`استخدام «${s1}» لمواجهة خطر «${t1}» والحد من تأثيره`)
+    if (sList.length > 1 || tList.length > 1) {
+      const s2 = sList[1] ?? s1
+      const t2 = tList[1] ?? t1
+      st.push(`استغلال «${s2}» لحماية المشروع أمام «${t2}»`)
+    }
+  }
+
+  // WT: Weaknesses x Threats
+  const wt: string[] = []
+  if (wList.length && tList.length) {
+    const w1 = wList[0]
+    const t1 = tList[0]
+    wt.push(`تقليل آثار «${w1}» لتجنب التأثر بـ «${t1}»`)
+    if (wList.length > 1 || tList.length > 1) {
+      const w2 = wList[1] ?? w1
+      const t2 = tList[1] ?? t1
+      wt.push(`الحد من «${w2}» تحسباً لـ «${t2}»`)
+    }
+  }
+
+  return { so, wo, st, wt }
+}
+
+/**
+ * دالة التحقق والتنقيب للاستراتيجيات ضد اختيارات المستخدم
+ */
+export const validateAndSanitizeStrategies = (
+  strategies: SwotStrategies,
+  quadrants: Record<SwotQuadrantKey, SwotItem[]>,
+  selections?: SwotSelectionPayload | null
+): SwotStrategies => {
+  if (!hasAnySelection(selections)) {
+    return strategies
+  }
+
+  const dynamicFallback = buildDynamicStrategiesFromSelections(quadrants, selections)
+  const sanitized: SwotStrategies = { ...strategies }
+
+  const keys: SwotStrategyKey[] = ["so", "wo", "st", "wt"]
+  for (const key of keys) {
+    const [axis1, axis2] = QUADRANT_PAIRS[key]
+    const userItems1 = selections?.items[axis1] ?? []
+    const userItems2 = selections?.items[axis2] ?? []
+
+    if (userItems1.length > 0 || userItems2.length > 0) {
+      const currentList = sanitized[key] ?? []
+      const validItems = currentList.filter((strat) =>
+        isStrategyValidForSelections(strat, userItems1, userItems2)
+      )
+
+      if (validItems.length > 0) {
+        sanitized[key] = validItems
+      } else {
+        sanitized[key] = dynamicFallback[key]
+      }
+    }
+  }
+
+  return sanitized
+}
+
+/**
+ * توليد ملخص تنفيذي ديناميكي واحترافي يعتمد على العناصر المختارة
+ * ويربط استراتيجياً بين (القوة × الفرص) و(الضعف × المخاطر).
+ */
+export const buildDynamicExecutiveSummary = (
+  input: SwotInput,
+  quadrants: Record<SwotQuadrantKey, SwotItem[]>,
+  selections?: SwotSelectionPayload | null
+): string => {
+  const name = input.projectName.trim() || "المشروع"
+  const stageLabel = STAGE_LABELS[input.stage]
+
+  const getItemTitles = (key: SwotQuadrantKey): string[] => {
+    const userSelected = selections?.items[key]
+    if (userSelected && userSelected.length > 0) {
+      return userSelected
+    }
+    return (quadrants[key] ?? []).map((i) => i.title).filter(Boolean)
+  }
+
+  const sList = getItemTitles("strengths")
+  const wList = getItemTitles("weaknesses")
+  const oList = getItemTitles("opportunities")
+  const tList = getItemTitles("threats")
+
+  const sText = sList.length > 1 ? `«${sList[0]}» و«${sList[1]}»` : sList.length === 1 ? `«${sList[0]}»` : ""
+  const oText = oList.length > 1 ? `«${oList[0]}» و«${oList[1]}»` : oList.length === 1 ? `«${oList[0]}»` : ""
+  const wText = wList.length > 1 ? `«${wList[0]}» و«${wList[1]}»` : wList.length === 1 ? `«${wList[0]}»` : ""
+  const tText = tList.length > 1 ? `«${tList[0]}» و«${tList[1]}»` : tList.length === 1 ? `«${tList[0]}»` : ""
+
+  const parts: string[] = []
+
+  // 1. لمحة عن المشروع
+  parts.push(`يعمل «${name}» في قطاع ${input.sector} وهو ${stageLabel}.`)
+
+  // 2. الموقف الاستراتيجي الإيجابي (القوة x الفرص)
+  if (sText && oText) {
+    parts.push(`يعتمد موقعه الاستراتيجي على استثمار نقاط القوة المتمثلة في ${sText} لاقتناص الفرص الواعدة في ${oText}.`)
+  } else if (sText) {
+    parts.push(`يعتمد موقعه الاستراتيجي على مرتكزات قوة محورية تكمن في ${sText}.`)
+  } else if (oText) {
+    parts.push(`يتوفر للمشروع آفاق نمو واعدة تعتمد على اقتناص فرص ${oText}.`)
+  }
+
+  // 3. التحديات الرئيسية (الضعف x المخاطر)
+  if (wText && tText) {
+    parts.push(`في المقابل، يواجه المشروع تحديات تشغيلية تتمثل في ${wText} بالتزامن مع مخاطر سوقية تشمل ${tText}.`)
+  } else if (wText) {
+    parts.push(`في المقابل، تتطلب الاستمرارية معالجة نقاط الضعف الداخلية المتمثلة في ${wText}.`)
+  } else if (tText) {
+    parts.push(`في المقابل، يتعين على المشروع التحوط ضد المخاطر الخارجية المتمثلة في ${tText}.`)
+  }
+
+  // 4. التوصية والأولوية الاستراتيجية
+  if (sList.length > 0 && (wList.length > 0 || tList.length > 0)) {
+    const mainStrength = sList[0]
+    const challenge = wList[0] || tList[0]
+    parts.push(`وتكمن الأولوية الاستراتيجية للمرحلة القادمة في توظيف «${mainStrength}» لمعالجة وتخفيف أثر «${challenge}» وتثبيت الجاهزية التشغيلية قبل أي توسّع.`)
+  } else {
+    parts.push(`وتكمن الأولوية الاستراتيجية للمرحلة القادمة في تثبيت نموذج العمل وتأكيد الجاهزية التشغيلية قبل التوسع في النفقات.`)
+  }
+
+  return parts.join(" ")
+}
+
+const GENERIC_FALLBACK_PHRASES = [
+  "استثمار مرونته وقربه من فئته المستهدفة",
+  "استثمار مرونته وقربه من",
+  "حساسية الربحية لتقلّب التكاليف",
+  "محدودية الموارد أمام المنافسين المستقرين",
+]
+
+/**
+ * دالة التحقق والتنقية للملخص التنفيذي ضد عناصر المستخدم المختارة.
+ * تعيد ملخص الذكاء الاصطناعي إن كان جودة مستوفية، وإلا تُرجع الملخص الديناميكي المولد.
+ */
+export const validateAndSanitizeSummary = (
+  summaryText: string,
+  input: SwotInput,
+  quadrants: Record<SwotQuadrantKey, SwotItem[]>,
+  selections?: SwotSelectionPayload | null
+): string => {
+  const normSummary = normalizeArabic(summaryText ?? "")
+
+  // إذا احتوى الملخص على العبارات العامة النمطية القديمة، يرفض فوراً
+  for (const phrase of GENERIC_FALLBACK_PHRASES) {
+    if (normSummary.includes(normalizeArabic(phrase))) {
+      return buildDynamicExecutiveSummary(input, quadrants, selections)
+    }
+  }
+
+  if (!hasAnySelection(selections)) {
+    return summaryText && summaryText.length >= 30
+      ? summaryText
+      : buildDynamicExecutiveSummary(input, quadrants, selections)
+  }
+
+  // تجميع كافة بنود المستخدم المختارة
+  const userItems: string[] = []
+  for (const key of QUADRANT_KEYS) {
+    const list = selections?.items[key] ?? []
+    userItems.push(...list)
+  }
+
+  if (userItems.length === 0) {
+    return summaryText && summaryText.length >= 30
+      ? summaryText
+      : buildDynamicExecutiveSummary(input, quadrants, selections)
+  }
+
+  // حساب كم بنداً مختاراً تم ذكره في الملخص
+  let matchCount = 0
+  for (const item of userItems) {
+    if (matchesAnyItem(summaryText, [item])) {
+      matchCount++
+    }
+  }
+
+  // الحد الأدنى للمطابقة: إذا كان المستخدم اختار 4 بنود أو أكثر، يلزم مطابقة 4 بنود على الأقل.
+  const requiredMatches = userItems.length >= 4 ? 4 : Math.min(2, userItems.length)
+
+  if (matchCount >= requiredMatches) {
+    return summaryText
+  }
+
+  // إذا لم يستوفِ التغطية، يتم استبداله بالملخص الديناميكي المُصمم
+  return buildDynamicExecutiveSummary(input, quadrants, selections)
+}
+
+/**
+
  * يضمن أن الناتج مطابق للعقد: أربعة أرباع غير فارغة، واستراتيجيات،
  * وملخص. أي ربع يعود ناقصاً من النموذج يُكمَّل من المولّد القاعدي.
  */
@@ -406,7 +705,7 @@ const normalizeAnalysis = (
   }, {} as Record<SwotQuadrantKey, SwotItem[]>)
 
   const rawStrategies = raw?.strategies ?? {}
-  const strategies = (["so", "wo", "st", "wt"] as const).reduce((acc, key) => {
+  const rawParsed = (["so", "wo", "st", "wt"] as const).reduce((acc, key) => {
     const items = Array.isArray(rawStrategies[key])
       ? rawStrategies[key].map(cleanItem).filter((item: string) => item.length > 1)
       : typeof rawStrategies[key] === "string"
@@ -420,13 +719,16 @@ const normalizeAnalysis = (
     return acc
   }, {} as SwotAnalysis["strategies"])
 
-  const summary = cleanItem(raw?.summary)
+  const strategies = validateAndSanitizeStrategies(rawParsed, quadrants, selections)
+
+  const rawSummary = cleanItem(raw?.summary)
+  const summary = validateAndSanitizeSummary(rawSummary, input, quadrants, selections)
 
   return {
     ...quadrants,
     id: createReportId(),
     generatedAt: new Date().toISOString(),
-    summary: summary.length > 10 ? summary : fallback.summary,
+    summary,
     strategies,
     // تُقاس الأولويات على الاستراتيجيات بعد تطبيعها لا كما وردت من
     // النموذج، فلا تنجو إشارة إلى استراتيجية حُذفت في التطبيع
@@ -643,24 +945,26 @@ export const buildHeuristicAnalysis = (
     threats: complete("threats", threats, GENERIC_INSIGHTS.threats),
   }
 
-  const strategies: SwotStrategies = {
-    so: [
-      `استثمار سرعة القرار في «${name}» لاختبار قنوات تسويق رقمية منخفضة الكلفة والتوسّع في الأنجح منها`,
-      "ترجمة نقاط القوة التشغيلية إلى رسالة تسويقية واحدة واضحة تخاطب الفئة المستهدفة",
-    ],
-    wo: [
-      "معالجة ضعف وعي العلامة ببناء محتوى ودليل اجتماعي (تجارب عملاء) قبل زيادة الإنفاق الإعلاني",
-      "الاستفادة من برامج دعم المشاريع الصغيرة لتغطية فجوة الموارد التسويقية والتأهيلية",
-    ],
-    st: [
-      "التمايز بالقيمة والخدمة لا بالسعر، لتجنّب الدخول في حرب أسعار مع منافس أكبر تمويلاً",
-      "تثبيت التكاليف الحسّاسة عبر اتفاقيات توريد أطول أجلاً لحماية هامش الربح",
-    ],
-    wt: [
-      "إبقاء التكاليف الثابتة في أدنى مستوى ممكن حتى تثبيت نقطة التعادل شهرياً",
-      "تجزئة التوسّع إلى مراحل مشروطة بمؤشرات أداء، بدل التزام رأسمالي واحد كبير",
-    ],
-  }
+  const strategies: SwotStrategies = hasAnySelection(selections)
+    ? buildDynamicStrategiesFromSelections(quadrants, selections)
+    : {
+        so: [
+          `استثمار سرعة القرار في «${name}» لاختبار قنوات تسويق رقمية منخفضة الكلفة والتوسّع في الأنجح منها`,
+          "ترجمة نقاط القوة التشغيلية إلى رسالة تسويقية واحدة واضحة تخاطب الفئة المستهدفة",
+        ],
+        wo: [
+          "معالجة ضعف وعي العلامة ببناء محتوى ودليل اجتماعي (تجارب عملاء) قبل زيادة الإنفاق الإعلاني",
+          "الاستفادة من برامج دعم المشاريع الصغيرة لتغطية فجوة الموارد التسويقية والتأهيلية",
+        ],
+        st: [
+          "التمايز بالقيمة والخدمة لا بالسعر، لتجنّب الدخول في حرب أسعار مع منافس أكبر تمويلاً",
+          "تثبيت التكاليف الحسّاسة عبر اتفاقيات توريد أطول أجلاً لحماية هامش الربح",
+        ],
+        wt: [
+          "إبقاء التكاليف الثابتة في أدنى مستوى ممكن حتى تثبيت نقطة التعادل شهرياً",
+          "تجزئة التوسّع إلى مراحل مشروطة بمؤشرات أداء، بدل التزام رأسمالي واحد كبير",
+        ],
+      }
 
   /**
    * أولويات المسار القاعدي: كل بند ترجمة تنفيذية لاستراتيجية من
@@ -697,9 +1001,7 @@ export const buildHeuristicAnalysis = (
     ...quadrants,
     id: createReportId(),
     generatedAt: new Date().toISOString(),
-    summary: `يعمل «${name}» في قطاع ${input.sector} وهو ${STAGE_LABELS[input.stage]}. يقوم موقعه الاستراتيجي على استثمار مرونته وقربه من ${
-      market || "فئته المستهدفة"
-    }، في مقابل تحديين أساسيين: محدودية الموارد أمام المنافسين المستقرين، وحساسية الربحية لتقلّب التكاليف. الأولوية في المرحلة القادمة هي تثبيت مصدر إيراد متكرر قبل التوسّع في النفقات الثابتة.`,
+    summary: buildDynamicExecutiveSummary(input, quadrants, selections),
     strategies,
     priorities,
     source: "heuristic",

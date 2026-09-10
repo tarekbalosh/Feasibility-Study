@@ -25,6 +25,11 @@ interface SwotResultProps {
   onRegenerate: () => void
   onReset: () => void
   removeItem: (quadrant: SwotQuadrantKey, index: number) => void
+  editItem: (
+    quadrant: SwotQuadrantKey,
+    index: number,
+    updates: { title: string; detail?: string }
+  ) => void
 }
 
 export const SwotResult: React.FC<SwotResultProps> = ({
@@ -35,6 +40,7 @@ export const SwotResult: React.FC<SwotResultProps> = ({
   onRegenerate,
   onReset,
   removeItem,
+  editItem,
 }) => (
   <>
     <SwotReportView
@@ -45,6 +51,7 @@ export const SwotResult: React.FC<SwotResultProps> = ({
       onRegenerate={onRegenerate}
       onReset={onReset}
       removeItem={removeItem}
+      editItem={editItem}
     />
     <SwotReportDocument input={input} analysis={analysis} />
   </>

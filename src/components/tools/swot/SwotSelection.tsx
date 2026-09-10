@@ -6,6 +6,7 @@ import {
   ChevronDown,
   Eraser,
   Info,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
@@ -20,10 +21,9 @@ import { Button } from "@/components/ui/Button"
 import { SwotDetailedLists } from "@/components/tools/swot/SwotDetailedLists"
 import {
   MAX_CUSTOM_ITEM_LENGTH,
-  SEARCH_VISIBILITY_THRESHOLD,
+  RECOMMENDED_MAX_SELECTIONS,
   SWOT_CATEGORY_ORDER,
   normalizeArabic,
-  swotSuggestions,
 } from "@/config/swotSuggestions"
 import {
   conflictIdSet,
@@ -167,6 +167,7 @@ interface CategoryGroupProps {
   maxCustomItems: number
   onToggle: (category: SwotQuadrantKey, id: string) => void
   onAddCustom: (category: SwotQuadrantKey, label: string) => boolean
+  onEditCustom: (category: SwotQuadrantKey, id: string, label: string) => boolean
   onRemoveCustom: (category: SwotQuadrantKey, id: string) => void
   onClearCustomError: (category: SwotQuadrantKey) => void
   onClearCategory: (category: SwotQuadrantKey) => void
@@ -180,6 +181,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
   maxCustomItems,
   onToggle,
   onAddCustom,
+  onEditCustom,
   onRemoveCustom,
   onClearCustomError,
   onClearCategory,
@@ -194,6 +196,29 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
   const [query, setQuery] = React.useState("")
   const [draft, setDraft] = React.useState("")
 
+  // تعديل بند مخصّص — بند واحد فقط قابل للتحرير داخل المجموعة في آنٍ
+  const [editingId, setEditingId] = React.useState<string | null>(null)
+  const [editDraft, setEditDraft] = React.useState("")
+
+  const startEdit = (id: string, label: string) => {
+    setEditingId(id)
+    setEditDraft(label)
+    if (customError) onClearCustomError(category)
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditDraft("")
+  }
+
+  const submitEdit = () => {
+    if (!editingId) return
+    if (onEditCustom(category, editingId, editDraft)) {
+      setEditingId(null)
+      setEditDraft("")
+    }
+  }
+
   const chips = React.useMemo(
     () => getCategoryChips(category, selection),
     [category, selection]
@@ -204,8 +229,8 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
     [selection.selectedIds]
   )
 
-  // حقل البحث يظهر فقط للقوائم الطويلة — لا داعي له في قائمة من ١٢ بنداً
-  const showSearch = swotSuggestions[category].length > SEARCH_VISIBILITY_THRESHOLD
+  // حقل البحث ظاهر في كل المجموعات — حتى قائمة الفرص القصيرة تستفيد منه
+  const showSearch = true
 
   const visibleChips = React.useMemo(() => {
     const normalized = normalizeArabic(query)
@@ -269,7 +294,10 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
               <span className="text-[15px] font-bold text-slate-900">
                 {style.title}
               </span>
-              <Icon className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+              <Icon
+                className={clsx("w-4 h-4 shrink-0", style.count)}
+                strokeWidth={2.5}
+              />
             </span>
             <span className="text-[11px] text-slate-500 truncate">
               {style.subtitle}
@@ -357,6 +385,58 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
             {visibleChips.map((chip) => {
               const isSelected = selectedIds.has(chip.id)
               const isConflicting = isSelected && conflicting.has(chip.id)
+              const isEditing = chip.isCustom && editingId === chip.id
+
+              // بند مخصّص قيد التعديل — سطر إدخال بدل الاختيار المعتاد
+              if (isEditing) {
+                return (
+                  <div
+                    key={chip.id}
+                    className={clsx(
+                      "flex items-stretch gap-1.5 rounded-xl border p-1.5",
+                      style.itemOn
+                    )}
+                  >
+                    <input
+                      type="text"
+                      autoFocus
+                      value={editDraft}
+                      maxLength={MAX_CUSTOM_ITEM_LENGTH + 20}
+                      onChange={(e) => {
+                        setEditDraft(e.target.value)
+                        if (customError) onClearCustomError(category)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          submitEdit()
+                        } else if (e.key === "Escape") {
+                          e.preventDefault()
+                          cancelEdit()
+                        }
+                      }}
+                      aria-label={`تعديل نص البند «${chip.label}»`}
+                      className="flex-1 min-w-0 min-h-[36px] rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[13px] sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300"
+                    />
+                    <button
+                      type="button"
+                      onClick={submitEdit}
+                      aria-label="حفظ التعديل"
+                      className="shrink-0 w-9 flex items-center justify-center rounded-lg bg-slate-900 text-white hover:bg-slate-700 transition-colors duration-150"
+                    >
+                      <Check className="w-4 h-4" strokeWidth={3} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      aria-label="إلغاء التعديل"
+                      className="shrink-0 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors duration-150"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )
+              }
 
               return (
                 <div
@@ -396,16 +476,26 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
                     </span>
                   </button>
 
-                  {/* البنود المخصّصة فقط تُحذف — الجاهزة تُلغى ولا تُحذف */}
+                  {/* البنود المخصّصة فقط تُعدَّل وتُحذف — الجاهزة تُلغى فقط */}
                   {chip.isCustom && (
-                    <button
-                      type="button"
-                      onClick={() => onRemoveCustom(category, chip.id)}
-                      aria-label={`حذف البند «${chip.label}»`}
-                      className="shrink-0 w-10 flex items-center justify-center rounded-l-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors duration-150"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => startEdit(chip.id, chip.label)}
+                        aria-label={`تعديل البند «${chip.label}»`}
+                        className="shrink-0 w-10 flex items-center justify-center border-r border-black/5 text-slate-400 hover:text-slate-900 hover:bg-white/60 transition-colors duration-150"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onRemoveCustom(category, chip.id)}
+                        aria-label={`حذف البند «${chip.label}»`}
+                        className="shrink-0 w-10 flex items-center justify-center rounded-l-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors duration-150"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </>
                   )}
                 </div>
               )
@@ -446,6 +536,24 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
                 ))}
               </ul>
             </div>
+          </div>
+        )}
+
+        {/* تنبيه استشاري — لا يمنع التجاوز، فقط يوصي بتركيز أعلى */}
+        {selectedCount > RECOMMENDED_MAX_SELECTIONS && (
+          <div className="mx-4 mb-3 flex items-start gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-xs text-indigo-900 leading-relaxed">
+            <Info className="w-4 h-4 shrink-0 mt-0.5 text-indigo-500" />
+            <span>
+              اخترت{" "}
+              <span className="font-bold tabular-nums">
+                {ar(selectedCount)}
+              </span>{" "}
+              بنود، أي أكثر من العدد الموصى به. يُفضَّل الاقتصار على{" "}
+              <span className="font-bold tabular-nums">
+                {ar(RECOMMENDED_MAX_SELECTIONS)}
+              </span>{" "}
+              بنود كحدّ أقصى لكل مجموعة، للحصول على تحليل أكثر تركيزاً ودقة.
+            </span>
           </div>
         )}
 
@@ -528,6 +636,7 @@ interface SwotSelectionProps {
   generateError?: string | null
   onToggle: (category: SwotQuadrantKey, id: string) => void
   onAddCustom: (category: SwotQuadrantKey, label: string) => boolean
+  onEditCustom: (category: SwotQuadrantKey, id: string, label: string) => boolean
   onRemoveCustom: (category: SwotQuadrantKey, id: string) => void
   onClearCustomError: (category: SwotQuadrantKey) => void
   onClearCategory: (category: SwotQuadrantKey) => void
@@ -546,6 +655,7 @@ export const SwotSelection: React.FC<SwotSelectionProps> = ({
   generateError,
   onToggle,
   onAddCustom,
+  onEditCustom,
   onRemoveCustom,
   onClearCustomError,
   onClearCategory,
@@ -639,6 +749,7 @@ export const SwotSelection: React.FC<SwotSelectionProps> = ({
           maxCustomItems={maxCustomItems}
           onToggle={onToggle}
           onAddCustom={onAddCustom}
+          onEditCustom={onEditCustom}
           onRemoveCustom={onRemoveCustom}
           onClearCustomError={onClearCustomError}
           onClearCategory={onClearCategory}

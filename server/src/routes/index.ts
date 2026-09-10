@@ -8,6 +8,7 @@ import systemRoutes from "./systemRoutes";
 import workspaceRoutes from "./workspaceRoutes";
 import inviteRoutes from "./inviteRoutes";
 import toolRunRoutes from "./toolRunRoutes";
+import swotGoalsRoutes from "./swotGoalsRoutes";
 
 const router = Router();
 
@@ -20,6 +21,7 @@ router.use("/feasibility", feasibilityRoutes);
 router.use("/workspaces", workspaceRoutes);
 router.use("/invites", inviteRoutes);
 router.use("/tool-runs", toolRunRoutes);
+router.use("/swot-goals", swotGoalsRoutes);
 router.use('/system', systemRoutes);
 // Health check
 router.get("/health", (_req, res) => {

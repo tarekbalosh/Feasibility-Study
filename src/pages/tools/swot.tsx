@@ -191,7 +191,7 @@ export default function SwotLanding() {
                 🧭 تحليل استراتيجي بالذكاء الاصطناعي
               </span>
               <h1 className="text-3xl/[1.8] sm:text-4xl/[1.8] lg:text-5xl/[1.8] font-black text-slate-900 tracking-tight py-1">
-                حوّل فكرة مشروعك إلى رؤية واضحة في{" "}
+                تحليل فكرة مشروعك إلى رؤية واضحة في{" "}
                 <span className="text-sky-600">تحليل واحد</span>.
               </h1>
               <p className="text-lg text-slate-600 leading-relaxed max-w-xl">
@@ -206,14 +206,6 @@ export default function SwotLanding() {
                     className="w-full sm:w-auto text-base px-8 py-3 bg-sky-600 hover:bg-sky-700 focus:ring-sky-500"
                   >
                     ابدأ تحليلك مجاناً
-                  </Button>
-                </Link>
-                <Link href="/tools" passHref>
-                  <Button
-                    variant="ghost"
-                    className="w-full sm:w-auto text-base border border-slate-200 bg-white hover:bg-slate-50 px-8 py-3"
-                  >
-                    استعرض بقية الأدوات
                   </Button>
                 </Link>
               </div>

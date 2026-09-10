@@ -58,10 +58,10 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
                 type="button"
                 onClick={() => setActiveCategory(category.key)}
                 className={clsx(
-                  "px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 border",
+                  "px-4 py-2 rounded-full text-sm font-semibold transition-all duration-150 border",
                   isActive
-                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900"
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-indigo-200 hover:bg-indigo-50/60 hover:text-indigo-600"
                 )}
               >
                 {category.label}

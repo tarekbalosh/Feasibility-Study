@@ -35,6 +35,7 @@ import {
 import { handOffToFeasibility } from "@/utils/feasibilityHandoff"
 import { getToolStartPath } from "@/config/tools.registry"
 import { MAX_PRIORITIES, type SwotAnalysis, type SwotInput, type SwotQuadrantKey } from "@/types/swot"
+import { SwotStrategiesSection } from "../strategies/SwotStrategiesSection"
 
 /**
  * ─────────────────────────────────────────────────────────────
@@ -56,6 +57,11 @@ interface SwotReportViewProps {
   onRegenerate: () => void
   onReset: () => void
   removeItem: (quadrant: SwotQuadrantKey, index: number) => void
+  editItem: (
+    quadrant: SwotQuadrantKey,
+    index: number,
+    updates: { title: string; detail?: string }
+  ) => void
 }
 
 export const SwotReportView: React.FC<SwotReportViewProps> = ({
@@ -66,11 +72,43 @@ export const SwotReportView: React.FC<SwotReportViewProps> = ({
   onRegenerate,
   onReset,
   removeItem,
+  editItem,
 }) => {
   const router = useRouter()
   const [menuOpen, setMenuOpen] = React.useState(false)
   const [confirmDelete, setConfirmDelete] = React.useState(false)
   const menuRef = React.useRef<HTMLDivElement>(null)
+
+  // تعديل بند بعد التوليد — بند واحد فقط قابل للتحرير في آنٍ عبر التقرير كله
+  const [editing, setEditing] = React.useState<
+    { quadrant: SwotQuadrantKey; index: number } | null
+  >(null)
+  const [editTitle, setEditTitle] = React.useState("")
+  const [editDetail, setEditDetail] = React.useState("")
+
+  const startEditItem = (
+    quadrant: SwotQuadrantKey,
+    index: number,
+    title: string,
+    detail?: string
+  ) => {
+    setEditing({ quadrant, index })
+    setEditTitle(title)
+    setEditDetail(detail ?? "")
+  }
+
+  const cancelEditItem = () => setEditing(null)
+
+  const submitEditItem = () => {
+    if (!editing) return
+    const title = editTitle.trim()
+    if (!title) return
+    editItem(editing.quadrant, editing.index, {
+      title,
+      detail: editDetail.trim() || undefined,
+    })
+    setEditing(null)
+  }
 
   // إغلاق قائمة ⋯ بالنقر خارجها أو بمفتاح Escape
   React.useEffect(() => {
@@ -286,103 +324,135 @@ export const SwotReportView: React.FC<SwotReportViewProps> = ({
               </div>
 
               <ul className="flex flex-col gap-2 p-4 flex-1">
-                {items.map((item, index) => (
-                  <li key={index} className="flex items-start gap-2 group">
-                    <span
-                      className={clsx(
-                        "w-1.5 h-1.5 rounded-full shrink-0 mt-2.5",
-                        quadrant.dot
-                      )}
-                    />
-                    <div className="flex-1 min-w-0 flex flex-col">
-                      <p className="text-sm text-slate-800 font-medium leading-relaxed px-2 py-1">
-                        {item.title}
-                      </p>
-                      {item.detail && (
-                        <p className="text-xs text-slate-500 leading-relaxed px-2 pb-1">
-                          {item.detail}
+                {items.map((item, index) => {
+                  const isEditing =
+                    editing?.quadrant === quadrant.key && editing.index === index
+
+                  if (isEditing) {
+                    return (
+                      <li
+                        key={index}
+                        className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2.5"
+                      >
+                        <input
+                          type="text"
+                          autoFocus
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Escape") {
+                              e.preventDefault()
+                              cancelEditItem()
+                            }
+                          }}
+                          placeholder="عنوان البند"
+                          aria-label="تعديل عنوان البند"
+                          className="w-full min-h-[38px] rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300"
+                        />
+                        <textarea
+                          value={editDetail}
+                          onChange={(e) => setEditDetail(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Escape") {
+                              e.preventDefault()
+                              cancelEditItem()
+                            }
+                          }}
+                          placeholder="شرح البند (اختياري)"
+                          aria-label="تعديل شرح البند"
+                          rows={2}
+                          className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 leading-relaxed focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300"
+                        />
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={cancelEditItem}
+                            className="px-3 py-1.5 text-xs border border-slate-200 bg-white hover:bg-slate-50"
+                          >
+                            إلغاء
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="primary"
+                            onClick={submitEditItem}
+                            disabled={!editTitle.trim()}
+                            className="px-3 py-1.5 text-xs gap-1.5 bg-slate-900 hover:bg-slate-700 focus:ring-slate-500"
+                          >
+                            <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                            حفظ
+                          </Button>
+                        </div>
+                      </li>
+                    )
+                  }
+
+                  return (
+                    <li key={index} className="flex items-start gap-2 group">
+                      <span
+                        className={clsx(
+                          "w-1.5 h-1.5 rounded-full shrink-0 mt-2.5",
+                          quadrant.dot
+                        )}
+                      />
+                      <div className="flex-1 min-w-0 flex flex-col">
+                        <p className="text-sm text-slate-800 font-medium leading-relaxed px-2 py-1">
+                          {item.title}
                         </p>
-                      )}
-                      {isMixed && (
-                        <span
-                          className={clsx(
-                            "self-start mx-2 mt-0.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold",
-                            item.source === "user"
-                              ? "bg-slate-900 text-white"
-                              : "bg-slate-100 text-slate-500"
-                          )}
-                        >
-                          {item.source === "user" ? (
-                            <>
-                              <Check className="w-3 h-3" strokeWidth={3} />
-                              من اختيارك
-                            </>
-                          ) : (
-                            "مقترح تلقائياً"
-                          )}
-                        </span>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeItem(quadrant.key, index)}
-                      aria-label={`حذف البند «${item.title}»`}
-                      className="shrink-0 mt-1 p-1.5 rounded-md text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors duration-150"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </li>
-                ))}
+                        {item.detail && (
+                          <p className="text-xs text-slate-500 leading-relaxed px-2 pb-1">
+                            {item.detail}
+                          </p>
+                        )}
+                        {isMixed && (
+                          <span
+                            className={clsx(
+                              "self-start mx-2 mt-0.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold",
+                              item.source === "user"
+                                ? "bg-slate-900 text-white"
+                                : "bg-slate-100 text-slate-500"
+                            )}
+                          >
+                            {item.source === "user" ? (
+                              <>
+                                <Check className="w-3 h-3" strokeWidth={3} />
+                                من اختيارك
+                              </>
+                            ) : (
+                              "مقترح تلقائياً"
+                            )}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          startEditItem(quadrant.key, index, item.title, item.detail)
+                        }
+                        aria-label={`تعديل البند «${item.title}»`}
+                        className="shrink-0 mt-1 p-1.5 rounded-md text-slate-300 hover:text-slate-700 hover:bg-slate-100 transition-colors duration-150"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeItem(quadrant.key, index)}
+                        aria-label={`حذف البند «${item.title}»`}
+                        className="shrink-0 mt-1 p-1.5 rounded-md text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors duration-150"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           )
         })}
       </div>
 
-      {/* ── الاستراتيجيات المستخرجة من التقاطعات ───────────── */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-slate-400" />
-            الاستراتيجيات المستخرجة من تقاطعات المصفوفة
-          </h3>
-          <p className="text-sm text-slate-500">
-            قيمة تحليل SWOT ليست في الأرباع نفسها، بل في ما يتولّد عن تقاطعها.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {STRATEGY_GROUPS.map((group) => (
-            <div
-              key={group.key}
-              className={clsx(
-                "border rounded-xl p-5 flex flex-col gap-3",
-                group.accent
-              )}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <h4 className="text-sm font-bold">{group.title}</h4>
-                <span className="text-xs font-semibold opacity-70 bg-white/70 rounded-full px-2.5 py-0.5">
-                  {group.formula}
-                </span>
-              </div>
-              <ul className="flex flex-col gap-2">
-                {(analysis.strategies?.[group.key] ?? []).map((strategy, index) => (
-                  <li
-                    key={index}
-                    className="text-sm text-slate-700 leading-relaxed flex items-start gap-2"
-                  >
-                    <span className="font-bold opacity-60 shrink-0">
-                      {ar(index + 1)}.
-                    </span>
-                    {strategy}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* ── الاستراتيجيات بتبويباتها الجديدة ───────────── */}
+      <SwotStrategiesSection analysis={analysis} />
 
       {/* ── أ) ابدأ من هنا — خلاصة التقرير كله ─────────────── */}
       <section className="rounded-2xl border-2 border-slate-900 bg-slate-900 overflow-hidden">

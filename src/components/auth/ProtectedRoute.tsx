@@ -13,8 +13,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   React.useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      // صفحة الدخول تقرأ returnTo — أي اسم آخر يُسقط وجهة العودة بصمت
-      router.replace(`/auth/login?returnTo=${encodeURIComponent(router.asPath)}`)
+      // "أنشئ مساحة عملك" هي الدخول الوحيد الآن، وتقرأ returnTo — أي
+      // اسم آخر يُسقط وجهة العودة بصمت
+      router.replace(`/auth/register?returnTo=${encodeURIComponent(router.asPath)}`)
     }
   }, [isAuthenticated, isLoading, router])
 
