@@ -62,11 +62,28 @@ export const InviteTeamModal: React.FC<InviteTeamModalProps> = ({
 
     try {
       const result = await workspaceService.inviteMembers(workspaceId, invites)
-      toast.success(
-        result.invitesSent === result.invitesCreated
-          ? `تم إرسال ${result.invitesCreated} دعوة إلى فريقك.`
-          : `أُنشئت ${result.invitesCreated} دعوة، وأُرسل منها ${result.invitesSent}. يمكنك إعادة الإرسال لاحقاً.`
-      )
+
+      if (result.invitesCreated === 0) {
+        if (result.skipped && result.skipped.length > 0) {
+          toast.error(
+            `لم يتم إرسال دعوة جديدة: البريد (${result.skipped.join("، ")}) مدعو مسبقاً أو عضو بالفعل في مساحة العمل.`
+          )
+        } else {
+          toast.error("لم يتم إرسال أي دعوة. يرجى التأكد من البريد والمحاولة مجدداً.")
+        }
+      } else if (result.invitesSent === result.invitesCreated) {
+        toast.success(`تم إرسال ${result.invitesCreated} دعوة إلى فريقك بنجاح 🎉`)
+      } else if (result.invitesSent === 0) {
+        toast.error(
+          `تم إنشاء ${result.invitesCreated} دعوة في النظام، لكن تعذّر إرسال البريد الإلكتروني. يُرجى التحقق من إعدادات خدمة البريد في الخادم.`
+        )
+      } else {
+        toast(
+          `أُنشئت ${result.invitesCreated} دعوة، وأُرسل منها ${result.invitesSent} عبر البريد.`,
+          { icon: "⚠️" }
+        )
+      }
+
       setInvites([])
       onClose()
     } catch (err: any) {

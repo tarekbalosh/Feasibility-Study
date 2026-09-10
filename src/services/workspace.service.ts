@@ -49,10 +49,11 @@ export const createWorkspace = async (
   payload: CreateWorkspacePayload
 ): Promise<CreateWorkspaceResult> => {
   const { data } = await apiClient.post("/workspaces", payload, SILENT)
+  const nested = data?.data && typeof data.data === "object" ? data.data : {}
   return {
-    workspace: data.data,
-    invitesCreated: data.invitesCreated ?? 0,
-    invitesSent: data.invitesSent ?? 0,
+    workspace: (nested.id ? nested : data?.data) || data,
+    invitesCreated: nested.invitesCreated ?? data?.invitesCreated ?? 0,
+    invitesSent: nested.invitesSent ?? data?.invitesSent ?? 0,
   }
 }
 
@@ -74,10 +75,11 @@ export const inviteMembers = async (
     { invites },
     SILENT
   )
+  const nested = data?.data && typeof data.data === "object" ? data.data : {}
   return {
-    invitesCreated: data.invitesCreated ?? 0,
-    invitesSent: data.invitesSent ?? 0,
-    skipped: data.skipped ?? [],
+    invitesCreated: nested.invitesCreated ?? data?.invitesCreated ?? 0,
+    invitesSent: nested.invitesSent ?? data?.invitesSent ?? 0,
+    skipped: nested.skipped ?? data?.skipped ?? [],
   }
 }
 
