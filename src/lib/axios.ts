@@ -17,7 +17,12 @@ const baseURL = API_BASE_URL;
  */
 declare module 'axios' {
   export interface AxiosRequestConfig {
+    /** يتخطى التنبيه العام والتحويل القسري معاً (متوافق مع الاستخدام القديم) */
     silent?: boolean
+    /** يتخطى التنبيه العام فقط (لمنع تكرار التنبيهات إذا كان المُستدعي يعالج الخطأ) */
+    skipToast?: boolean
+    /** يتخطى التحويل القسري لتسجيل الدخول عند خطأ 401 (للفحوص الخلفية) */
+    skipAuthRedirect?: boolean
   }
 }
 
@@ -94,7 +99,10 @@ api.interceptors.response.use(
         // فحصٌ خلفي (حالة مساحة العمل) يجري على الصفحة الرئيسية أيضاً،
         // ورمزٌ منتهٍ في المتصفح كان يقتلع الزائر من الصفحة التي يقرؤها
         // ويرميه في شاشة تسجيل الدخول بلا سبب ظاهر له.
-        if (typeof window !== 'undefined' && !(originalRequest as any)?.silent) {
+        const skipRedirect = Boolean(
+          (originalRequest as any)?.silent || (originalRequest as any)?.skipAuthRedirect
+        );
+        if (typeof window !== 'undefined' && !skipRedirect) {
           window.location.href = '/auth/register';
         }
         return Promise.reject(refreshErr);
@@ -105,10 +113,14 @@ api.interceptors.response.use(
     //    الحارس على الخادم يرفع هذا الرمز على كل مسارات الأدوات، فالتقاطه
     //    هنا يغطّي أي صفحة تنادي الـ API حتى لو لم تُلَفّ بحارس الواجهة.
     const errorCode = (error.response?.data as any)?.error?.code
+    const skipRedirect = Boolean(
+      (originalRequest as any)?.silent || (originalRequest as any)?.skipAuthRedirect
+    );
+    
     if (
       error.response?.status === 403 &&
       errorCode === 'WORKSPACE_REQUIRED' &&
-      !(originalRequest as any)?.silent
+      !skipRedirect
     ) {
       if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/workspace/create')) {
         toast.error('يجب إنشاء مساحة عمل أولاً لاستخدام الأدوات.', {
@@ -125,8 +137,10 @@ api.interceptors.response.use(
     // 4️⃣ Unified error handling – map to Arabic message, show toast
     //    Skip toast for auth endpoints (they handle their own error UI)
     //    and for requests explicitly marked silent.
-    const isSilent = Boolean((originalRequest as any)?.silent);
-    if (!isAuthEndpoint && !isSilent) {
+    const skipToast = Boolean(
+      (originalRequest as any)?.silent || (originalRequest as any)?.skipToast
+    );
+    if (!isAuthEndpoint && !skipToast) {
       const friendly = mapError(error);
       toast.error(friendly);
     }

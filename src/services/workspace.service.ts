@@ -9,14 +9,18 @@ import type {
 } from "@/types/workspace"
 
 /**
- * خدمة مساحات العمل — الواجهة الوحيدة بين المكوّنات و REST API.
- * كل الدوال تفترض وجود رمز الدخول؛ الاعتراض في lib/axios يرفقه تلقائياً.
- *
- * جميع النداءات صامتة (silent): كل مُستدعٍ يعرض خطأه بنفسه — إمّا
- * برسالة داخل الصفحة أو بتنبيه واحد — والفحوص الخلفية تجري على صفحات
- * عامة فلا يجوز أن تُفزع الزائر بتنبيه أحمر وهو يتصفّح الصفحة الرئيسية.
+ * طلب صامت بالكامل: يتخطى التنبيهات العامة، ويتخطى التحويل القسري عند
+ * انتهاء الجلسة. مخصص للفحوص الخلفية (مثل حالة مساحة العمل) كي لا
+ * تُقاطع تصفّح الزائر.
  */
 const SILENT = { silent: true } as const
+
+/**
+ * يتخطى التنبيه العام فقط لمنع التكرار (لأن المكون يعرض خطأه بنفسه)،
+ * لكنه يسمح بالتحويل القسري لصفحة الدخول إذا انتهت الجلسة. مخصص للإجراءات
+ * المباشرة التي يقوم بها المستخدم (إنشاء، دعوة، إلخ).
+ */
+const SKIP_TOAST = { skipToast: true } as const
 
 /** مساحات العمل التي ينتمي إليها المستخدم بعضوية فعّالة */
 export const getMyWorkspaces = async (): Promise<{
@@ -48,7 +52,7 @@ export const getWorkspaceStatus = async (): Promise<{
 export const createWorkspace = async (
   payload: CreateWorkspacePayload
 ): Promise<CreateWorkspaceResult> => {
-  const { data } = await apiClient.post("/workspaces", payload, SILENT)
+  const { data } = await apiClient.post("/workspaces", payload, SKIP_TOAST)
   const nested = data?.data && typeof data.data === "object" ? data.data : {}
   return {
     workspace: (nested.id ? nested : data?.data) || data,
@@ -73,7 +77,7 @@ export const inviteMembers = async (
   const { data } = await apiClient.post(
     `/workspaces/${workspaceId}/invites`,
     { invites },
-    SILENT
+    SKIP_TOAST
   )
   const nested = data?.data && typeof data.data === "object" ? data.data : {}
   return {
@@ -93,6 +97,34 @@ export const getInvitePreview = async (
 
 /** قبول الدعوة — تتطلب تسجيل دخول ببريد المدعو نفسه */
 export const acceptInvite = async (token: string): Promise<Workspace | null> => {
-  const { data } = await apiClient.post("/invites/accept", { token }, SILENT)
+  const { data } = await apiClient.post("/invites/accept", { token }, SKIP_TOAST)
   return data.data ?? null
 }
+
+/** إزالة عضو من مساحة العمل */
+export const removeMember = async (
+  workspaceId: string,
+  memberId: string
+): Promise<{ message: string }> => {
+  const { data } = await apiClient.delete(
+    `/workspaces/${workspaceId}/members/${memberId}`,
+    SKIP_TOAST
+  )
+  return data
+}
+
+/** تغيير دور عضو في مساحة العمل */
+export const updateMemberRole = async (
+  workspaceId: string,
+  memberId: string,
+  role: string
+): Promise<WorkspaceMember> => {
+  const { data } = await apiClient.patch(
+    `/workspaces/${workspaceId}/members/${memberId}/role`,
+    { role },
+    SKIP_TOAST
+  )
+  return data.data
+}
+
+

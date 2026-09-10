@@ -1,6 +1,6 @@
-import React, { useCallback, useRef, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import clsx from "clsx"
-import { X } from "lucide-react"
+import { Check, ChevronDown, X } from "lucide-react"
 import {
   INVITE_ROLE_OPTIONS,
   type InvitableRole,
@@ -22,6 +22,115 @@ interface EmailChipsInputProps {
   defaultRole?: InvitableRole
   disabled?: boolean
 }
+
+// ——————————————————————————————————————————————
+// قائمة الأدوار المنسدلة — مكوّن فرعي
+// ——————————————————————————————————————————————
+
+interface RoleDropdownProps {
+  currentRole: InvitableRole
+  disabled?: boolean
+  onChange: (role: InvitableRole) => void
+}
+
+const RoleDropdown: React.FC<RoleDropdownProps> = ({
+  currentRole,
+  disabled,
+  onChange,
+}) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // إغلاق عند النقر خارج القائمة
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [isOpen])
+
+  const currentOption = INVITE_ROLE_OPTIONS.find(
+    (opt) => opt.value === currentRole
+  )
+
+  return (
+    <div ref={containerRef} className="relative shrink-0">
+      {/* زر فتح القائمة */}
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setIsOpen((prev) => !prev)}
+        className={clsx(
+          "flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-all duration-150",
+          isOpen
+            ? "border-indigo-400 bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-200"
+            : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
+          disabled && "opacity-50 cursor-not-allowed"
+        )}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+      >
+        {currentOption?.label ?? "عضو"}
+        <ChevronDown
+          className={clsx(
+            "h-3.5 w-3.5 text-slate-400 transition-transform duration-200",
+            isOpen && "rotate-180"
+          )}
+        />
+      </button>
+
+      {/* القائمة المنسدلة */}
+      {isOpen && (
+        <div
+          className="absolute left-0 top-full z-50 mt-1.5 w-36 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg animate-in fade-in slide-in-from-top-1 duration-150"
+          role="listbox"
+          dir="rtl"
+        >
+          {INVITE_ROLE_OPTIONS.map((option) => {
+            const isSelected = option.value === currentRole
+
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                onClick={() => {
+                  onChange(option.value)
+                  setIsOpen(false)
+                }}
+                className={clsx(
+                  "flex w-full items-center justify-between px-3 py-2.5 text-right text-sm transition-colors",
+                  isSelected
+                    ? "bg-indigo-50/60 font-bold text-indigo-700"
+                    : "font-medium text-slate-700 hover:bg-slate-50"
+                )}
+              >
+                <span>{option.label}</span>
+                {isSelected && (
+                  <Check className="h-4 w-4 text-indigo-600" strokeWidth={2.5} />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ——————————————————————————————————————————————
+// حقل إدخال إيميلات متعدد (Tag/Chip) — المكوّن الرئيسي
+// ——————————————————————————————————————————————
 
 /**
  * حقل إدخال إيميلات متعدد (Tag/Chip) مع اختيار دور لكل عضو.
@@ -187,7 +296,7 @@ export const EmailChipsInput: React.FC<EmailChipsInputProps> = ({
         </span>
       )}
 
-      {/* الشرائح — لكل عضو دوره الخاص */}
+      {/* الشرائح — لكل عضو دوره الخاص مع قائمة منسدلة مخصصة */}
       {invites.length > 0 && (
         <ul className="flex flex-col gap-2">
           {invites.map((invite) => (
@@ -203,21 +312,11 @@ export const EmailChipsInput: React.FC<EmailChipsInputProps> = ({
                 {invite.email}
               </span>
 
-              <select
-                value={invite.role}
+              <RoleDropdown
+                currentRole={invite.role}
                 disabled={disabled}
-                onChange={(event) =>
-                  changeRole(invite.email, event.target.value as InvitableRole)
-                }
-                aria-label={`دور ${invite.email}`}
-                className="shrink-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              >
-                {INVITE_ROLE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(role) => changeRole(invite.email, role)}
+              />
 
               <button
                 type="button"
@@ -237,3 +336,4 @@ export const EmailChipsInput: React.FC<EmailChipsInputProps> = ({
 }
 
 export default EmailChipsInput
+

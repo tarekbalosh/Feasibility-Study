@@ -97,3 +97,31 @@ export const accept = asyncHandler(async (req: Request, res: Response) => {
     data: result.workspace,
   });
 });
+
+// ——— DELETE /api/workspaces/:id/members/:memberId ———
+export const removeMember = asyncHandler(async (req: Request, res: Response) => {
+  const result = await workspaceService.removeMember(
+    req.params.id as string,
+    req.params.memberId as string,
+    req.user!.userId
+  );
+
+  res.status(200).json({ success: true, ...result });
+});
+
+// ——— PATCH /api/workspaces/:id/members/:memberId/role ———
+export const updateMemberRole = asyncHandler(async (req: Request, res: Response) => {
+  const member = await workspaceService.updateMemberRole(
+    req.params.id as string,
+    req.params.memberId as string,
+    req.body.role,
+    req.user!.userId
+  );
+
+  res.status(200).json({
+    success: true,
+    message: "تم تحديث دور العضو بنجاح.",
+    data: member,
+  });
+});
+

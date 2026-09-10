@@ -3,11 +3,16 @@ import Head from 'next/head';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { Save, AlertTriangle, Trash2, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useWorkspace } from '@/context/WorkspaceContext';
 import apiClient from '@/lib/axios';
 import { toast } from 'react-hot-toast';
+import { TeamMembersPanel } from '@/components/workspace/TeamMembersPanel';
+import { AddTeamButton } from '@/components/workspace/AddTeamButton';
+import { canManageMembers } from '@/utils/permissions';
 
 export default function Settings() {
   const { user, updateUser, logout } = useAuth();
+  const { workspace } = useWorkspace();
   const [profileForm, setProfileForm] = useState({ name: '', email: '' });
   const [profileLoading, setProfileLoading] = useState(false);
   
@@ -85,6 +90,8 @@ export default function Settings() {
     }
   };
 
+  const showInviteButton = workspace && canManageMembers(workspace.role);
+
   return (
     <DashboardLayout>
       <Head>
@@ -92,10 +99,18 @@ export default function Settings() {
       </Head>
 
       <div className="max-w-3xl mx-auto space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">إعدادات الحساب</h1>
-          <p className="text-gray-500 mt-1">إدارة معلوماتك الشخصية والأمان</p>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">إعدادات الحساب</h1>
+            <p className="text-gray-500 mt-1">إدارة معلوماتك الشخصية والأمان وفريق العمل</p>
+          </div>
+          {showInviteButton && (
+            <AddTeamButton className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors shadow-sm text-sm" />
+          )}
         </div>
+
+        {/* Team Members Section */}
+        <TeamMembersPanel />
 
         {/* Profile Settings */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">

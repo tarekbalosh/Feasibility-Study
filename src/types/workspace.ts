@@ -83,3 +83,49 @@ export const ROLE_LABELS: Record<WorkspaceRole, string> = {
   member: "عضو",
   viewer: "مُطّلع",
 }
+
+// ——————————————————————————————————————————————
+// خريطة الصلاحيات — المصدر الوحيد للحقيقة في الواجهة
+// ——————————————————————————————————————————————
+
+export interface RolePermissions {
+  canRead: boolean
+  canWrite: boolean
+  canManageMembers: boolean
+  canManageWorkspace: boolean
+  canAccessBilling: boolean
+}
+
+export type Permission = keyof RolePermissions
+
+export const ROLE_PERMISSIONS: Record<WorkspaceRole, RolePermissions> = {
+  owner: {
+    canRead: true,
+    canWrite: true,
+    canManageMembers: true,
+    canManageWorkspace: true,
+    canAccessBilling: true,
+  },
+  admin: {
+    canRead: true,
+    canWrite: true,
+    canManageMembers: true,
+    canManageWorkspace: true,
+    canAccessBilling: true,
+  },
+  member: {
+    canRead: true,
+    canWrite: true,
+    canManageMembers: false,
+    canManageWorkspace: false,
+    canAccessBilling: false,
+  },
+  viewer: {
+    canRead: true,
+    canWrite: false,
+    canManageMembers: false,
+    canManageWorkspace: false,
+    canAccessBilling: false,
+  },
+}
+

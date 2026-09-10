@@ -100,21 +100,41 @@ export async function hasActiveWorkspace(userId: string): Promise<boolean> {
 export async function getWorkspaceMembers(workspaceId: string, userId: string) {
   await assertMembership(workspaceId, userId);
 
-  const members = await prisma.workspaceMember.findMany({
-    where: { workspaceId },
-    orderBy: [{ status: "asc" }, { invitedAt: "asc" }],
+  const activeMembers = await prisma.workspaceMember.findMany({
+    where: { workspaceId, status: "active" },
+    orderBy: { joinedAt: "asc" },
     include: { user: { select: { id: true, name: true, email: true } } },
   });
 
-  return members.map((m) => ({
-    id: m.id,
-    email: m.email,
-    role: m.role,
-    status: m.status,
-    name: m.user?.name ?? null,
-    invitedAt: m.invitedAt,
-    joinedAt: m.joinedAt,
-  }));
+  const pendingInvites = await prisma.workspaceInvite.findMany({
+    where: { workspaceId, accepted: false },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const unifiedList = [
+    ...activeMembers.map((m) => ({
+      id: m.id, // member ID
+      email: m.email,
+      role: m.role,
+      status: m.status,
+      name: m.user?.name ?? null,
+      invitedAt: m.invitedAt,
+      joinedAt: m.joinedAt,
+      isInvite: false,
+    })),
+    ...pendingInvites.map((inv) => ({
+      id: inv.id, // invite ID
+      email: inv.email,
+      role: inv.role,
+      status: "invited",
+      name: null,
+      invitedAt: inv.createdAt,
+      joinedAt: null,
+      isInvite: true,
+    })),
+  ];
+
+  return unifiedList;
 }
 
 /** يتحقق أن المستخدم عضو فعّال في المساحة، وإلا رفض الوصول */
@@ -197,17 +217,6 @@ export async function createWorkspace(
           token,
           role: invite.role,
           expiresAt: inviteExpiryDate(),
-        },
-      });
-
-      // المدعو يظهر في قائمة الأعضاء بحالة 'invited' فور الإنشاء،
-      // فيرى صاحب المساحة من دعا حتى قبل أن يقبلوا.
-      await tx.workspaceMember.create({
-        data: {
-          workspaceId: workspace.id,
-          email: invite.email,
-          role: invite.role,
-          status: "invited",
         },
       });
 
@@ -328,12 +337,22 @@ export async function inviteMembers(
   const skipped: string[] = [];
 
   for (const invite of clean) {
-    const existing = await prisma.workspaceMember.findUnique({
+    // 1. العضو الفعّال لا يُدعى مجدداً
+    const existingMember = await prisma.workspaceMember.findUnique({
       where: { workspaceId_email: { workspaceId, email: invite.email } },
     });
 
-    // العضو الفعّال لا يُدعى مجدداً
-    if (existing?.status === "active") {
+    if (existingMember?.status === "active") {
+      skipped.push(invite.email);
+      continue;
+    }
+
+    // 2. دعوة معلّقة موجودة بالفعل — تجاهلها أيضاً لمنع التكرار
+    const existingInvite = await prisma.workspaceInvite.findFirst({
+      where: { workspaceId, email: invite.email, accepted: false },
+    });
+
+    if (existingInvite) {
       skipped.push(invite.email);
       continue;
     }
@@ -348,17 +367,6 @@ export async function inviteMembers(
         role: invite.role,
         expiresAt: inviteExpiryDate(),
       },
-    });
-
-    await prisma.workspaceMember.upsert({
-      where: { workspaceId_email: { workspaceId, email: invite.email } },
-      create: {
-        workspaceId,
-        email: invite.email,
-        role: invite.role,
-        status: "invited",
-      },
-      update: { role: invite.role, status: "invited", invitedAt: new Date() },
     });
 
     created.push({ email: invite.email, role: invite.role, token });
@@ -501,3 +509,159 @@ export async function linkPendingMemberships(userId: string, email: string) {
 
   return count;
 }
+
+// ——————————————————————————————————————————————
+// Member management — إدارة أعضاء مساحة العمل
+// ——————————————————————————————————————————————
+
+/** ترتيب الأدوار هرمياً — الأعلى يُدير من دونه */
+const ROLE_HIERARCHY: Record<string, number> = {
+  owner: 4,
+  admin: 3,
+  member: 2,
+  viewer: 1,
+};
+
+/**
+ * يحذف عضواً من مساحة العمل.
+ *
+ * القواعد:
+ * 1. لا يُحذف صاحب المساحة (owner) أبداً.
+ * 2. الحاذف يجب أن يكون owner أو admin.
+ * 3. admin لا يستطيع حذف admin آخر أو owner — المالك فقط يملك ذلك.
+ * 4. لا يستطيع العضو حذف نفسه (يخرج بنفسه من صفحة أخرى).
+ */
+export async function removeMember(
+  workspaceId: string,
+  memberIdOrInviteId: string,
+  actorUserId: string
+) {
+  // 1. تأكد أن الفاعل عضو فعّال
+  const actor = await assertMembership(workspaceId, actorUserId);
+
+  if (
+    actor.role !== "owner" &&
+    actor.role !== "admin"
+  ) {
+    throw ApiError.accessDenied("إزالة الأعضاء متاحة للمالك والمشرفين فقط.");
+  }
+
+  // أولاً، نبحث هل المعرف يخص دعوة معلّقة
+  const invite = await prisma.workspaceInvite.findFirst({
+    where: { id: memberIdOrInviteId, workspaceId, accepted: false },
+  });
+
+  if (invite) {
+    // حذف الدعوة
+    await prisma.workspaceInvite.delete({ where: { id: invite.id } });
+    return { message: `تم إلغاء دعوة ${invite.email} بنجاح.` };
+  }
+
+  // ثانياً، نبحث في الأعضاء الفعليين
+  const target = await prisma.workspaceMember.findFirst({
+    where: { id: memberIdOrInviteId, workspaceId },
+  });
+
+  if (!target) {
+    throw ApiError.notFound("العضو أو الدعوة المطلوبة غير موجودة في مساحة العمل.");
+  }
+
+  // 3. لا يُحذف المالك
+  if (target.role === "owner") {
+    throw ApiError.accessDenied("لا يمكن إزالة مالك مساحة العمل.");
+  }
+
+  // 4. لا يحذف المشرف نفسه أو مشرفاً آخر
+  if (
+    actor.role === "admin" &&
+    (ROLE_HIERARCHY[target.role] ?? 0) >= ROLE_HIERARCHY["admin"]
+  ) {
+    throw ApiError.accessDenied("المشرف لا يستطيع إزالة مشرف آخر. المالك فقط يملك ذلك.");
+  }
+
+  // 5. لا يحذف نفسه
+  if (target.userId && target.userId === actorUserId) {
+    throw ApiError.badRequest("لا يمكنك إزالة نفسك من مساحة العمل.");
+  }
+
+  // حذف العضو ودعواته المعلّقة
+  await prisma.$transaction(async (tx) => {
+    await tx.workspaceMember.delete({ where: { id: target.id } });
+
+    // حذف أي دعوات غير مقبولة لنفس البريد
+    await tx.workspaceInvite.deleteMany({
+      where: { workspaceId, email: target.email, accepted: false },
+    });
+  });
+
+  return { message: `تمت إزالة ${target.email} من مساحة العمل بنجاح.` };
+}
+
+/**
+ * يُغيّر دور عضو في مساحة العمل.
+ *
+ * القواعد:
+ * 1. المالك لا يُغيَّر دوره.
+ * 2. الفاعل يجب أن يكون أعلى من العضو المستهدف هرمياً.
+ * 3. لا يمكن ترقية عضو إلى owner.
+ * 4. لا يمكن تغيير دور النفس.
+ */
+export async function updateMemberRole(
+  workspaceId: string,
+  memberId: string,
+  newRole: string,
+  actorUserId: string
+) {
+  const actor = await assertMembership(workspaceId, actorUserId);
+
+  if (actor.role !== "owner" && actor.role !== "admin") {
+    throw ApiError.accessDenied("تغيير الأدوار متاح للمالك والمشرفين فقط.");
+  }
+
+  const target = await prisma.workspaceMember.findFirst({
+    where: { id: memberId, workspaceId },
+  });
+
+  if (!target) {
+    throw ApiError.notFound("العضو المطلوب غير موجود في مساحة العمل.");
+  }
+
+  if (target.role === "owner") {
+    throw ApiError.accessDenied("لا يمكن تغيير دور مالك مساحة العمل.");
+  }
+
+  if (target.userId && target.userId === actorUserId) {
+    throw ApiError.badRequest("لا يمكنك تغيير دورك بنفسك.");
+  }
+
+  if (newRole === "owner") {
+    throw ApiError.accessDenied("لا يمكن ترقية عضو إلى مالك.");
+  }
+
+  const validRole = normalizeRole(newRole);
+
+  // المشرف لا يستطيع تعديل دور مشرف آخر
+  if (
+    actor.role === "admin" &&
+    (ROLE_HIERARCHY[target.role] ?? 0) >= ROLE_HIERARCHY["admin"]
+  ) {
+    throw ApiError.accessDenied("المشرف لا يستطيع تعديل دور مشرف آخر.");
+  }
+
+  const updated = await prisma.workspaceMember.update({
+    where: { id: target.id },
+    data: { role: validRole },
+    include: { user: { select: { id: true, name: true, email: true } } },
+  });
+
+  return {
+    id: updated.id,
+    email: updated.email,
+    role: updated.role,
+    status: updated.status,
+    name: updated.user?.name ?? null,
+    invitedAt: updated.invitedAt,
+    joinedAt: updated.joinedAt,
+  };
+}
+

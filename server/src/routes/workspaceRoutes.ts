@@ -2,6 +2,8 @@ import { Router } from "express";
 import { body, param } from "express-validator";
 import * as workspaceController from "../controllers/workspaceController";
 import { authMiddleware } from "../middleware/authMiddleware";
+import { requireWorkspace } from "../middleware/workspaceMiddleware";
+import { requirePermission } from "../middleware/rbacMiddleware";
 import { validateRequest } from "../middleware/validateRequest";
 import { INVITABLE_ROLES } from "../services/workspaceService";
 
@@ -65,8 +67,11 @@ router.get(
 );
 
 // ——— POST /api/workspaces/:id/invites ———
+// دعوة الأعضاء متاحة للمالك والمشرفين فقط (canManageMembers)
 router.post(
   "/:id/invites",
+  requireWorkspace,
+  requirePermission("canManageMembers"),
   validateRequest([
     param("id").isUUID().withMessage("معرف مساحة العمل غير صالح."),
     body("invites")
@@ -77,4 +82,36 @@ router.post(
   workspaceController.invite
 );
 
+// ——— DELETE /api/workspaces/:id/members/:memberId ———
+// إزالة عضو من مساحة العمل — للمالك والمشرفين فقط
+router.delete(
+  "/:id/members/:memberId",
+  requireWorkspace,
+  requirePermission("canManageMembers"),
+  validateRequest([
+    param("id").isUUID().withMessage("معرف مساحة العمل غير صالح."),
+    param("memberId").isUUID().withMessage("معرف العضو غير صالح."),
+  ]),
+  workspaceController.removeMember
+);
+
+// ——— PATCH /api/workspaces/:id/members/:memberId/role ———
+// تغيير دور عضو — للمالك والمشرفين فقط
+router.patch(
+  "/:id/members/:memberId/role",
+  requireWorkspace,
+  requirePermission("canManageMembers"),
+  validateRequest([
+    param("id").isUUID().withMessage("معرف مساحة العمل غير صالح."),
+    param("memberId").isUUID().withMessage("معرف العضو غير صالح."),
+    body("role")
+      .trim()
+      .isIn(INVITABLE_ROLES as unknown as string[])
+      .withMessage("الدور المختار غير صالح."),
+  ]),
+  workspaceController.updateMemberRole
+);
+
 export default router;
+
+
