@@ -3,6 +3,7 @@ import { body, param } from "express-validator";
 import * as toolRunController from "../controllers/toolRunController";
 import { authMiddleware } from "../middleware/authMiddleware";
 import { requireWorkspace } from "../middleware/workspaceMiddleware";
+import { requirePermission } from "../middleware/rbacMiddleware";
 import { validateRequest } from "../middleware/validateRequest";
 
 const router = Router();
@@ -12,6 +13,7 @@ router.use(authMiddleware);
 router.use(requireWorkspace);
 
 // ——— GET /api/tool-runs ———
+// القراءة متاحة لجميع الأدوار بما فيها المُطّلع (viewer)
 router.get("/", toolRunController.list);
 
 // ——— GET /api/tool-runs/:id ———
@@ -22,8 +24,10 @@ router.get(
 );
 
 // ——— POST /api/tool-runs ———
+// الإنشاء والتعديل يتطلبان صلاحية الكتابة (owner + admin + member)
 router.post(
   "/",
+  requirePermission("canWrite"),
   validateRequest([
     body("id")
       .optional({ values: "falsy" })
@@ -48,8 +52,10 @@ router.post(
 );
 
 // ——— DELETE /api/tool-runs/:id ———
+// الحذف يتطلب صلاحية الكتابة (owner + admin + member)
 router.delete(
   "/:id",
+  requirePermission("canWrite"),
   validateRequest([param("id").isUUID().withMessage("معرّف التحليل غير صالح.")]),
   toolRunController.remove
 );

@@ -773,14 +773,7 @@ export const SwotSelection: React.FC<SwotSelectionProps> = ({
           </span>
         )}
       </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={onSkip}
-        className="border border-slate-200 bg-white hover:bg-slate-50 px-5 py-3 text-sm"
-      >
-        تخطّي — دع الذكاء الاصطناعي يقترح كل شيء
-      </Button>
+
       <div className="flex-1" />
       <Button
         type="button"
@@ -794,14 +787,7 @@ export const SwotSelection: React.FC<SwotSelectionProps> = ({
 
     {/* الجوال: رجوع وتخطّي في المتن، والتوليد في الشريط الثابت */}
     <div className="flex sm:hidden flex-col gap-2 pt-2 border-t border-slate-200">
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={onSkip}
-        className="min-h-[44px] border border-slate-200 bg-white hover:bg-slate-50 px-4 py-2 text-sm"
-      >
-        تخطّي — دع الذكاء الاصطناعي يقترح كل شيء
-      </Button>
+
       <Button
         type="button"
         variant="ghost"
