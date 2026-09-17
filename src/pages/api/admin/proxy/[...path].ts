@@ -26,7 +26,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? 'https://feasibility-study.onrender.com/api' 
       : 'http://localhost:8080/api';
   } else {
-    backendBaseUrl = publicUrl.replace(/\/$/, '');
+    let sanitized = publicUrl.replace(/\/$/, '');
+    if (sanitized.includes('vercel.app') && !sanitized.includes('/api')) {
+      sanitized = 'https://feasibility-study.onrender.com/api';
+    }
+    backendBaseUrl = sanitized;
   }
   
   // Forward query params (excluding the dynamically captured 'path')
