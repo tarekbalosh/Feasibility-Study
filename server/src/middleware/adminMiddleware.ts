@@ -12,13 +12,15 @@ export const adminMiddleware = async (
 ): Promise<void> => {
   try {
     const adminSecret = req.headers['x-admin-secret'];
-    const envAdminPassword = process.env.ADMIN_PASSWORD;
+    // Allow either ADMIN_SECRET or ADMIN_PASSWORD to be used on the backend
+    const expectedSecret = process.env.ADMIN_SECRET || process.env.ADMIN_PASSWORD;
 
-    if (!envAdminPassword || envAdminPassword.trim() === '') {
+    if (!expectedSecret || expectedSecret.trim() === '') {
+      console.error("[ADMIN_AUTH] ADMIN_SECRET and ADMIN_PASSWORD environment variables are missing on the server");
       throw ApiError.internal("لم يتم إعداد كلمة مرور المدير في الخادم.");
     }
 
-    if (!adminSecret || adminSecret !== envAdminPassword) {
+    if (!adminSecret || adminSecret !== expectedSecret) {
       throw ApiError.accessDenied("غير مصرح بالدخول للوحة الإدارة.");
     }
 
