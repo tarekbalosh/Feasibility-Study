@@ -41,7 +41,7 @@ export default function AdminUsers() {
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-right">
-              <thead className="bg-gray-50 text-gray-700">
+              <thead className="bg-gray-50 text-gray-700 whitespace-nowrap">
                 <tr>
                   <th className="px-6 py-4 font-semibold">الاسم</th>
                   <th className="px-6 py-4 font-semibold">البريد الإلكتروني</th>
@@ -52,7 +52,7 @@ export default function AdminUsers() {
                   <th className="px-6 py-4 font-semibold">الإجراءات</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 whitespace-nowrap">
                 {isLoading ? (
                   <tr>
                     <td colSpan={7} className="text-center py-8 text-gray-500">جاري التحميل...</td>

@@ -119,7 +119,7 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 z-30 pb-safe overflow-x-auto">
-        <div className="flex items-center h-16 px-2 w-max min-w-full">
+        <div className="flex items-center h-16 px-2 ltr:pr-20 rtl:pl-20 w-max min-w-full">
           {navigation.map((item) => {
             const isActive = item.exact 
                 ? router.pathname === item.href 

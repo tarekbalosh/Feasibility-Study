@@ -1,5 +1,6 @@
 import "@/styles/globals.css"
 import type { AppProps } from "next/app"
+import Head from "next/head"
 import { AuthProvider } from "@/context/AuthContext"
 import { WorkspaceProvider } from "@/context/WorkspaceContext"
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -18,8 +19,12 @@ export default function App({ Component, pageProps }: AppProps) {
   }))
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
+    <>
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+      </Head>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
         {/* حالة مساحة العمل تعتمد على الجلسة، فتُركَّب داخل AuthProvider */}
         <WorkspaceProvider>
           <Component {...pageProps} />
@@ -47,5 +52,6 @@ export default function App({ Component, pageProps }: AppProps) {
         </Script>
       </AuthProvider>
     </QueryClientProvider>
+    </>
   )
 }
