@@ -42,7 +42,7 @@ export default function AdminTools() {
                   <div className={`p-3 rounded-lg ${tool.accent.bg} ${tool.accent.text}`}>
                     <tool.icon size={24} />
                   </div>
-                  <Badge variant={tool.status === 'live' ? 'success' : tool.status === 'beta' ? 'warning' : 'secondary'}>
+                  <Badge variant={tool.status === 'live' ? 'success' : tool.status === 'beta' ? 'warning' : 'default'}>
                     {TOOL_STATUS_LABELS[tool.status]}
                   </Badge>
                 </div>
