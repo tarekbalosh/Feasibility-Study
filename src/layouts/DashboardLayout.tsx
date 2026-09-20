@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { FolderGit2, FileText, Settings, LogOut, Menu, X, User, Users } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useWorkspace } from '@/context/WorkspaceContext';
+import { Breadcrumb } from '@/components/Breadcrumb';
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
@@ -120,6 +121,8 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
 
         {/* Page Content */}
         <div className="flex-1 p-4 md:p-8 animate-in fade-in duration-500 max-w-7xl mx-auto w-full">
+          {/* Breadcrumb Navigation */}
+          <Breadcrumb />
           {children}
         </div>
       </main>

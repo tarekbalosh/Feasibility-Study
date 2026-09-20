@@ -23,6 +23,7 @@ import { useAuth } from "@/context/AuthContext"
 import { useWorkspace } from "@/context/WorkspaceContext"
 import * as workspaceService from "@/services/workspace.service"
 import type { WorkspaceInviteDraft } from "@/types/workspace"
+import { Breadcrumb } from "@/components/Breadcrumb"
 
 /** الوجهة الافتراضية بعد الإنشاء حين لا يُمرَّر returnTo */
 const DEFAULT_DESTINATION = "/tools"
@@ -311,6 +312,11 @@ function CreateWorkspacePage() {
       </Head>
 
       <div className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-12 sm:px-6 lg:py-16">
+        {/* Breadcrumb Navigation */}
+        <div className="-mb-4">
+          <Breadcrumb />
+        </div>
+
         {/* الترويسة */}
         <div className="flex flex-col items-center gap-3 text-center">
           <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-lg font-bold text-white shadow-lg shadow-indigo-600/25">
