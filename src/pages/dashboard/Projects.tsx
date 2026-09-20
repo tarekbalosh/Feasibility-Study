@@ -442,13 +442,6 @@ export default function Projects() {
           </div>
           <p className="text-gray-500 text-sm mr-12">كل ما أنتجته أدوات المنصة داخل مساحة عملك — في مكان واحد</p>
         </div>
-        <Link 
-          href="/tools/feasibility-study/start" 
-          className="flex items-center gap-2 bg-gradient-to-l from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0"
-        >
-          <Plus size={20} />
-          <span>مشروع جديد</span>
-        </Link>
       </div>
 
       {/* ── Error Banner ───────────────────────────────── */}
