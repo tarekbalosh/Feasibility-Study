@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { FolderGit2, FileText, Settings, LogOut, Menu, X, User } from 'lucide-react';
+import { FolderGit2, FileText, Settings, LogOut, Menu, X, User, Users } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useWorkspace } from '@/context/WorkspaceContext';
 
@@ -13,6 +13,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
 
   const navigation = [
     { name: 'مشاريعي', href: '/dashboard/Projects', icon: FolderGit2 },
+    { name: 'فريق العمل', href: '/dashboard/Team', icon: Users },
     { name: 'التقارير', href: '/dashboard/Reports', icon: FileText },
     { name: 'الإعدادات', href: '/dashboard/Settings', icon: Settings },
   ];
