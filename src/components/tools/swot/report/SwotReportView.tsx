@@ -21,19 +21,13 @@ import { Button } from "@/components/ui/Button"
 import { Badge } from "@/components/ui/Badge"
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog"
 import {
-  HORIZON_LABELS,
-  PrioritiesShortfallNote,
   QUADRANTS,
   ReportDisclaimer,
   ReportMetaBox,
   STRATEGY_GROUPS,
-  horizonBadgeClass,
-  prioritySourceLabel,
   sourceLabel,
   toPlainText,
 } from "./reportMeta"
-import { handOffToFeasibility } from "@/utils/feasibilityHandoff"
-import { getToolStartPath } from "@/config/tools.registry"
 import { MAX_PRIORITIES, type SwotAnalysis, type SwotInput, type SwotQuadrantKey } from "@/types/swot"
 import { SwotStrategiesSection } from "../strategies/SwotStrategiesSection"
 
@@ -145,18 +139,7 @@ export const SwotReportView: React.FC<SwotReportViewProps> = ({
     }
   }
 
-  /** يملأ مسودة أداة دراسة الجدوى ثم يفتحها — المعرّف وحده في الرابط */
-  const handleOpenFeasibility = () => {
-    const handoffId = handOffToFeasibility(analysis.id, input)
-    const path = getToolStartPath("feasibility-study")
-    router.push(handoffId ? `${path}?from=${handoffId}` : path)
-  }
 
-  /**
-   * التقارير المحفوظة قبل إضافة الخاتمة لا تحمل أولويات، وقد يصل تقرير
-   * ناقص من أي مصدر آخر. التقرير يُعرض ناقصاً ولا ينهار.
-   */
-  const priorities = analysis.priorities ?? []
 
   return (
     <div className="flex flex-col gap-8 print:hidden" dir="rtl">
@@ -454,104 +437,6 @@ export const SwotReportView: React.FC<SwotReportViewProps> = ({
       {/* ── الاستراتيجيات بتبويباتها الجديدة ───────────── */}
       <SwotStrategiesSection analysis={analysis} />
 
-      {/* ── أ) ابدأ من هنا — خلاصة التقرير كله ─────────────── */}
-      <section className="rounded-2xl border-2 border-slate-900 bg-slate-900 overflow-hidden">
-        <div className="px-5 sm:px-6 py-4 border-b border-white/10">
-          <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-            <Target className="w-5 h-5 text-sky-400" />
-            ابدأ من هنا — أولويات الـ ٩٠ يوماً
-          </h3>
-          <p className="text-xs text-slate-400 mt-1">
-            ثلاثة إجراءات مشتقّة من استراتيجيات هذا التقرير، لا إضافات من خارجه.
-          </p>
-        </div>
-
-        <div className="bg-white p-4 sm:p-5">
-          {priorities.length === 0 ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <PrioritiesShortfallNote count={0} />
-            </div>
-          ) : (
-            <ol className="flex flex-col gap-3">
-              {priorities.map((priority, index) => {
-                const source = prioritySourceLabel(
-                  analysis,
-                  priority.sourceStrategyId
-                )
-                return (
-                  <li
-                    key={index}
-                    className="flex flex-col sm:flex-row items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4"
-                  >
-                    <span className="w-8 h-8 shrink-0 rounded-xl bg-slate-900 text-white text-sm font-black flex items-center justify-center">
-                      {ar(index + 1)}
-                    </span>
-
-                    <div className="flex flex-col gap-2 min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="text-sm sm:text-base font-bold text-slate-900">
-                          {priority.action}
-                        </h4>
-                        <span className={horizonBadgeClass(priority.horizon)}>
-                          {HORIZON_LABELS[priority.horizon]}
-                        </span>
-                      </div>
-
-                      <p className="text-xs text-slate-600 leading-relaxed">
-                        <span className="font-bold text-slate-500">السبب: </span>
-                        {priority.rationale}
-                      </p>
-
-                      <p className="text-xs text-slate-800 leading-relaxed rounded-lg bg-white border border-slate-200 px-3 py-2">
-                        <span className="font-bold text-slate-500">
-                          مؤشر النجاح:{" "}
-                        </span>
-                        {priority.successMetric}
-                      </p>
-
-                      {source && (
-                        <p className="text-[11px] text-slate-400 leading-relaxed">
-                          مشتقّة من: {source}
-                        </p>
-                      )}
-                    </div>
-                  </li>
-                )
-              })}
-            </ol>
-          )}
-
-          {priorities.length > 0 && priorities.length < MAX_PRIORITIES && (
-            <div className="mt-3 pt-3 border-t border-slate-100">
-              <PrioritiesShortfallNote count={priorities.length} />
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ── ب) الجسر إلى أداة دراسة الجدوى ─────────────────── */}
-      <section className="rounded-2xl border border-indigo-200 bg-gradient-to-l from-indigo-50 to-white p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
-        <span className="w-12 h-12 shrink-0 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
-          <Calculator className="w-6 h-6" />
-        </span>
-        <div className="flex flex-col gap-1 flex-1 min-w-0">
-          <h3 className="text-base sm:text-lg font-bold text-slate-900">
-            تريد الأرقام؟ حوّل هذا التحليل إلى دراسة جدوى
-          </h3>
-          <p className="text-sm text-slate-600 leading-relaxed">
-            قائمة الدخل والتدفقات النقدية ونقطة التعادل لمشروعك.
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="primary"
-          onClick={handleOpenFeasibility}
-          className="w-full sm:w-auto shrink-0 min-h-[48px] px-5 py-3 text-sm gap-2 bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500"
-        >
-          ابدأ دراسة الجدوى
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
-      </section>
 
       {/* ── ج) بيانات التقرير ──────────────────────────────── */}
       <ReportMetaBox

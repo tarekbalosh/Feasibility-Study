@@ -252,80 +252,18 @@ export const FeasibilityProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Load from localStorage
-  useEffect(() => {
-    const savedDraft = localStorage.getItem('entrplan_guest_draft');
-    if (savedDraft) {
-      try {
-        const parsed = JSON.parse(savedDraft);
-        if (parsed.data) {
-          form.reset(parsed.data);
-        }
-        if (parsed.step) {
-          setCurrentStep(parseInt(parsed.step, 10));
-        }
-        if (parsed.analysisResult) {
-          setAnalysisResult(parsed.analysisResult);
-        }
-      } catch (e) {
-        console.error('Failed to parse saved draft', e);
-      }
-    }
-  }, [form]);
+  // Removed Load from localStorage as requested to ensure a fresh start every time.
 
-  // Save to localStorage on change
+  // Clear analysis result on form change
   useEffect(() => {
     const subscription = form.watch((value, { name, type }) => {
-      const currentDraftStr = localStorage.getItem('entrplan_guest_draft');
-      let currentDraft = {};
-      if (currentDraftStr) {
-        try { currentDraft = JSON.parse(currentDraftStr); } catch (e) {}
-      }
-      
       if (type) {
         // Clear analysis result when user actively changes data so it recalculates
         setAnalysisResult(null);
-        
-        localStorage.setItem('entrplan_guest_draft', JSON.stringify({
-          ...currentDraft,
-          data: value,
-          analysisResult: null, // Clear in local storage too
-        }));
-      } else {
-        localStorage.setItem('entrplan_guest_draft', JSON.stringify({
-          ...currentDraft,
-          data: value,
-        }));
       }
     });
     return () => subscription.unsubscribe();
   }, [form]);
-
-  useEffect(() => {
-    const currentDraftStr = localStorage.getItem('entrplan_guest_draft');
-    let currentDraft = {};
-    if (currentDraftStr) {
-      try { currentDraft = JSON.parse(currentDraftStr); } catch (e) {}
-    }
-    localStorage.setItem('entrplan_guest_draft', JSON.stringify({
-      ...currentDraft,
-      step: currentStep,
-    }));
-  }, [currentStep]);
-
-  useEffect(() => {
-    if (analysisResult) {
-      const currentDraftStr = localStorage.getItem('entrplan_guest_draft');
-      let currentDraft = {};
-      if (currentDraftStr) {
-        try { currentDraft = JSON.parse(currentDraftStr); } catch (e) {}
-      }
-      localStorage.setItem('entrplan_guest_draft', JSON.stringify({
-        ...currentDraft,
-        analysisResult,
-      }));
-    }
-  }, [analysisResult]);
 
   const nextStep = async () => {
     let isValid = false;

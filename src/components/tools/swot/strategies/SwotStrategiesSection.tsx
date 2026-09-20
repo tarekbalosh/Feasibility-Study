@@ -4,16 +4,15 @@ import clsx from "clsx";
 import type { SwotAnalysis } from "@/types/swot";
 import { IntersectionStrategiesTab } from "./IntersectionStrategiesTab";
 import { TraditionalStrategiesTab } from "./TraditionalStrategiesTab";
-import { CustomGoalsTab } from "./CustomGoalsTab";
 
 interface SwotStrategiesSectionProps {
   analysis: SwotAnalysis;
 }
 
-type TabType = "intersection" | "traditional" | "custom";
+type TabType = "intersection" | "traditional";
 
 export const SwotStrategiesSection: React.FC<SwotStrategiesSectionProps> = ({ analysis }) => {
-  const [activeTab, setActiveTab] = useState<TabType>("intersection");
+  const [activeTab, setActiveTab] = useState<TabType>("traditional");
 
   return (
     <div className="flex flex-col gap-4 mt-8">
@@ -41,17 +40,6 @@ export const SwotStrategiesSection: React.FC<SwotStrategiesSectionProps> = ({ an
             الاستراتيجيات التقليدية
           </button>
           
-          <button
-            onClick={() => setActiveTab("custom")}
-            className={clsx(
-              "whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors",
-              activeTab === "custom"
-                ? "border-sky-500 text-sky-600"
-                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-            )}
-          >
-            ضع أهدافك بنفسك
-          </button>
 
           <button
             onClick={() => setActiveTab("intersection")}
@@ -69,7 +57,6 @@ export const SwotStrategiesSection: React.FC<SwotStrategiesSectionProps> = ({ an
 
       <div className="mt-2 min-h-[300px]">
         {activeTab === "traditional" && <TraditionalStrategiesTab analysis={analysis} />}
-        {activeTab === "custom" && <CustomGoalsTab analysis={analysis} />}
         {activeTab === "intersection" && <IntersectionStrategiesTab analysis={analysis} />}
       </div>
     </div>

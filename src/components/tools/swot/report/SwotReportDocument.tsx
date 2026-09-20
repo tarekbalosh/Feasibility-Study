@@ -1,15 +1,11 @@
 import React from "react"
 import clsx from "clsx"
 import {
-  HORIZON_LABELS,
   PLATFORM_NAME,
-  PrioritiesShortfallNote,
   QUADRANTS,
   ReportDisclaimer,
   ReportMetaBox,
   STRATEGY_GROUPS,
-  horizonBadgeClass,
-  prioritySourceLabel,
 } from "./reportMeta"
 import { formatReportDate } from "@/utils/swotReport"
 import { MAX_PRIORITIES, type SwotAnalysis, type SwotInput } from "@/types/swot"
@@ -35,9 +31,6 @@ export const SwotReportDocument: React.FC<{
   input: SwotInput
   analysis: SwotAnalysis
 }> = ({ input, analysis }) => {
-  // تقرير ناقص يُطبع ناقصاً ولا ينهار — انظر التعليق في SwotReportView
-  const priorities = analysis.priorities ?? []
-
   return (
   <div className="hidden print:block swot-doc" dir="rtl">
     {/* ترويسة تتكرّر في كل صفحة مطبوعة */}
@@ -156,63 +149,6 @@ export const SwotReportDocument: React.FC<{
         ))}
       </div>
 
-      {/* أ) الأولويات — أول ما يُقرأ بعد التحليل */}
-      <section className="swot-doc__block rounded-xl border-2 border-slate-800 bg-white px-4 py-3.5 mb-5">
-        <h2 className="text-sm font-bold text-slate-900">
-          ابدأ من هنا — أولويات الـ ٩٠ يوماً
-        </h2>
-        <p className="text-[10px] text-slate-500 mb-2.5">
-          مشتقّة من استراتيجيات هذا التقرير، لا إضافات خارجه.
-        </p>
-
-        {priorities.length === 0 ? (
-          <PrioritiesShortfallNote count={0} />
-        ) : (
-          <ol className="flex flex-col gap-2.5">
-            {priorities.map((priority, index) => {
-              const source = prioritySourceLabel(
-                analysis,
-                priority.sourceStrategyId
-              )
-              return (
-                <li key={index} className="flex items-start gap-2.5">
-                  <span className="w-5 h-5 shrink-0 rounded-md bg-slate-900 text-white text-[10px] font-black flex items-center justify-center">
-                    {ar(index + 1)}
-                  </span>
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[12px] font-bold text-slate-900">
-                        {priority.action}
-                      </span>
-                      <span className={horizonBadgeClass(priority.horizon)}>
-                        {HORIZON_LABELS[priority.horizon]}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-slate-600 leading-relaxed">
-                      السبب: {priority.rationale}
-                    </span>
-                    <span className="text-[10px] text-slate-600 leading-relaxed">
-                      مؤشر النجاح: {priority.successMetric}
-                    </span>
-                    {source && (
-                      <span className="text-[9px] text-slate-400 leading-relaxed">
-                        مشتقّة من: {source}
-                      </span>
-                    )}
-                  </div>
-                </li>
-              )
-            })}
-          </ol>
-        )}
-
-        {priorities.length > 0 &&
-          priorities.length < MAX_PRIORITIES && (
-            <div className="mt-2.5 pt-2.5 border-t border-slate-200">
-              <PrioritiesShortfallNote count={priorities.length} />
-            </div>
-          )}
-      </section>
 
       {/* ج) بيانات التقرير */}
       <div className="swot-doc__block mb-4">

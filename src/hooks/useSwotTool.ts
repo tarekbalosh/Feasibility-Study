@@ -139,23 +139,11 @@ export const useSwotTool = () => {
   const customSeq = useRef(0)
 
   // ── استعادة المسودة عند أول تحميل ─────────────────────────
-  // تُتخطّى حين يفتح المستخدم تحليلاً محفوظاً من لوحة التحكم: السجل
-  // المطلوب صراحةً يسبق مسودة المتصفح.
+  // بناءً على طلب المستخدم، نبدأ من الصفر دائماً ونمسح المسودة القديمة
   useEffect(() => {
-    if (typeof window !== "undefined" && window.location.search.includes("run=")) {
-      return
+    if (typeof window !== "undefined" && !window.location.search.includes("run=")) {
+      window.localStorage.removeItem(DRAFT_KEY)
     }
-
-    const draft = readDraft()
-    if (!draft) return
-    setInput(draft.input)
-    setSelections(draft.selections)
-    runIdRef.current = draft.runId ?? null
-    if (draft.analysis) {
-      setAnalysis(draft.analysis)
-      setPhase("result")
-    }
-    setDraftRestored(true)
   }, [])
 
   /**
@@ -196,24 +184,7 @@ export const useSwotTool = () => {
   }, [])
 
   // ── حفظ المسودة عند كل تغيير ──────────────────────────────
-  // الاختيارات والبنود المخصّصة تُحفظ في نفس السجل، فتنجو من
-  // تحديث الصفحة والرجوع للخلف وفتح تحليل محفوظ وتعديله.
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    const hasSelections = countAllSelected(selections) > 0
-    // لا نحفظ نموذجاً فارغاً تماماً
-    if (!input.projectName && !input.description && !analysis && !hasSelections) {
-      return
-    }
-    try {
-      window.localStorage.setItem(
-        DRAFT_KEY,
-        JSON.stringify({ input, analysis, selections, runId: runIdRef.current })
-      )
-    } catch {
-      // تجاهُل تجاوز حجم التخزين — المسودة ميزة مساعدة لا أكثر
-    }
-  }, [input, analysis, selections])
+  // تم إيقاف الحفظ التلقائي في localStorage بناءً على طلب المستخدم لضمان البدء من الصفر
 
   const setField = useCallback(
     <K extends keyof SwotInput>(key: K, value: SwotInput[K]) => {
