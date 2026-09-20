@@ -66,7 +66,7 @@ export const InviteTeamModal: React.FC<InviteTeamModalProps> = ({
       if (result.invitesCreated === 0) {
         if (result.skipped && result.skipped.length > 0) {
           toast.error(
-            `لم يتم إرسال دعوة جديدة: البريد (${result.skipped.join("، ")}) مدعو مسبقاً أو عضو بالفعل في مساحة العمل.`
+            `عذراً، البريد (${result.skipped.join("، ")}) موجود كعضو بالفعل في مساحة العمل.`
           )
         } else {
           toast.error("لم يتم إرسال أي دعوة. يرجى التأكد من البريد والمحاولة مجدداً.")

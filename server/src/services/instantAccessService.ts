@@ -26,15 +26,22 @@ export async function instantAccess(data: { email: string; name?: string }) {
 
   if (!user) {
     const providedName = data.name?.trim() || "";
+    
+    // هل يملك هذا البريد دعوة معلّقة؟
+    const pendingInvitesCount = await prisma.workspaceInvite.count({
+      where: { email, accepted: false },
+    });
+    
+    const isInvited = pendingInvitesCount > 0;
 
-    // بريد جديد بلا اسم شركة بعد: نطلبه قبل إنشاء الحساب
-    if (providedName.length < 2) {
+    // بريد جديد بلا اسم شركة بعد وليس مدعواً: نطلبه قبل إنشاء الحساب
+    if (!isInvited && providedName.length < 2) {
       return { needsName: true as const, email };
     }
 
     user = await prisma.user.create({
       data: {
-        name: providedName.slice(0, 100),
+        name: providedName.length >= 2 ? providedName.slice(0, 100) : email.split("@")[0],
         email,
         // لا كلمة مرور في هذا المسار. القيمة عشوائية لا يعرفها أحد —
         // لأن العمود إلزامي، ولئلا تفتح سلسلة فارغة باباً للدخول.

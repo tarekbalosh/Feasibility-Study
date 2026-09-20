@@ -173,6 +173,9 @@ export default function AcceptInvitePage() {
           <p className="text-sm text-slate-600">
             جارٍ تحويلك إلى أدوات المنصة...
           </p>
+          <p className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-xs leading-relaxed text-indigo-800">
+            💡 يمكنك دائماً إنشاء مساحة عمل خاصة بك (شركتك الخاصة) في أي وقت.
+          </p>
           <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
         </div>
       </Shell>

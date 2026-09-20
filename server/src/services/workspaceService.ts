@@ -347,14 +347,16 @@ export async function inviteMembers(
       continue;
     }
 
-    // 2. دعوة معلّقة موجودة بالفعل — تجاهلها أيضاً لمنع التكرار
+    // 2. دعوة معلّقة موجودة بالفعل — استبدالها برمز جديد وإعادة الإرسال
     const existingInvite = await prisma.workspaceInvite.findFirst({
       where: { workspaceId, email: invite.email, accepted: false },
     });
 
     if (existingInvite) {
-      skipped.push(invite.email);
-      continue;
+      // نحذف الدعوات القديمة المعلّقة لنجددها
+      await prisma.workspaceInvite.deleteMany({
+        where: { workspaceId, email: invite.email, accepted: false },
+      });
     }
 
     const token = generateInviteToken();
