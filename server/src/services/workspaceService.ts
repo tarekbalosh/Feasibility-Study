@@ -19,6 +19,7 @@ const INVITE_TTL_DAYS = 7;
 const MAX_INVITES_PER_REQUEST = 25;
 
 export interface InvitePayload {
+  name?: string;
   email: string;
   role: string;
 }
@@ -127,7 +128,7 @@ export async function getWorkspaceMembers(workspaceId: string, userId: string) {
       email: inv.email,
       role: inv.role,
       status: "invited",
-      name: null,
+      name: inv.name ?? null,
       invitedAt: inv.createdAt,
       joinedAt: null,
       isInvite: true,
@@ -213,6 +214,7 @@ export async function createWorkspace(
       await tx.workspaceInvite.create({
         data: {
           workspaceId: workspace.id,
+          name: invite.name,
           email: invite.email,
           token,
           role: invite.role,
@@ -247,13 +249,16 @@ export async function createWorkspace(
 function sanitizeInvites(
   invites: InvitePayload[],
   ownerEmail: string
-): Array<{ email: string; role: InvitableRole }> {
-  const byEmail = new Map<string, InvitableRole>();
+): Array<{ name?: string; email: string; role: InvitableRole }> {
+  const byEmail = new Map<string, { role: InvitableRole; name?: string }>();
 
   for (const invite of invites) {
     const email = normalizeEmail(invite?.email ?? "");
     if (!email || !isValidEmail(email) || email === ownerEmail) continue;
-    byEmail.set(email, normalizeRole(invite?.role));
+    byEmail.set(email, {
+      role: normalizeRole(invite?.role),
+      name: invite?.name?.trim(),
+    });
   }
 
   if (byEmail.size > MAX_INVITES_PER_REQUEST) {
@@ -263,7 +268,11 @@ function sanitizeInvites(
     );
   }
 
-  return [...byEmail.entries()].map(([email, role]) => ({ email, role }));
+  return [...byEmail.entries()].map(([email, data]) => ({
+    email,
+    role: data.role,
+    name: data.name,
+  }));
 }
 
 /**
@@ -364,6 +373,7 @@ export async function inviteMembers(
     await prisma.workspaceInvite.create({
       data: {
         workspaceId,
+        name: invite.name,
         email: invite.email,
         token,
         role: invite.role,
@@ -391,6 +401,7 @@ export async function getInviteByToken(token: string) {
   const invite = await findUsableInvite(token);
 
   return {
+    name: invite.name,
     email: invite.email,
     role: invite.role,
     workspaceName: invite.workspace.name,

@@ -146,6 +146,7 @@ export const EmailChipsInput: React.FC<EmailChipsInputProps> = ({
   disabled = false,
 }) => {
   const [draft, setDraft] = useState("")
+  const [draftName, setDraftName] = useState("")
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -154,7 +155,7 @@ export const EmailChipsInput: React.FC<EmailChipsInputProps> = ({
    * يعيد الجزء المتبقّي الذي لم يُغلق بفاصل بعد، ليبقى في الحقل.
    */
   const commit = useCallback(
-    (raw: string): string => {
+    (raw: string, currentName: string = ""): string => {
       const candidates = raw
         .split(/[,;\s\n\t]+/)
         .map((value) => value.trim().toLowerCase())
@@ -167,7 +168,9 @@ export const EmailChipsInput: React.FC<EmailChipsInputProps> = ({
       const invalid: string[] = []
       let duplicate = false
 
-      for (const email of candidates) {
+      for (let i = 0; i < candidates.length; i++) {
+        const email = candidates[i]
+        
         if (!EMAIL_PATTERN.test(email)) {
           invalid.push(email)
           continue
@@ -179,7 +182,8 @@ export const EmailChipsInput: React.FC<EmailChipsInputProps> = ({
         if (invites.length + added.length >= MAX_INVITES) break
 
         existing.add(email)
-        added.push({ email, role: defaultRole })
+        const name = (i === 0 && currentName.trim()) ? currentName.trim() : undefined
+        added.push({ email, name, role: defaultRole })
       }
 
       if (invalid.length > 0) {
@@ -203,7 +207,9 @@ export const EmailChipsInput: React.FC<EmailChipsInputProps> = ({
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
       event.preventDefault()
-      setDraft(commit(draft))
+      const remaining = commit(draft, draftName)
+      setDraft(remaining)
+      if (!remaining) setDraftName("")
       return
     }
 
@@ -214,7 +220,9 @@ export const EmailChipsInput: React.FC<EmailChipsInputProps> = ({
         return
       }
       event.preventDefault()
-      setDraft(commit(draft))
+      const remaining = commit(draft, draftName)
+      setDraft(remaining)
+      if (!remaining) setDraftName("")
       return
     }
 
@@ -229,12 +237,18 @@ export const EmailChipsInput: React.FC<EmailChipsInputProps> = ({
     const text = event.clipboardData.getData("text")
     if (!text) return
     event.preventDefault()
-    setDraft(commit(`${draft}${text}`))
+    const remaining = commit(`${draft}${text}`, draftName)
+    setDraft(remaining)
+    if (!remaining) setDraftName("")
   }
 
   /** الخروج من الحقل يُثبّت ما كُتب — فلا يُفقد بريد لأن المستخدم نسي Enter */
   const handleBlur = () => {
-    if (draft.trim()) setDraft(commit(draft))
+    if (draft.trim()) {
+      const remaining = commit(draft, draftName)
+      setDraft(remaining)
+      if (!remaining) setDraftName("")
+    }
   }
 
   const removeInvite = (email: string) => {
@@ -250,6 +264,14 @@ export const EmailChipsInput: React.FC<EmailChipsInputProps> = ({
     )
   }
 
+  const changeName = (email: string, name: string) => {
+    onChange(
+      invites.map((invite) =>
+        invite.email === email ? { ...invite, name } : invite
+      )
+    )
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <label className="text-sm font-semibold text-slate-700">
@@ -258,9 +280,8 @@ export const EmailChipsInput: React.FC<EmailChipsInputProps> = ({
 
       {/* صندوق الإدخال — النقر في أي مكان منه يركّز الحقل */}
       <div
-        onClick={() => inputRef.current?.focus()}
         className={clsx(
-          "min-h-[52px] w-full rounded-xl border bg-white px-3 py-2.5 shadow-sm transition-all duration-150 cursor-text",
+          "flex flex-col sm:flex-row items-stretch sm:items-center gap-2 rounded-xl border bg-white px-2 py-2 shadow-sm transition-all duration-150",
           error
             ? "border-red-300 focus-within:border-red-500 focus-within:ring-1 focus-within:ring-red-500"
             : "border-slate-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500",
@@ -268,23 +289,50 @@ export const EmailChipsInput: React.FC<EmailChipsInputProps> = ({
         )}
       >
         <input
-          ref={inputRef}
-          type="email"
-          dir="ltr"
-          inputMode="email"
-          autoComplete="off"
+          type="text"
+          placeholder="اسم العضو (مطلوب)"
           disabled={disabled}
-          value={draft}
-          onChange={(event) => {
-            setDraft(event.target.value)
-            if (error) setError(null)
-          }}
+          value={draftName}
+          onChange={(event) => setDraftName(event.target.value)}
           onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          onBlur={handleBlur}
-          placeholder="name@company.com — افصل بين العناوين بفاصلة أو Enter"
-          className="w-full bg-transparent text-sm text-slate-900 placeholder-slate-400 focus:outline-none text-left"
+          className="w-full sm:w-1/3 bg-transparent text-sm text-slate-900 placeholder-slate-400 focus:outline-none px-2 py-1"
         />
+        
+        <div className="hidden sm:block w-px self-stretch bg-slate-200 my-1"></div>
+
+        <div className="flex-1 flex" onClick={() => inputRef.current?.focus()}>
+          <input
+            ref={inputRef}
+            type="email"
+            dir="ltr"
+            inputMode="email"
+            autoComplete="off"
+            disabled={disabled}
+            value={draft}
+            onChange={(event) => {
+              setDraft(event.target.value)
+              if (error) setError(null)
+            }}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            onBlur={handleBlur}
+            placeholder="name@company.com — الفاصلة أو Enter للإضافة"
+            className="w-full bg-transparent text-sm text-slate-900 placeholder-slate-400 focus:outline-none text-left px-2 py-1"
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            const remaining = commit(draft, draftName)
+            setDraft(remaining)
+            if (!remaining) setDraftName("")
+          }}
+          disabled={!draft.trim() && !draftName.trim()}
+          className="shrink-0 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          إضافة
+        </button>
       </div>
 
       {error ? (
@@ -304,9 +352,24 @@ export const EmailChipsInput: React.FC<EmailChipsInputProps> = ({
               key={invite.email}
               className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2"
             >
+              <input
+                type="text"
+                placeholder="اسم العضو (مطلوب)"
+                value={invite.name || ""}
+                onChange={(e) => changeName(invite.email, e.target.value)}
+                disabled={disabled}
+                required
+                className={clsx(
+                  "w-32 sm:w-48 rounded-md border px-2 py-1.5 text-sm font-bold shadow-sm focus:outline-none focus:ring-1 transition-colors",
+                  !invite.name?.trim() 
+                    ? "border-red-300 bg-red-50 text-red-900 placeholder-red-400 focus:border-red-500 focus:ring-red-500" 
+                    : "border-slate-200 bg-white text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:ring-indigo-500"
+                )}
+              />
+              
               <span
                 dir="ltr"
-                className="flex-1 min-w-0 truncate text-sm font-medium text-slate-800 text-left"
+                className="flex-1 min-w-0 truncate text-sm text-slate-500 text-left border-r border-slate-200 pr-3 mr-1"
                 title={invite.email}
               >
                 {invite.email}

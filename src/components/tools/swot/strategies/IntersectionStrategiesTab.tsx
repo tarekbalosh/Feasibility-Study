@@ -6,17 +6,13 @@ import { Edit2, Check, Plus, Trash2, X } from "lucide-react";
 
 interface IntersectionStrategiesTabProps {
   analysis: SwotAnalysis;
+  strategies: Record<SwotStrategyKey, string[]>;
+  setStrategies: React.Dispatch<React.SetStateAction<Record<SwotStrategyKey, string[]>>>;
 }
 
 const ar = (value: number): string => value.toLocaleString("ar-EG");
 
-export const IntersectionStrategiesTab: React.FC<IntersectionStrategiesTabProps> = ({ analysis }) => {
-  const [strategies, setStrategies] = useState<Record<SwotStrategyKey, string[]>>({
-    so: analysis.strategies?.so || [],
-    wo: analysis.strategies?.wo || [],
-    st: analysis.strategies?.st || [],
-    wt: analysis.strategies?.wt || [],
-  });
+export const IntersectionStrategiesTab: React.FC<IntersectionStrategiesTabProps> = ({ analysis, strategies, setStrategies }) => {
 
   const [editingIndex, setEditingIndex] = useState<{ group: SwotStrategyKey; index: number } | null>(null);
   const [editingValue, setEditingValue] = useState("");

@@ -151,6 +151,7 @@ model WorkspaceMember {
 model WorkspaceInvite {
   id          String   @id @default(uuid())
   workspaceId String   @map("workspace_id")
+  name        String?
   email       String
   token       String   @unique
   role        String   @default("member")

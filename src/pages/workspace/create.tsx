@@ -465,7 +465,11 @@ function CreateWorkspacePage() {
 
                 <button
                   type="button"
-                  disabled={!mode || isSubmitting}
+                  disabled={
+                    !mode || 
+                    isSubmitting || 
+                    (mode === "team" && invites.some((invite) => !invite.name?.trim()))
+                  }
                   onClick={() => submit(mode === "team" ? invites : [])}
                   className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >

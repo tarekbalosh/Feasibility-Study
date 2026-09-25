@@ -29,6 +29,7 @@ export interface WorkspaceMember {
 
 /** سطر دعوة كما تبنيه شاشة «ابدأ مع فريق» */
 export interface WorkspaceInviteDraft {
+  name?: string
   email: string
   role: InvitableRole
 }
@@ -47,6 +48,7 @@ export interface CreateWorkspaceResult {
 
 /** معاينة الدعوة قبل تسجيل الدخول */
 export interface InvitePreview {
+  name?: string
   email: string
   role: InvitableRole
   workspaceName: string

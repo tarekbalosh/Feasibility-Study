@@ -138,7 +138,11 @@ export const InviteTeamModal: React.FC<InviteTeamModalProps> = ({
 
             <button
               type="button"
-              disabled={invites.length === 0 || isSubmitting}
+              disabled={
+                invites.length === 0 ||
+                isSubmitting ||
+                invites.some((invite) => !invite.name?.trim())
+              }
               onClick={submit}
               className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
             >

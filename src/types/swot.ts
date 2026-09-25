@@ -159,3 +159,41 @@ export interface SwotAnalysis extends SwotQuadrants {
 export interface SwotApiResponse {
   analysis: SwotAnalysis
 }
+
+// ─────────────────────────────────────────────────────────────
+//  أهداف SMART المشتقة من تحليل SWOT
+// ─────────────────────────────────────────────────────────────
+
+/** نوع مصدر العنصر في مصفوفة SWOT */
+export type SmartGoalSourceType = "قوة" | "ضعف" | "فرصة" | "خطر"
+
+/** نوع استراتيجية التقاطع */
+export type SmartGoalStrategyType = "SO" | "WO" | "ST" | "WT"
+
+/**
+ * هدف ذكي (SMART) واحد مرتبط بعنصر محدد من تحليل SWOT.
+ * يُنتجه النموذج بصيغة JSON كاملة، هدف واحد لكل عنصر.
+ */
+export interface SmartGoal {
+  /** الترتيب التسلسلي للهدف في القائمة */
+  goal_number: number
+  /** نوع عنصر SWOT المصدر */
+  source_type: SmartGoalSourceType
+  /** معرّف العنصر المصدر */
+  source_id: string
+  /** نص عنصر SWOT المصدر كما أُدخل */
+  source_text: string
+  /** نوع الاستراتيجية المستخدمة (هجومية/تحسينية/دفاعية/وقائية) */
+  strategy_type: SmartGoalStrategyType
+  /** نص الهدف الذكي بجملة واحدة تبدأ بفعل إجرائي وتتضمن رقماً وإطاراً زمنياً */
+  goal: string
+  /** المؤشر القابل للقياس */
+  metric: string
+  /** الإطار الزمني المحدد للإنجاز */
+  deadline: string
+}
+
+/** استجابة POST /api/tools/swot-smart-goals */
+export interface SmartGoalsApiResponse {
+  goals: SmartGoal[]
+}

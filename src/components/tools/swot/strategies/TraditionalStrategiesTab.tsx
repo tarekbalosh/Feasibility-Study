@@ -3,7 +3,9 @@ import { Sparkles, Target, ArrowRight } from "lucide-react"
 import type { SwotAnalysis, SwotItem, SwotQuadrantKey } from "@/types/swot"
 
 interface TraditionalStrategiesTabProps {
-  analysis: SwotAnalysis
+  analysis: SwotAnalysis;
+  goals: Record<string, string>;
+  setGoals: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 }
 
 const QUADRANT_CONFIG: Record<SwotQuadrantKey, { title: string; color: string; bg: string; rule: string }> = {
@@ -13,8 +15,7 @@ const QUADRANT_CONFIG: Record<SwotQuadrantKey, { title: string; color: string; b
   threats: { title: "المخاطر", color: "text-amber-700", bg: "bg-amber-50", rule: "تجنبه او التقليل من اثاره" },
 }
 
-export const TraditionalStrategiesTab: React.FC<TraditionalStrategiesTabProps> = ({ analysis }) => {
-  const [goals, setGoals] = useState<Record<string, string>>({})
+export const TraditionalStrategiesTab: React.FC<TraditionalStrategiesTabProps> = ({ analysis, goals, setGoals }) => {
   const [isGenerating, setIsGenerating] = useState<Record<string, boolean>>({})
 
   const handleGoalChange = (key: string, value: string) => {
