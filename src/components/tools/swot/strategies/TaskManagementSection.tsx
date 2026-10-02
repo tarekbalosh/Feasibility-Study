@@ -4,7 +4,10 @@ import clsx from "clsx";
 import { toast } from "react-hot-toast";
 import api from "@/lib/axios";
 import type { SwotAnalysis, SwotStrategyKey, SwotQuadrantKey } from "@/types/swot";
-interface ReviewGoalsSectionProps {
+import { TasksAccordion, Task } from "../tasks/TasksAccordion";
+import { TasksDashboard, DashboardFilters } from "../tasks/TasksDashboard";
+
+interface TaskManagementSectionProps {
   analysis: SwotAnalysis;
   goals: Record<string, { text: string; isAi: boolean }[]>;
   intersectionStrategies: Record<SwotStrategyKey, string[]>;
@@ -28,16 +31,21 @@ const STRATEGY_LABELS: Record<SwotStrategyKey, string> = {
 
 const ar = (value: number): string => value.toLocaleString("ar-EG");
 
-export const ReviewGoalsSection: React.FC<ReviewGoalsSectionProps> = ({
+export const TaskManagementSection: React.FC<TaskManagementSectionProps> = ({
   analysis,
   goals,
   intersectionStrategies,
   smartifiedGoals,
   setSmartifiedGoals,
 }) => {
-  const [isGenerating, setIsGenerating] = useState(false);
-
-
+  
+  // ——————————————————————————————————————————————
+  // Tasks State
+  // ——————————————————————————————————————————————
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+  const [members, setMembers] = useState<{ id: string; name: string; email: string }[]>([]);
+  const [dashboardFilters, setDashboardFilters] = useState<DashboardFilters>({});
 
   // ——————————————————————————————————————————————
   // Goal Data Processing
@@ -150,49 +158,143 @@ export const ReviewGoalsSection: React.FC<ReviewGoalsSectionProps> = ({
 
   const allGoalsList = [...traditionalGoals, ...intersectionGoals];
 
-
   // ——————————————————————————————————————————————
-  // Smart Goals
+  // Load Tasks & Members
   // ——————————————————————————————————————————————
 
-  const handleGenerateSmart = async () => {
-    setIsGenerating(true);
+  const fetchTasks = useCallback(async () => {
     try {
-      const allGoals = [...traditionalGoals, ...intersectionGoals].map(g => g.goal);
-      if (allGoals.length === 0) return;
+      setIsLoadingTasks(true);
+      const res = await api.get(`/swot-tasks/analysis/${analysis.id}`, { skipToast: true });
+      setAllTasks(res.data?.tasks || []);
+    } catch {
+      // silent — tasks are optional
+    } finally {
+      setIsLoadingTasks(false);
+    }
+  }, [analysis.id]);
 
-      const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
-      const res = await fetch("/api/tools/smartify-goals", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ goals: allGoals }),
-      });
+  const fetchMembers = useCallback(async () => {
+    try {
+      const wsRes = await api.get("/workspaces", { skipToast: true, silent: true });
+      const wsId = wsRes.data?.current?.id;
+      if (!wsId) return;
+      const membersRes = await api.get(`/workspaces/${wsId}/members`, { skipToast: true, silent: true });
+      const membersList = (membersRes.data?.data || [])
+        .filter((m: any) => m.status === "active")
+        .map((m: any) => ({
+          id: m.id,
+          name: m.user?.name || m.name || m.email.split("@")[0],
+          email: m.email,
+        }));
+      setMembers(membersList);
+    } catch {
+      // fallback: empty members
+    }
+  }, []);
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.message ?? `HTTP ${res.status}`);
+  // ——————————————————————————————————————————————
+  // Auto-sync goals to DB
+  // ——————————————————————————————————————————————
+  // عند فتح الصفحة: نجلب الأهداف المحفوظة، ونُنشئ تلقائياً
+  // كل هدف محلّي لم يُحفظ بعد — حتى يظهر أكورديون المهام
+  // أسفل كل هدف بدون أي شرط مسبق.
+
+  const [dbGoals, setDbGoals] = useState<{ id: string; goalText: string }[]>([]);
+  const [isSyncingGoals, setIsSyncingGoals] = useState(false);
+
+  const syncGoalsToDb = useCallback(async () => {
+    if (allGoalsList.length === 0) return;
+    setIsSyncingGoals(true);
+    try {
+      // 1. جلب الأهداف الموجودة
+      const res = await api.get(`/swot-goals/${analysis.id}`, { skipToast: true, silent: true });
+      const existing: { id: string; goalText: string }[] = res.data?.goals || [];
+      const existingTexts = new Set(existing.map((g) => g.goalText));
+
+      // 2. إنشاء الأهداف الناقصة
+      const newGoals: { id: string; goalText: string }[] = [];
+      for (const g of allGoalsList) {
+        if (!existingTexts.has(g.goal)) {
+          try {
+            const createRes = await api.post(
+              `/swot-goals/${analysis.id}`,
+              { goalText: g.goal },
+              { skipToast: true, silent: true }
+            );
+            if (createRes.data?.goal) {
+              newGoals.push({
+                id: createRes.data.goal.id,
+                goalText: createRes.data.goal.goalText,
+              });
+            }
+          } catch {
+            // skip failed — goal may already exist (race)
+          }
+        }
       }
 
-      const data = await res.json();
-      if (!data?.smartGoals?.length) throw new Error("لم يتم إرجاع أي أهداف من النظام.");
-
-      const newMapping: Record<string, string> = {};
-      allGoals.forEach((g, i) => {
-        if (data.smartGoals[i]) {
-          newMapping[g] = data.smartGoals[i];
-        }
-      });
-      setSmartifiedGoals(prev => ({ ...prev, ...newMapping }));
-      toast.success("تم تحويل جميع الأهداف بنجاح!");
-    } catch (err: any) {
-      toast.error(err?.message ?? "تعذّر توليد الأهداف الذكية. يرجى المحاولة لاحقاً.");
+      setDbGoals([...existing, ...newGoals]);
+    } catch {
+      // silent — goals will just miss the accordion
     } finally {
-      setIsGenerating(false);
+      setIsSyncingGoals(false);
     }
-  };
+  }, [analysis.id, allGoalsList.length]); // only re-run when goals list size changes
+
+  useEffect(() => {
+    syncGoalsToDb();
+    fetchTasks();
+    fetchMembers();
+  }, [syncGoalsToDb, fetchTasks, fetchMembers]);
+
+  // Match local goals with DB goals
+  const goalMapping = useMemo(() => {
+    return allGoalsList.map((g, index) => {
+      // Try to find the matching DB goal by text
+      const dbGoal = dbGoals.find((dg) => dg.goalText === g.goal);
+      return {
+        ...g,
+        globalIndex: index + 1,
+        dbGoalId: dbGoal?.id || null,
+      };
+    });
+  }, [allGoalsList, dbGoals]);
+
+  const tasksPerGoal = useMemo(() => {
+    const map: Record<string, Task[]> = {};
+    allTasks.forEach((t) => {
+      if (!map[t.goalId]) map[t.goalId] = [];
+      map[t.goalId].push(t);
+    });
+    return map;
+  }, [allTasks]);
+
+  // ——————————————————————————————————————————————
+  // Filtered tasks for dashboard
+  // ——————————————————————————————————————————————
+
+  const activeGoalIds = useMemo(() => {
+    return new Set(goalMapping.map((g) => g.dbGoalId).filter(Boolean));
+  }, [goalMapping]);
+
+  const validTasks = useMemo(() => {
+    return allTasks.filter((t) => activeGoalIds.has(t.goalId));
+  }, [allTasks, activeGoalIds]);
+
+  const filteredTasks = useMemo(() => {
+    let result = [...validTasks];
+    const f = dashboardFilters;
+    if (f.goalIndex) result = result.filter((t) => t.goalIndex === f.goalIndex);
+    if (f.assignee) result = result.filter((t) => t.assignee === f.assignee);
+    if (f.follower) result = result.filter((t) => t.follower === f.follower);
+    if (f.status) result = result.filter((t) => t.status === f.status);
+    if (f.priority) result = result.filter((t) => t.priority === f.priority);
+    if (f.dueDateFrom) result = result.filter((t) => new Date(t.dueDate) >= new Date(f.dueDateFrom!));
+    if (f.dueDateTo) result = result.filter((t) => new Date(t.dueDate) <= new Date(f.dueDateTo!));
+    return result;
+  }, [validTasks, dashboardFilters]);
+
 
   const getBadgeStyle = (source: string) => {
     if (source.includes("هجومية") || source.includes("من ق")) return "bg-emerald-50 text-emerald-700 ring-emerald-600/20";
@@ -226,11 +328,15 @@ export const ReviewGoalsSection: React.FC<ReviewGoalsSectionProps> = ({
                 <th className="px-6 py-2 font-bold text-slate-400 text-[11px] uppercase tracking-wider w-20 text-center">رقم الهدف</th>
                 <th className="px-6 py-2 font-bold text-slate-400 text-[11px] uppercase tracking-wider">الهدف الاستراتيجي</th>
                 <th className="px-6 py-2 font-bold text-slate-400 text-[11px] uppercase tracking-wider w-48 text-center">المصدر</th>
+                <th className="px-6 py-2 font-bold text-slate-400 text-[11px] uppercase tracking-wider w-36 text-center">المهام</th>
               </tr>
             </thead>
             <tbody>
               {goalsList.map((g, index) => {
                 const globalIndex = startIndex + index;
+                const goalInfo = goalMapping[globalIndex];
+                const goalTasks = goalInfo?.dbGoalId ? (tasksPerGoal[goalInfo.dbGoalId] || []) : [];
+
                 return (
                   <React.Fragment key={index}>
                     <tr className="group bg-white hover:bg-sky-50/40 transition-all duration-300 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:shadow-md ring-1 ring-slate-200/60 hover:ring-sky-200">
@@ -249,6 +355,7 @@ export const ReviewGoalsSection: React.FC<ReviewGoalsSectionProps> = ({
                               </span>
                             </p>
                             <div className="flex items-start gap-2 opacity-50 relative">
+                              <div className="absolute inset-x-0 top-1/2 h-px bg-slate-400"></div>
                               <p className="text-slate-500 font-semibold leading-relaxed text-[13px]">
                                 {g.goal}
                               </p>
@@ -270,7 +377,7 @@ export const ReviewGoalsSection: React.FC<ReviewGoalsSectionProps> = ({
                           </p>
                         )}
                       </td>
-                      <td className="px-6 py-5 text-center rounded-l-2xl">
+                      <td className="px-6 py-5 text-center border-b-0">
                         <div className="relative group/tooltip inline-block">
                           <span className={clsx(
                             "inline-flex items-center justify-center px-4 py-2 rounded-xl text-[12px] font-bold leading-none whitespace-nowrap ring-1 ring-inset shadow-sm transition-colors group-hover:shadow-none cursor-help",
@@ -293,9 +400,26 @@ export const ReviewGoalsSection: React.FC<ReviewGoalsSectionProps> = ({
                           )}
                         </div>
                       </td>
+                      <td className="px-6 py-5 text-center rounded-l-2xl border-b-0 border-r border-slate-100">
+                        {goalInfo?.dbGoalId ? (
+                          <TasksAccordion
+                            goalId={goalInfo.dbGoalId}
+                            goalIndex={globalIndex + 1}
+                            goalText={g.goal}
+                            tasks={goalTasks}
+                            onTasksChange={() => { fetchTasks(); syncGoalsToDb(); }}
+                            members={members}
+                            defaultCurrency="SAR"
+                          />
+                        ) : isSyncingGoals ? (
+                          <div className="flex items-center justify-center text-[10px] text-slate-400 gap-1.5">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            جاري الإعداد...
+                          </div>
+                        ) : null}
+                      </td>
                     </tr>
-
-                      </React.Fragment>
+                  </React.Fragment>
                 );
               })}
             </tbody>
@@ -315,45 +439,35 @@ export const ReviewGoalsSection: React.FC<ReviewGoalsSectionProps> = ({
             <ListChecks className="w-5 h-5" />
           </span>
           <h3 className="text-[22px] font-bold text-slate-800 tracking-tight">
-            استعراض الأهداف
+            إدارة المهام الاستراتيجية
           </h3>
         </div>
         <p className="text-[15px] text-slate-500 leading-relaxed max-w-2xl text-right">
-          قائمة بجميع الأهداف الاستراتيجية التي تم استخراجها وصياغتها من التحليل (الاستراتيجيات التقليدية والتقاطعية).
+          هنا يمكنك تقسيم أهدافك الاستراتيجية إلى مهام تنفيذية قابلة للقياس، وتوزيع المهام على فريق العمل ومتابعة الإنجاز.
         </p>
       </div>
 
+      {/* Dashboard Summary */}
+      {validTasks.length > 0 && (
+        <TasksDashboard
+          tasks={filteredTasks}
+          goalsCount={allGoalsList.length}
+          defaultCurrency="SAR"
+          filters={dashboardFilters}
+          onFiltersChange={setDashboardFilters}
+          members={members}
+        />
+      )}
 
       <div className="flex flex-col w-full">
         {renderGoalsTable(traditionalGoals, "الأهداف التقليدية", 0)}
         {renderGoalsTable(intersectionGoals, "الأهداف التقاطعية", traditionalGoals.length)}
 
-        {/* زر صياغة الأهداف بطريقة SMART */}
-        <div className="w-full flex justify-end mt-2 mb-4">
-          <button
-            id="smart-goals-generate-btn"
-            type="button"
-            onClick={handleGenerateSmart}
-            disabled={isGenerating}
-            className="py-3.5 px-10 bg-[#5452F6] hover:bg-[#4338CA] disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold text-base rounded-full transition-all duration-300 shadow-[0_10px_30px_-10px_rgba(84,82,246,0.8)] hover:shadow-[0_15px_35px_-10px_rgba(84,82,246,0.9)] hover:-translate-y-0.5 focus:ring-4 focus:ring-[#5452F6]/30 focus:outline-none flex justify-center items-center gap-2.5"
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                جارٍ التوليد...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-5 h-5" strokeWidth={2.5} />
-                صياغة الأهداف بطريقة SMART
-              </>
-            )}
-          </button>
-        </div>
+        
       </div>
     </div>
     </>
   );
 };
 
-export default ReviewGoalsSection;
+export default TaskManagementSection;

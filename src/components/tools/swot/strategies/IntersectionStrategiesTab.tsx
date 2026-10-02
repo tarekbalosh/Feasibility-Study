@@ -72,15 +72,16 @@ export const IntersectionStrategiesTab: React.FC<IntersectionStrategiesTabProps>
               group.accent
             )}
           >
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 shrink-0">
               <h4 className="text-sm font-bold">{group.title}</h4>
               <span className="text-xs font-semibold opacity-70 bg-white/70 rounded-full px-2.5 py-0.5">
                 {group.formula}
               </span>
             </div>
             
-            <ul className="flex flex-col gap-3">
-              {groupStrategies.map((strategy, index) => {
+            <div className="overflow-y-auto max-h-[24rem] pr-1.5 -mr-1.5 flex flex-col relative min-h-0">
+              <ul className="flex flex-col gap-3 flex-1">
+                {groupStrategies.map((strategy, index) => {
                 const isEditing = editingIndex?.group === groupKey && editingIndex?.index === index;
                 
                 return (
@@ -182,6 +183,7 @@ export const IntersectionStrategiesTab: React.FC<IntersectionStrategiesTabProps>
                 <Plus className="w-4 h-4" /> إضافة استراتيجية جديدة
               </button>
             )}
+            </div>
           </div>
         );
       })}

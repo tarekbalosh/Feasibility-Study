@@ -55,8 +55,8 @@ export const WorkspaceGuard: React.FC<WorkspaceGuardProps> = ({ children }) => {
     if (isWorkspaceLoading) return
 
     if (!hasWorkspace) {
-      toast.error(WORKSPACE_REQUIRED_MESSAGE, { id: "workspace-required" })
-      router.replace(`/workspace/create?returnTo=${returnTo}`)
+      toast.error("يرجى إدخال بريدك الإلكتروني للبدء.", { id: "workspace-required" })
+      router.replace(`/auth/register?returnTo=${returnTo}`)
     }
   }, [
     router,

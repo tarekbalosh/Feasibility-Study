@@ -46,16 +46,14 @@ export const StartWorkspaceButton: React.FC<StartWorkspaceButtonProps> = ({
 
     if (!isAuthenticated) {
       // إنشاء المساحة هو الوجهة بعد التسجيل، لا لوحة التحكم
-      router.push(
-        `/auth/register?returnTo=${encodeURIComponent("/workspace/create")}`
-      )
+      router.push("/auth/register")
       return
     }
 
     // ما زال الفحص جارياً: نرسله إلى صفحة الإنشاء، وهي نفسها تحوّل
     // من يملك مساحة إلى لوحة التحكم — فلا يعلق المستخدم في انتظار.
     if (isWorkspaceLoading || !hasWorkspace) {
-      router.push("/workspace/create")
+      router.push("/auth/register")
       return
     }
 

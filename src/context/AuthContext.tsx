@@ -117,9 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (redirectUrl) {
         router.push(redirectUrl)
       } else if (hasWorkspace === false) {
-        // إنشاء مساحة العمل خطوة إجبارية: من لا يملك مساحة يذهب إليها
-        // مباشرةً بدل لوحة تحكّم فارغة يرفض الخادم كل نداءاتها.
-        router.push("/workspace/create")
+        router.push("/auth/register")
       } else {
         router.push("/dashboard")
       }
@@ -185,7 +183,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (redirectUrl) {
         router.push(redirectUrl)
       } else if (hasWorkspace === false) {
-        router.push("/workspace/create")
+        router.push("/auth/register")
       } else {
         router.push("/dashboard")
       }

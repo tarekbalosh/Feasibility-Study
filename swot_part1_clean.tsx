@@ -195,24 +195,6 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
   const [open, setOpen] = React.useState(true)
   const [query, setQuery] = React.useState("")
   const [draft, setDraft] = React.useState("")
-  
-  const [showLimitToast, setShowLimitToast] = React.useState(false)
-  const [hideLimitPopup, setHideLimitPopup] = React.useState(false);
-
-  React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      const isHidden = localStorage.getItem("hideSwotLimitPopup_v4") === "true";
-      setHideLimitPopup(isHidden);
-    }
-  }, []);
-
-  const dismissLimitPopup = () => {
-    setHideLimitPopup(true);
-    setShowLimitToast(false);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("hideSwotLimitPopup_v4", "true");
-    }
-  };
 
   // تعديل بند مخصّص — بند واحد فقط قابل للتحرير داخل المجموعة في آنٍ
   const [editingId, setEditingId] = React.useState<string | null>(null)
@@ -272,25 +254,11 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
   const progress = chips.length ? (selectedCount / chips.length) * 100 : 0
 
   const submitCustom = () => {
-    if (onAddCustom(category, draft)) {
-      setDraft("");
-      if (selectedCount >= RECOMMENDED_MAX_SELECTIONS && !hideLimitPopup) {
-        setShowLimitToast(true);
-      }
-    }
+    if (onAddCustom(category, draft)) setDraft("")
   }
 
-  const handleToggle = (id: string, isSelected: boolean) => {
-    onToggle(category, id);
-    if (!isSelected && selectedCount >= RECOMMENDED_MAX_SELECTIONS && !hideLimitPopup) {
-      setShowLimitToast(true);
-    } else if (isSelected && selectedCount - 1 <= RECOMMENDED_MAX_SELECTIONS) {
-      setShowLimitToast(false);
-    }
-  };
-
   return (
-    <section className="relative flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+    <section className="flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
       {/*
         ترويسة المجموعة — صفّ واحد يضمّ زرّ الطيّ (جوال) وزرّ القوائم
         التفصيلية. الزرّان متجاوران لا متداخلان: زرّ داخل زرّ ترميز
@@ -401,47 +369,19 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
           <div className="relative px-4 pt-3 pb-1 shrink-0">
             <Search className="w-4 h-4 text-slate-400 absolute top-1/2 mt-1 -translate-y-1/2 right-7 pointer-events-none" />
             <input
-              type="text"
+              type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="ابحث في البنود…"
               aria-label={`تصفية بنود ${style.title}`}
-              className="w-full min-h-[40px] rounded-xl border border-slate-200 bg-slate-50 pr-9 pl-24 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300 focus:bg-white transition-colors"
+              className="w-full min-h-[40px] rounded-xl border border-slate-200 bg-slate-50 pr-9 pl-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300 focus:bg-white transition-colors"
             />
-            {query && (
-              <div className="absolute top-1/2 mt-1 -translate-y-1/2 left-6 flex items-center gap-1.5 z-10">
-                {visibleChips.length === 0 && query.trim() && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onAddCustom(category, query)) {
-                        setQuery("")
-                      }
-                    }}
-                    className="h-6 rounded-md border border-sky-200 bg-sky-50 hover:bg-sky-100 text-sky-700 px-2 text-[11px] font-medium flex items-center gap-1 transition-colors"
-                  >
-                    <Plus className="w-3 h-3 shrink-0" />
-                    إضافة
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setQuery("")}
-                  className="w-6 h-6 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
           </div>
         )}
 
         {/* قائمة البنود — أسطر متساوية العرض، ومنطقة تمرير على سطح المكتب */}
         <div className="relative flex-1 min-h-0">
-          <div className="flex flex-col gap-1.5 px-4 py-3 lg:max-h-[19rem] lg:overflow-y-auto relative">
-            
-
-
+          <div className="flex flex-col gap-1.5 px-4 py-3 lg:max-h-[19rem] lg:overflow-y-auto">
             {visibleChips.map((chip) => {
               const isSelected = selectedIds.has(chip.id)
               const isConflicting = isSelected && conflicting.has(chip.id)
@@ -509,7 +449,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
                 >
                   <button
                     type="button"
-                    onClick={() => handleToggle(chip.id, isSelected)}
+                    onClick={() => onToggle(category, chip.id)}
                     aria-pressed={isSelected}
                     className={clsx(
                       "flex flex-1 min-w-0 items-center gap-2.5 min-h-[44px] px-3 py-2 text-right rounded-xl focus:outline-none focus-visible:ring-2",
@@ -567,6 +507,21 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
                 <p className="text-xs text-slate-400 leading-relaxed">
                   لا بند يطابق «{query}»
                 </p>
+                {query.trim() && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      if (onAddCustom(category, query)) {
+                        setQuery("")
+                      }
+                    }}
+                    className="mt-1 h-8 rounded-lg border border-sky-200 bg-sky-50 hover:bg-sky-100 text-sky-700 px-3 text-xs gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5 shrink-0" />
+                    إضافة كبند جديد
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -597,8 +552,6 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
           </div>
         )}
 
-
-
         {/* تنبيه استشاري — لا يمنع التجاوز، فقط يوصي بتركيز أعلى */}
         {selectedCount > RECOMMENDED_MAX_SELECTIONS && (
           <div className="mx-4 mb-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-900 leading-relaxed shadow-sm">
@@ -616,6 +569,8 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
             </span>
           </div>
         )}
+
+        {/* تذييل البطاقة: الإضافة اليدوية ومسح التحديدات */}
         <div className="shrink-0 border-t border-slate-100 bg-slate-50/70 px-4 py-3 flex flex-col gap-2">
           <div className="flex items-stretch gap-2">
             <input
@@ -676,38 +631,6 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
           </div>
         </div>
       </div>
-
-      {showLimitToast && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95 duration-200">
-          <div className="bg-white border border-red-100 px-6 py-6 rounded-[24px] shadow-2xl flex flex-col gap-4 w-full max-w-[280px] text-center shadow-red-900/5">
-            <div className="flex items-center justify-center">
-              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5 text-red-500" strokeWidth={2.5} />
-              </div>
-            </div>
-            <h3 className="text-[17px] font-bold text-slate-900">تجاوز الحد الموصى به</h3>
-            <p className="text-[13px] leading-relaxed text-slate-500 font-medium px-1">
-              لقد اخترت أكثر من {ar(RECOMMENDED_MAX_SELECTIONS)} بنود. يفضل الاقتصار على {ar(RECOMMENDED_MAX_SELECTIONS)} بنود كحد أقصى لكل مجموعة، للحصول على تحليل أكثر دقة وتركيزاً.
-            </p>
-            <div className="flex flex-col gap-2 mt-3">
-              <button
-                type="button"
-                onClick={() => setShowLimitToast(false)}
-                className="w-full bg-[#d63434] hover:bg-red-700 text-white py-2.5 rounded-xl transition-colors font-bold shadow-sm"
-              >
-                حسناً
-              </button>
-              <button
-                type="button"
-                onClick={dismissLimitPopup}
-                className="w-full bg-slate-50 hover:bg-slate-100 text-slate-700 py-2.5 rounded-xl transition-colors font-bold"
-              >
-                لا تظهر مرة أخرى
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   )
 }
@@ -856,7 +779,7 @@ export const SwotSelection: React.FC<SwotSelectionProps> = ({
         className="px-6 py-3 text-base gap-2 bg-sky-600 hover:bg-sky-700 focus:ring-sky-500"
       >
         <Sparkles className="w-5 h-5" />
-        استعراض المصفوفة
+        توليد التحليل
         {totalSelected > 0 && (
           <span className="text-xs font-semibold bg-white/20 rounded-full px-2 py-0.5 tabular-nums">
             {ar(totalSelected)}
@@ -874,41 +797,3 @@ export const SwotSelection: React.FC<SwotSelectionProps> = ({
         رجوع
       </Button>
     </div>
-
-    {/* الجوال: رجوع وتخطّي في المتن، والتوليد في الشريط الثابت */}
-    <div className="flex sm:hidden flex-col gap-2 pt-2 border-t border-slate-200">
-
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={onBack}
-        className="min-h-[44px] px-4 py-2 text-sm text-slate-500"
-      >
-        رجوع إلى بيانات المشروع
-      </Button>
-      {/* مساحة تعويض ارتفاع الشريط الثابت */}
-      <div className="h-16" aria-hidden="true" />
-    </div>
-
-    {/* الشريط السفلي الثابت على الجوال */}
-    <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur border-t border-slate-200 px-3 py-2.5 flex items-center gap-3">
-      <div className="flex flex-col leading-tight">
-        <span className="text-base font-bold text-slate-900 tabular-nums">
-          {ar(totalSelected)}
-        </span>
-        <span className="text-[11px] text-slate-500">بنداً مختاراً</span>
-      </div>
-      <Button
-        type="button"
-        variant="primary"
-        onClick={onGenerate}
-        className="flex-1 min-h-[48px] px-4 py-3 text-sm gap-2 bg-sky-600 hover:bg-sky-700 focus:ring-sky-500"
-      >
-        <Sparkles className="w-4 h-4" />
-        استعراض المصفوفة
-      </Button>
-    </div>
-  </div>
-)
-
-export default SwotSelection

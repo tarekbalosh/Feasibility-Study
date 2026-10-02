@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Calculator,
   Check,
+  ChevronDown,
   Compass,
   Copy,
   MoreHorizontal,
@@ -72,6 +73,28 @@ export const SwotReportView: React.FC<SwotReportViewProps> = ({
   const [menuOpen, setMenuOpen] = React.useState(false)
   const [confirmDelete, setConfirmDelete] = React.useState(false)
   const menuRef = React.useRef<HTMLDivElement>(null)
+
+  const [collapsedQuadrants, setCollapsedQuadrants] = React.useState<Set<string>>(new Set())
+  const [expandedItems, setExpandedItems] = React.useState<Set<string>>(new Set())
+  const [showGoalsMode, setShowGoalsMode] = React.useState(false)
+
+  const toggleQuadrant = (key: string) => {
+    setCollapsedQuadrants((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  const toggleItem = (key: string) => {
+    setExpandedItems((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   // تعديل بند بعد التوليد — بند واحد فقط قابل للتحرير في آنٍ عبر التقرير كله
   const [editing, setEditing] = React.useState<
@@ -143,8 +166,10 @@ export const SwotReportView: React.FC<SwotReportViewProps> = ({
 
   return (
     <div className="flex flex-col gap-8 print:hidden" dir="rtl">
-      {/* ── ترويسة التقرير وأدواته ─────────────────────────── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      {!showGoalsMode && (
+        <>
+          {/* ── ترويسة التقرير وأدواته ─────────────────────────── */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-2xl font-bold text-slate-900">
@@ -279,9 +304,11 @@ export const SwotReportView: React.FC<SwotReportViewProps> = ({
                 quadrant.ring
               )}
             >
-              <div
+              <button
+                type="button"
+                onClick={() => toggleQuadrant(quadrant.key)}
                 className={clsx(
-                  "flex items-center gap-3 px-5 py-4",
+                  "flex items-center gap-3 px-5 py-4 w-full text-right focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500",
                   quadrant.header
                 )}
               >
@@ -303,10 +330,14 @@ export const SwotReportView: React.FC<SwotReportViewProps> = ({
                     {ar(userCount)} من اختيارك
                   </span>
                 )}
-                <Icon className="w-5 h-5 shrink-0 opacity-70" />
-              </div>
+                <div className="flex items-center gap-2">
+                  <Icon className="w-5 h-5 shrink-0 opacity-70" />
+                  <ChevronDown className={clsx("w-5 h-5 shrink-0 transition-transform duration-200", collapsedQuadrants.has(quadrant.key) ? "" : "rotate-180")} />
+                </div>
+              </button>
 
-              <ul className="flex flex-col gap-2 p-4 flex-1">
+              <div className={clsx("transition-all overflow-hidden flex flex-col flex-1", collapsedQuadrants.has(quadrant.key) && "hidden")}>
+                <ul className="flex flex-col gap-2 p-4 flex-1">
                 {items.map((item, index) => {
                   const isEditing =
                     editing?.quadrant === quadrant.key && editing.index === index
@@ -370,22 +401,34 @@ export const SwotReportView: React.FC<SwotReportViewProps> = ({
                     )
                   }
 
+                  const itemKey = `${quadrant.key}-${index}`
+                  const isItemExpanded = expandedItems.has(itemKey)
+
                   return (
                     <li key={index} className="flex items-start gap-2 group">
                       <span
                         className={clsx(
-                          "w-1.5 h-1.5 rounded-full shrink-0 mt-2.5",
+                          "w-1.5 h-1.5 rounded-full shrink-0 mt-3",
                           quadrant.dot
                         )}
                       />
                       <div className="flex-1 min-w-0 flex flex-col">
-                        <p className="text-sm text-slate-800 font-medium leading-relaxed px-2 py-1">
-                          {item.title}
-                        </p>
-                        {item.detail && (
-                          <p className="text-xs text-slate-500 leading-relaxed px-2 pb-1">
-                            {item.detail}
+                        <button 
+                          type="button" 
+                          onClick={() => item.detail && toggleItem(itemKey)}
+                          className={clsx("text-right focus:outline-none flex items-center justify-between gap-2 px-2 py-1.5 rounded-md hover:bg-slate-50 transition-colors", item.detail ? "cursor-pointer" : "cursor-default")}
+                        >
+                          <p className="text-sm text-slate-800 font-medium leading-relaxed">
+                            {item.title}
                           </p>
+                          {item.detail && (
+                            <ChevronDown className={clsx("w-4 h-4 shrink-0 text-slate-400 transition-transform duration-200", isItemExpanded && "rotate-180")} />
+                          )}
+                        </button>
+                        {item.detail && isItemExpanded && (
+                          <div className="px-3 py-2 mt-1 mb-1 bg-slate-50 rounded-lg text-xs text-slate-600 leading-relaxed border border-slate-100">
+                            {item.detail}
+                          </div>
                         )}
                         {isMixed && (
                           <span
@@ -428,17 +471,25 @@ export const SwotReportView: React.FC<SwotReportViewProps> = ({
                     </li>
                   )
                 })}
-              </ul>
+                </ul>
+              </div>
             </div>
           )
         })}
       </div>
+        </>
+      )}
 
       {/* ── الاستراتيجيات بتبويباتها الجديدة ───────────── */}
-      <SwotStrategiesSection analysis={analysis} />
+      <SwotStrategiesSection 
+        analysis={analysis} 
+        showGoalsMode={showGoalsMode}
+        setShowGoalsMode={setShowGoalsMode}
+      />
 
-
-      {/* ── ج) بيانات التقرير ──────────────────────────────── */}
+      {!showGoalsMode && (
+        <>
+          {/* ── ج) بيانات التقرير ──────────────────────────────── */}
       <ReportMetaBox
         input={input}
         analysis={analysis}
@@ -496,6 +547,8 @@ export const SwotReportView: React.FC<SwotReportViewProps> = ({
           إعادة التوليد
         </Button>
       </div>
+      </>
+      )}
 
       {/* حذف التحليل — لا يقع إلا بعد قراءة اسمه في نافذة التأكيد */}
       <ConfirmDialog

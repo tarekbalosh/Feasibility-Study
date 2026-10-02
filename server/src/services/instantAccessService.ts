@@ -59,7 +59,29 @@ export async function instantAccess(data: { email: string; name?: string }) {
   }
 
   await linkPendingMemberships(user.id, user.email).catch(() => 0);
-  const workspaceExists = await hasActiveWorkspace(user.id);
+  let workspaceExists = await hasActiveWorkspace(user.id);
+
+  // Auto-create workspace if it doesn't exist to bypass the Stepper page
+  if (!workspaceExists) {
+    const wsName = user.name?.trim() || email.split("@")[0];
+    const newWorkspace = await prisma.workspace.create({
+      data: {
+        name: wsName,
+        ownerId: user.id,
+      },
+    });
+    await prisma.workspaceMember.create({
+      data: {
+        workspaceId: newWorkspace.id,
+        userId: user.id,
+        email: user.email,
+        role: "owner",
+        status: "active",
+        joinedAt: new Date(),
+      },
+    });
+    workspaceExists = true;
+  }
 
   return {
     needsName: false as const,

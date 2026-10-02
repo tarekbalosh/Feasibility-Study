@@ -122,14 +122,14 @@ api.interceptors.response.use(
       errorCode === 'WORKSPACE_REQUIRED' &&
       !skipRedirect
     ) {
-      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/workspace/create')) {
-        toast.error('يجب إنشاء مساحة عمل أولاً لاستخدام الأدوات.', {
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth/register')) {
+        toast.error('يرجى إدخال بريدك الإلكتروني للبدء.', {
           id: 'workspace-required',
         })
         const returnTo = encodeURIComponent(
           window.location.pathname + window.location.search
         )
-        window.location.href = `/workspace/create?returnTo=${returnTo}`
+        window.location.href = `/auth/register?returnTo=${returnTo}`
       }
       return Promise.reject(error)
     }

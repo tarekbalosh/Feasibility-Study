@@ -1,0 +1,808 @@
+Created At: 2026-09-28T13:18:46+08:00
+Completed At: 2026-09-28T13:18:46+08:00
+File Path: `file:///Users/mmohammed/Desktop/my-work/%D8%AF%D8%B1%D8%A7%D8%B3%D8%A9%20%D8%A7%D9%84%D8%AC%D8%AF%D9%88%D9%89/project%20sass/src/components/tools/swot/SwotSelection.tsx`
+Total Lines: 838
+Total Bytes: 33665
+Showing lines 1 to 800
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: import React from "react"
+2: import clsx from "clsx"
+3: import {
+4:   AlertTriangle,
+5:   Check,
+6:   ChevronDown,
+7:   Eraser,
+8:   Info,
+9:   Pencil,
+10:   Plus,
+11:   RefreshCw,
+12:   Search,
+13:   SearchX,
+14:   Sparkles,
+15:   Target,
+16:   TrendingDown,
+17:   TrendingUp,
+18:   X,
+19: } from "lucide-react"
+20: import { Button } from "@/components/ui/Button"
+21: import { SwotDetailedLists } from "@/components/tools/swot/SwotDetailedLists"
+22: import {
+23:   MAX_CUSTOM_ITEM_LENGTH,
+24:   RECOMMENDED_MAX_SELECTIONS,
+25:   SWOT_CATEGORY_ORDER,
+26:   normalizeArabic,
+27: } from "@/config/swotSuggestions"
+28: import {
+29:   conflictIdSet,
+30:   countSelected,
+31:   getCategoryChips,
+32:   type SwotConflict,
+33: } from "@/utils/swotSelections"
+34: import type { SwotCustomErrors } from "@/hooks/useSwotTool"
+35: import type { SwotQuadrantKey, SwotSelections } from "@/types/swot"
+36: 
+37: /**
+38:  * ─────────────────────────────────────────────────────────────
+39:  *  شاشة اختيار العناصر — الخطوة الوسيطة قبل التوليد
+40:  * ─────────────────────────────────────────────────────────────
+41:  *  الخطوة اختيارية بالكامل: الاختيارات مُدخلات موجِّهة للنموذج،
+42:  *  لا مخرجات نهائية. لا قائمة بنود مكتوبة هنا — كلّها من
+43:  *  config/swotSuggestions.ts
+44:  *
+45:  *  العرض: مصفوفة ٢×٢ ببطاقات متساوية الارتفاع، وكل بند سطر
+46:  *  كامل العرض بمربّع اختيار — بدل الأقراص متفاوتة العرض التي
+47:  *  كانت تلتفّ بحوافّ مسنّنة يصعب مسحها بالعين.
+48:  * ─────────────────────────────────────────────────────────────
+49:  */
+50: 
+51: /** ألوان كل مجموعة مطابقة لخانتها في المصفوفة النهائية */
+52: const CATEGORY_STYLES: Record<
+53:   SwotQuadrantKey,
+54:   {
+55:     letter: string
+56:     title: string
+57:     subtitle: string
+58:     icon: typeof TrendingUp
+59:     badge: string
+60:     header: string
+61:     bar: string
+62:     count: string
+63:     itemOn: string
+64:     itemOff: string
+65:     boxOn: string
+66:     boxOff: string
+67:     focus: string
+68:   }
+69: > = {
+70:   strengths: {
+71:     letter: "S",
+72:     title: "نقاط القوة",
+73:     subtitle: "عوامل داخلية تعمل لصالحك",
+74:     icon: TrendingUp,
+75:     badge: "bg-emerald-600",
+76:     header: "bg-emerald-50/70 border-emerald-100",
+77:     bar: "bg-emerald-500",
+78:     count: "text-emerald-700",
+79:     itemOn: "border-emerald-300 bg-emerald-50 text-emerald-950",
+80:     itemOff:
+81:       "border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-emerald-50/40",
+82:     boxOn: "bg-emerald-600 border-emerald-600 text-white",
+83:     boxOff: "border-slate-300 bg-white group-hover:border-emerald-400",
+84:     focus: "focus-visible:ring-emerald-500",
+85:   },
+86:   weaknesses: {
+87:     letter: "W",
+88:     title: "نقاط الضعف",
+89:     subtitle: "عوامل داخلية تحتاج معالجة",
+90:     icon: TrendingDown,
+91:     badge: "bg-rose-600",
+92:     header: "bg-rose-50/70 border-rose-100",
+93:     bar: "bg-rose-500",
+94:     count: "text-rose-700",
+95:     itemOn: "border-rose-300 bg-rose-50 text-rose-950",
+96:     itemOff:
+97:       "border-slate-200 bg-white text-slate-700 hover:border-rose-300 hover:bg-rose-50/40",
+98:     boxOn: "bg-rose-600 border-rose-600 text-white",
+99:     boxOff: "border-slate-300 bg-white group-hover:border-rose-400",
+100:     focus: "focus-visible:ring-rose-500",
+101:   },
+102:   opportunities: {
+103:     letter: "O",
+104:     title: "الفرص",
+105:     subtitle: "عوامل خارجية يمكن اقتناصها",
+106:     icon: Target,
+107:     badge: "bg-sky-600",
+108:     header: "bg-sky-50/70 border-sky-100",
+109:     bar: "bg-sky-500",
+110:     count: "text-sky-700",
+111:     itemOn: "border-sky-300 bg-sky-50 text-sky-950",
+112:     itemOff:
+113:       "border-slate-200 bg-white text-slate-700 hover:border-sky-300 hover:bg-sky-50/40",
+114:     boxOn: "bg-sky-600 border-sky-600 text-white",
+115:     boxOff: "border-slate-300 bg-white group-hover:border-sky-400",
+116:     focus: "focus-visible:ring-sky-500",
+117:   },
+118:   threats: {
+119:     letter: "T",
+120:     title: "المخاطر",
+121:     subtitle: "عوامل خارجية يجب التحوّط لها",
+122:     icon: AlertTriangle,
+123:     badge: "bg-amber-600",
+124:     header: "bg-amber-50/70 border-amber-100",
+125:     bar: "bg-amber-500",
+126:     count: "text-amber-700",
+127:     itemOn: "border-amber-300 bg-amber-50 text-amber-950",
+128:     itemOff:
+129:       "border-slate-200 bg-white text-slate-700 hover:border-amber-300 hover:bg-amber-50/40",
+130:     boxOn: "bg-amber-600 border-amber-600 text-white",
+131:     boxOff: "border-slate-300 bg-white group-hover:border-amber-400",
+132:     focus: "focus-visible:ring-amber-500",
+133:   },
+134: }
+135: 
+136: /** أرقام عربية-هندية في نصوص الواجهة العربية */
+137: const ar = (value: number): string => value.toLocaleString("ar-EG")
+138: 
+139: /**
+140:  * الطيّ سلوك جوال فقط: على سطح المكتب المجموعات مفتوحة دائماً.
+141:  * نحتاج معرفة المقاس في JS لا في CSS وحدها، حتى لا تُعلن الترويسة
+142:  * حالة طيّ (aria-expanded) لا وجود لها على سطح المكتب.
+143:  */
+144: const useIsDesktop = (): boolean => {
+145:   const [isDesktop, setIsDesktop] = React.useState(false)
+146: 
+147:   React.useEffect(() => {
+148:     const query = window.matchMedia("(min-width: 1024px)")
+149:     const sync = () => setIsDesktop(query.matches)
+150:     sync()
+151:     query.addEventListener("change", sync)
+152:     return () => query.removeEventListener("change", sync)
+153:   }, [])
+154: 
+155:   return isDesktop
+156: }
+157: 
+158: // ─────────────────────────────────────────────────────────────
+159: //  مجموعة واحدة
+160: // ─────────────────────────────────────────────────────────────
+161: 
+162: interface CategoryGroupProps {
+163:   category: SwotQuadrantKey
+164:   selections: SwotSelections
+165:   conflicts: SwotConflict[]
+166:   customError?: string
+167:   maxCustomItems: number
+168:   onToggle: (category: SwotQuadrantKey, id: string) => void
+169:   onAddCustom: (category: SwotQuadrantKey, label: string) => boolean
+170:   onEditCustom: (category: SwotQuadrantKey, id: string, label: string) => boolean
+171:   onRemoveCustom: (category: SwotQuadrantKey, id: string) => void
+172:   onClearCustomError: (category: SwotQuadrantKey) => void
+173:   onClearCategory: (category: SwotQuadrantKey) => void
+174: }
+175: 
+176: const CategoryGroup: React.FC<CategoryGroupProps> = ({
+177:   category,
+178:   selections,
+179:   conflicts,
+180:   customError,
+181:   maxCustomItems,
+182:   onToggle,
+183:   onAddCustom,
+184:   onEditCustom,
+185:   onRemoveCustom,
+186:   onClearCustomError,
+187:   onClearCategory,
+188: }) => {
+189:   const style = CATEGORY_STYLES[category]
+190:   const Icon = style.icon
+191:   const selection = selections[category]
+192:   const panelId = `swot-group-${category}`
+193: 
+194:   const isDesktop = useIsDesktop()
+195:   const [open, setOpen] = React.useState(true)
+196:   const [query, setQuery] = React.useState("")
+197:   const [draft, setDraft] = React.useState("")
+198: 
+199:   // تعديل بند مخصّص — بند واحد فقط قابل للتحرير داخل المجموعة في آنٍ
+200:   const [editingId, setEditingId] = React.useState<string | null>(null)
+201:   const [editDraft, setEditDraft] = React.useState("")
+202: 
+203:   const startEdit = (id: string, label: string) => {
+204:     setEditingId(id)
+205:     setEditDraft(label)
+206:     if (customError) onClearCustomError(category)
+207:   }
+208: 
+209:   const cancelEdit = () => {
+210:     setEditingId(null)
+211:     setEditDraft("")
+212:   }
+213: 
+214:   const submitEdit = () => {
+215:     if (!editingId) return
+216:     if (onEditCustom(category, editingId, editDraft)) {
+217:       setEditingId(null)
+218:       setEditDraft("")
+219:     }
+220:   }
+221: 
+222:   const chips = React.useMemo(
+223:     () => getCategoryChips(category, selection),
+224:     [category, selection]
+225:   )
+226: 
+227:   const selectedIds = React.useMemo(
+228:     () => new Set(selection.selectedIds),
+229:     [selection.selectedIds]
+230:   )
+231: 
+232:   // حقل البحث ظاهر في كل المجموعات — حتى قائمة الفرص القصيرة تستفيد منه
+233:   const showSearch = true
+234: 
+235:   const visibleChips = React.useMemo(() => {
+236:     const normalized = normalizeArabic(query)
+237:     if (!normalized) return chips
+238:     return chips.filter((chip) => normalizeArabic(chip.label).includes(normalized))
+239:   }, [chips, query])
+240: 
+241:   // التعارضات التي تخصّ هذه المجموعة فقط
+242:   const groupConflicts = React.useMemo(
+243:     () =>
+244:       category === "strengths" || category === "weaknesses" ? conflicts : [],
+245:     [category, conflicts]
+246:   )
+247:   const conflicting = React.useMemo(
+248:     () => conflictIdSet(groupConflicts),
+249:     [groupConflicts]
+250:   )
+251: 
+252:   const selectedCount = countSelected(selection)
+253:   const customCount = selection.customItems.length
+254:   const progress = chips.length ? (selectedCount / chips.length) * 100 : 0
+255: 
+256:   const submitCustom = () => {
+257:     if (onAddCustom(category, draft)) setDraft("")
+258:   }
+259: 
+260:   return (
+261:     <section className="flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+262:       {/*
+263:         ترويسة المجموعة — صفّ واحد يضمّ زرّ الطيّ (جوال) وزرّ القوائم
+264:         التفصيلية. الزرّان متجاوران لا متداخلان: زرّ داخل زرّ ترميز
+265:         غير صالح، ولذا صارت الترويسة عنصر div يحوي أزرارها.
+266:       */}
+267:       <div
+268:         className={clsx(
+269:           "flex flex-wrap items-center gap-x-2 gap-y-2 px-4 py-3 w-full border-b",
+270:           style.header
+271:         )}
+272:       >
+273:         <button
+274:           type="button"
+275:           onClick={isDesktop ? undefined : () => setOpen((prev) => !prev)}
+276:           aria-expanded={isDesktop ? undefined : open}
+277:           aria-controls={isDesktop ? undefined : panelId}
+278:           className={clsx(
+279:             "order-1 flex items-center gap-3 flex-1 min-w-0 text-right",
+280:             isDesktop && "cursor-default"
+281:           )}
+282:         >
+283:           <span
+284:             className={clsx(
+285:               "w-9 h-9 rounded-xl text-white text-sm font-black flex items-center justify-center shrink-0 shadow-sm",
+286:               style.badge
+287:             )}
+288:           >
+289:             {style.letter}
+290:           </span>
+291: 
+292:           <span className="flex flex-col flex-1 min-w-0">
+293:             <span className="flex items-center gap-1.5">
+294:               <span className="text-[15px] font-bold text-slate-900">
+295:                 {style.title}
+296:               </span>
+297:               <Icon
+298:                 className={clsx("w-4 h-4 shrink-0", style.count)}
+299:                 strokeWidth={2.5}
+300:               />
+301:             </span>
+302:             <span className="text-[11px] text-slate-500 truncate">
+303:               {style.subtitle}
+304:             </span>
+305:           </span>
+306:         </button>
+307: 
+308:         {/*
+309:           ميزة مدفوعة — الزرّ ظاهر للجميع، والقفل داخل النافذة.
+310:           على الشاشات الضيّقة ينزل إلى سطر خاص به حتى لا يزاحم
+311:           عنوان المجموعة على مساحة لا تكفيهما معاً.
+312:         */}
+313:         <div className="order-3 basis-full sm:order-2 sm:basis-auto">
+314:           <SwotDetailedLists
+315:             category={category}
+316:             accent={{
+317:               letter: style.letter,
+318:               title: style.title,
+319:               badge: style.badge,
+320:               header: style.header,
+321:               text: style.count,
+322:             }}
+323:           />
+324:         </div>
+325: 
+326:         <span className="order-2 sm:order-3 flex items-center gap-1.5 shrink-0">
+327:           <span className="text-sm font-bold tabular-nums">
+328:             <span className={style.count}>{ar(selectedCount)}</span>
+329:             <span className="text-slate-400 font-medium">
+330:               {" / "}
+331:               {ar(chips.length)}
+332:             </span>
+333:           </span>
+334:           <button
+335:             type="button"
+336:             onClick={() => setOpen((prev) => !prev)}
+337:             aria-expanded={open}
+338:             aria-controls={panelId}
+339:             aria-label={`${open ? "طيّ" : "فتح"} بنود ${style.title}`}
+340:             className="lg:hidden w-7 h-7 -ml-1 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white/60 transition-colors duration-150"
+341:           >
+342:             <ChevronDown
+343:               className={clsx(
+344:                 "w-5 h-5 transition-transform duration-200",
+345:                 open && "rotate-180"
+346:               )}
+347:             />
+348:           </button>
+349:         </span>
+350:       </div>
+351: 
+352:       {/* شريط تقدّم رفيع — نسبة ما اختير من المجموعة */}
+353:       <div className="h-[3px] bg-slate-100 shrink-0">
+354:         <div
+355:           className={clsx("h-full transition-all duration-300", style.bar)}
+356:           style={{ width: `${progress}%` }}
+357:         />
+358:       </div>
+359: 
+360:       {/* المحتوى — مفتوح افتراضياً على الجوال، ولا يُطوى على سطح المكتب */}
+361:       <div
+362:         id={panelId}
+363:         className={clsx(
+364:           "flex flex-col flex-1 min-h-0",
+365:           !open && !isDesktop && "hidden"
+366:         )}
+367:       >
+368:         {showSearch && (
+369:           <div className="relative px-4 pt-3 pb-1 shrink-0">
+370:             <Search className="w-4 h-4 text-slate-400 absolute top-1/2 mt-1 -translate-y-1/2 right-7 pointer-events-none" />
+371:             <input
+372:               type="search"
+373:               value={query}
+374:               onChange={(e) => setQuery(e.target.value)}
+375:               placeholder="ابحث في البنود…"
+376:               aria-label={`تصفية بنود ${style.title}`}
+377:               className="w-full min-h-[40px] rounded-xl border border-slate-200 bg-slate-50 pr-9 pl-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300 focus:bg-white transition-colors"
+378:             />
+379:           </div>
+380:         )}
+381: 
+382:         {/* قائمة البنود — أسطر متساوية العرض، ومنطقة تمرير على سطح المكتب */}
+383:         <div className="relative flex-1 min-h-0">
+384:           <div className="flex flex-col gap-1.5 px-4 py-3 lg:max-h-[19rem] lg:overflow-y-auto">
+385:             {visibleChips.map((chip) => {
+386:               const isSelected = selectedIds.has(chip.id)
+387:               const isConflicting = isSelected && conflicting.has(chip.id)
+388:               const isEditing = chip.isCustom && editingId === chip.id
+389: 
+390:               // بند مخصّص قيد التعديل — سطر إدخال بدل الاختيار المعتاد
+391:               if (isEditing) {
+392:                 return (
+393:                   <div
+394:                     key={chip.id}
+395:                     className={clsx(
+396:                       "flex items-stretch gap-1.5 rounded-xl border p-1.5",
+397:                       style.itemOn
+398:                     )}
+399:                   >
+400:                     <input
+401:                       type="text"
+402:                       autoFocus
+403:                       value={editDraft}
+404:                       maxLength={MAX_CUSTOM_ITEM_LENGTH + 20}
+405:                       onChange={(e) => {
+406:                         setEditDraft(e.target.value)
+407:                         if (customError) onClearCustomError(category)
+408:                       }}
+409:                       onKeyDown={(e) => {
+410:                         if (e.key === "Enter") {
+411:                           e.preventDefault()
+412:                           submitEdit()
+413:                         } else if (e.key === "Escape") {
+414:                           e.preventDefault()
+415:                           cancelEdit()
+416:                         }
+417:                       }}
+418:                       aria-label={`تعديل نص البند «${chip.label}»`}
+419:                       className="flex-1 min-w-0 min-h-[36px] rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[13px] sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300"
+420:                     />
+421:                     <button
+422:                       type="button"
+423:                       onClick={submitEdit}
+424:                       aria-label="حفظ التعديل"
+425:                       className="shrink-0 w-9 flex items-center justify-center rounded-lg bg-slate-900 text-white hover:bg-slate-700 transition-colors duration-150"
+426:                     >
+427:                       <Check className="w-4 h-4" strokeWidth={3} />
+428:                     </button>
+429:                     <button
+430:                       type="button"
+431:                       onClick={cancelEdit}
+432:                       aria-label="إلغاء التعديل"
+433:                       className="shrink-0 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors duration-150"
+434:                     >
+435:                       <X className="w-4 h-4" />
+436:                     </button>
+437:                   </div>
+438:                 )
+439:               }
+440: 
+441:               return (
+442:                 <div
+443:                   key={chip.id}
+444:                   className={clsx(
+445:                     "group flex items-stretch rounded-xl border transition-colors duration-150",
+446:                     isSelected ? style.itemOn : style.itemOff,
+447:                     isConflicting && "ring-2 ring-amber-300"
+448:                   )}
+449:                 >
+450:                   <button
+451:                     type="button"
+452:                     onClick={() => onToggle(category, chip.id)}
+453:                     aria-pressed={isSelected}
+454:                     className={clsx(
+455:                       "flex flex-1 min-w-0 items-center gap-2.5 min-h-[44px] px-3 py-2 text-right rounded-xl focus:outline-none focus-visible:ring-2",
+456:                       style.focus
+457:                     )}
+458:                   >
+459:                     <span
+460:                       className={clsx(
+461:                         "w-[18px] h-[18px] shrink-0 rounded-md border-2 flex items-center justify-center transition-colors duration-150",
+462:                         isSelected ? style.boxOn : style.boxOff
+463:                       )}
+464:                     >
+465:                       {isSelected && (
+466:                         <Check className="w-3 h-3" strokeWidth={3.5} />
+467:                       )}
+468:                     </span>
+469: 
+470:                     {chip.isCustom && (
+471:                       <Sparkles className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+472:                     )}
+473: 
+474:                     <span className="flex-1 text-[13px] sm:text-sm font-medium leading-snug">
+475:                       {chip.label}
+476:                     </span>
+477:                   </button>
+478: 
+479:                   {/* البنود المخصّصة فقط تُعدَّل وتُحذف — الجاهزة تُلغى فقط */}
+480:                   {chip.isCustom && (
+481:                     <>
+482:                       <button
+483:                         type="button"
+484:                         onClick={() => startEdit(chip.id, chip.label)}
+485:                         aria-label={`تعديل البند «${chip.label}»`}
+486:                         className="shrink-0 w-10 flex items-center justify-center border-r border-black/5 text-slate-400 hover:text-slate-900 hover:bg-white/60 transition-colors duration-150"
+487:                       >
+488:                         <Pencil className="w-3.5 h-3.5" />
+489:                       </button>
+490:                       <button
+491:                         type="button"
+492:                         onClick={() => onRemoveCustom(category, chip.id)}
+493:                         aria-label={`حذف البند «${chip.label}»`}
+494:                         className="shrink-0 w-10 flex items-center justify-center rounded-l-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors duration-150"
+495:                       >
+496:                         <X className="w-4 h-4" />
+497:                       </button>
+498:                     </>
+499:                   )}
+500:                 </div>
+501:               )
+502:             })}
+503: 
+504:             {visibleChips.length === 0 && (
+505:               <div className="flex flex-col items-center gap-2 py-8 text-center px-4">
+506:                 <SearchX className="w-6 h-6 text-slate-300 mb-1" />
+507:                 <p className="text-xs text-slate-400 leading-relaxed">
+508:                   لا بند يطابق «{query}»
+509:                 </p>
+510:                 {query.trim() && (
+511:                   <Button
+512:                     type="button"
+513:                     variant="ghost"
+514:                     onClick={() => {
+515:                       if (onAddCustom(category, query)) {
+516:                         setQuery("")
+517:                       }
+518:                     }}
+519:                     className="mt-1 h-8 rounded-lg border border-sky-200 bg-sky-50 hover:bg-sky-100 text-sky-700 px-3 text-xs gap-1.5"
+520:                   >
+521:                     <Plus className="w-3.5 h-3.5 shrink-0" />
+522:                     إضافة كبند جديد
+523:                   </Button>
+524:                 )}
+525:               </div>
+526:             )}
+527:           </div>
+528: 
+529:           {/* تلميح بصري لوجود تمرير — على سطح المكتب فقط */}
+530:           <div
+531:             className="hidden lg:block pointer-events-none absolute bottom-0 inset-x-0 h-6 bg-gradient-to-t from-white to-transparent"
+532:             aria-hidden="true"
+533:           />
+534:         </div>
+535: 
+536:         {/* تنبيه التعارض — غير معطِّل، ولا يُلغي أي اختيار */}
+537:         {groupConflicts.length > 0 && (
+538:           <div className="mx-4 mb-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900 leading-relaxed">
+539:             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+540:             <div className="flex flex-col gap-1">
+541:               <span>
+542:                 اخترت بندين متعارضين — وضّح ذلك في وصف النشاط إن كان مقصوداً.
+543:               </span>
+544:               <ul className="flex flex-col gap-0.5 opacity-80">
+545:                 {groupConflicts.map((conflict) => (
+546:                   <li key={conflict.strengthId}>
+547:                     «{conflict.strength}» ↔ «{conflict.weakness}»
+548:                   </li>
+549:                 ))}
+550:               </ul>
+551:             </div>
+552:           </div>
+553:         )}
+554: 
+555:         {/* تنبيه استشاري — لا يمنع التجاوز، فقط يوصي بتركيز أعلى */}
+556:         {selectedCount > RECOMMENDED_MAX_SELECTIONS && (
+557:           <div className="mx-4 mb-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-900 leading-relaxed shadow-sm">
+558:             <Info className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
+559:             <span>
+560:               اخترت{" "}
+561:               <span className="font-bold tabular-nums">
+562:                 {ar(selectedCount)}
+563:               </span>{" "}
+564:               بنود، أي أكثر من العدد الموصى به. يُفضَّل الاقتصار على{" "}
+565:               <span className="font-bold tabular-nums">
+566:                 {ar(RECOMMENDED_MAX_SELECTIONS)}
+567:               </span>{" "}
+568:               بنود كحدّ أقصى لكل مجموعة، للحصول على تحليل أكثر تركيزاً ودقة.
+569:             </span>
+570:           </div>
+571:         )}
+572: 
+573:         {/* تذييل البطاقة: الإضافة اليدوية ومسح التحديدات */}
+574:         <div className="shrink-0 border-t border-slate-100 bg-slate-50/70 px-4 py-3 flex flex-col gap-2">
+575:           <div className="flex items-stretch gap-2">
+576:             <input
+577:               type="text"
+578:               value={draft}
+579:               maxLength={MAX_CUSTOM_ITEM_LENGTH + 20}
+580:               onChange={(e) => {
+581:                 setDraft(e.target.value)
+582:                 if (customError) onClearCustomError(category)
+583:               }}
+584:               onKeyDown={(e) => {
+585:                 if (e.key === "Enter") {
+586:                   e.preventDefault()
+587:                   submitCustom()
+588:                 }
+589:               }}
+590:               placeholder="أضف بنداً خاصاً بمشروعك…"
+591:               aria-label={`إضافة بند إلى ${style.title}`}
+592:               aria-invalid={Boolean(customError)}
+593:               className={clsx(
+594:                 "flex-1 min-w-0 min-h-[42px] rounded-xl border bg-white px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2",
+595:                 customError
+596:                   ? "border-red-300 focus:ring-red-200"
+597:                   : "border-slate-200 focus:ring-slate-200 focus:border-slate-300"
+598:               )}
+599:             />
+600:             <Button
+601:               type="button"
+602:               variant="ghost"
+603:               onClick={submitCustom}
+604:               className="shrink-0 min-h-[42px] rounded-xl border border-slate-200 bg-white hover:bg-white hover:border-slate-300 px-3.5 py-2 text-sm gap-1.5"
+605:             >
+606:               <Plus className="w-4 h-4" />
+607:               إضافة
+608:             </Button>
+609:           </div>
+610: 
+611:           <div className="flex items-center justify-between gap-2">
+612:             {customError ? (
+613:               <p className="text-[11px] text-red-600">{customError}</p>
+614:             ) : (
+615:               <p className="text-[11px] text-slate-400">
+616:                 بنودك المخصّصة: {ar(customCount)} من {ar(maxCustomItems)} — حتى{" "}
+617:                 {ar(MAX_CUSTOM_ITEM_LENGTH)} حرفاً.
+618:               </p>
+619:             )}
+620: 
+621:             {/* مسح تحديدات المجموعة — لا زر «تحديد الكل» بقصد */}
+622:             <button
+623:               type="button"
+624:               onClick={() => onClearCategory(category)}
+625:               disabled={selectedCount === 0}
+626:               className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-900 disabled:text-slate-300 disabled:hover:text-slate-300 px-2 py-1 rounded-md hover:bg-white disabled:hover:bg-transparent transition-colors duration-150"
+627:             >
+628:               <Eraser className="w-3.5 h-3.5" />
+629:               مسح التحديدات
+630:             </button>
+631:           </div>
+632:         </div>
+633:       </div>
+634:     </section>
+635:   )
+636: }
+637: 
+638: // ─────────────────────────────────────────────────────────────
+639: //  الشاشة
+640: // ─────────────────────────────────────────────────────────────
+641: 
+642: interface SwotSelectionProps {
+643:   projectName: string
+644:   selections: SwotSelections
+645:   conflicts: SwotConflict[]
+646:   totalSelected: number
+647:   customErrors: SwotCustomErrors
+648:   maxCustomItems: number
+649:   generateError?: string | null
+650:   onToggle: (category: SwotQuadrantKey, id: string) => void
+651:   onAddCustom: (category: SwotQuadrantKey, label: string) => boolean
+652:   onEditCustom: (category: SwotQuadrantKey, id: string, label: string) => boolean
+653:   onRemoveCustom: (category: SwotQuadrantKey, id: string) => void
+654:   onClearCustomError: (category: SwotQuadrantKey) => void
+655:   onClearCategory: (category: SwotQuadrantKey) => void
+656:   onGenerate: () => void
+657:   onSkip: () => void
+658:   onBack: () => void
+659: }
+660: 
+661: export const SwotSelection: React.FC<SwotSelectionProps> = ({
+662:   projectName,
+663:   selections,
+664:   conflicts,
+665:   totalSelected,
+666:   customErrors,
+667:   maxCustomItems,
+668:   generateError,
+669:   onToggle,
+670:   onAddCustom,
+671:   onEditCustom,
+672:   onRemoveCustom,
+673:   onClearCustomError,
+674:   onClearCategory,
+675:   onGenerate,
+676:   onSkip,
+677:   onBack,
+678: }) => (
+679:   <div className="flex flex-col gap-5" dir="rtl">
+680:     {/* الترويسة والنص الإرشادي */}
+681:     <div className="flex flex-col gap-2">
+682:       <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+683:         ما ينطبق على «{projectName || "مشروعك"}»؟
+684:       </h2>
+685:       <p className="flex items-start gap-2 text-sm text-slate-500 leading-relaxed">
+686:         <Info className="w-4 h-4 shrink-0 mt-0.5 text-sky-500" />
+687:         <span>
+688:           اختر ما ينطبق على مشروعك، أو أضف بنودك الخاصة — يمكنك تخطّي هذه الخطوة.
+689:           كل بند تختاره سيوسّعه الذكاء الاصطناعي إلى تحليل مرتبط بنشاطك وقطاعك.
+690:         </span>
+691:       </p>
+692:     </div>
+693: 
+694:     {/* شريط الحصيلة — نظرة سريعة على ما اختير في المجموعات الأربع */}
+695:     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+696:       {SWOT_CATEGORY_ORDER.map((category) => {
+697:         const style = CATEGORY_STYLES[category]
+698:         const count = countSelected(selections[category])
+699: 
+700:         return (
+701:           <div
+702:             key={category}
+703:             className={clsx(
+704:               "flex items-center gap-2 rounded-xl border px-3 py-2",
+705:               count > 0
+706:                 ? `${style.header} border-transparent`
+707:                 : "border-slate-200 bg-white"
+708:             )}
+709:           >
+710:             <span
+711:               className={clsx(
+712:                 "w-6 h-6 rounded-lg text-white text-[11px] font-black flex items-center justify-center shrink-0",
+713:                 count > 0 ? style.badge : "bg-slate-300"
+714:               )}
+715:             >
+716:               {style.letter}
+717:             </span>
+718:             <span className="flex-1 min-w-0 text-[11px] font-medium text-slate-600 truncate">
+719:               {style.title}
+720:             </span>
+721:             <span
+722:               className={clsx(
+723:                 "text-sm font-bold tabular-nums",
+724:                 count > 0 ? style.count : "text-slate-300"
+725:               )}
+726:             >
+727:               {ar(count)}
+728:             </span>
+729:           </div>
+730:         )
+731:       })}
+732:     </div>
+733: 
+734:     {/* فشل التوليد — الاختيارات محفوظة كما هي */}
+735:     {generateError && (
+736:       <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+737:         <div className="flex items-start gap-2 flex-1 text-sm text-red-800 leading-relaxed">
+738:           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+739:           <span>{generateError} اختياراتك محفوظة كما هي.</span>
+740:         </div>
+741:         <Button
+742:           type="button"
+743:           variant="ghost"
+744:           onClick={onGenerate}
+745:           className="shrink-0 min-h-[44px] border border-red-200 bg-white hover:bg-red-50 text-red-700 px-4 py-2 text-sm gap-1.5"
+746:         >
+747:           <RefreshCw className="w-4 h-4" />
+748:           إعادة المحاولة
+749:         </Button>
+750:       </div>
+751:     )}
+752: 
+753:     {/* المجموعات — عمود متتابع على الجوال، ومصفوفة ٢×٢ على سطح المكتب */}
+754:     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 items-stretch">
+755:       {SWOT_CATEGORY_ORDER.map((category) => (
+756:         <CategoryGroup
+757:           key={category}
+758:           category={category}
+759:           selections={selections}
+760:           conflicts={conflicts}
+761:           customError={customErrors[category]}
+762:           maxCustomItems={maxCustomItems}
+763:           onToggle={onToggle}
+764:           onAddCustom={onAddCustom}
+765:           onEditCustom={onEditCustom}
+766:           onRemoveCustom={onRemoveCustom}
+767:           onClearCustomError={onClearCustomError}
+768:           onClearCategory={onClearCategory}
+769:         />
+770:       ))}
+771:     </div>
+772: 
+773:     {/* أزرار الخطوة — شريط ملتصق بأسفل الشاشة على سطح المكتب */}
+774:     <div className="hidden sm:flex sticky bottom-4 z-20 flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white/95 backdrop-blur px-4 py-3 shadow-lg">
+775:       <Button
+776:         type="button"
+777:         variant="primary"
+778:         onClick={onGenerate}
+779:         className="px-6 py-3 text-base gap-2 bg-sky-600 hover:bg-sky-700 focus:ring-sky-500"
+780:       >
+781:         <Sparkles className="w-5 h-5" />
+782:         توليد التحليل
+783:         {totalSelected > 0 && (
+784:           <span className="text-xs font-semibold bg-white/20 rounded-full px-2 py-0.5 tabular-nums">
+785:             {ar(totalSelected)}
+786:           </span>
+787:         )}
+788:       </Button>
+789: 
+790:       <div className="flex-1" />
+791:       <Button
+792:         type="button"
+793:         variant="ghost"
+794:         onClick={onBack}
+795:         className="px-4 py-3 text-sm text-slate-500 hover:text-slate-900"
+796:       >
+797:         رجوع
+798:       </Button>
+799:     </div>
+800: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

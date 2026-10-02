@@ -246,9 +246,39 @@ model SwotCustomGoal {
 
   // swotAnalysisId is actually the toolRun id
   toolRun ToolRun @relation(fields: [swotAnalysisId], references: [id], onDelete: Cascade)
+  tasks   SwotTask[]
 
   @@index([swotAnalysisId])
   @@map("swot_custom_goals")
+}
+
+// ——————————————————————————————————————————————
+// SWOT Tasks — مهام تنفيذية مرتبطة بأهداف SWOT
+// ——————————————————————————————————————————————
+model SwotTask {
+  id         String   @id @default(uuid())
+  goalId     String   @map("goal_id")
+  goalIndex  Int      @map("goal_index")     // رقم الهدف (1, 2, 3...)
+  taskIndex  Int      @map("task_index")     // رقم المهمة داخل الهدف (1, 2, 3...)
+  title      String                          // عنوان المهمة (الوسيلة)
+  dueDate    DateTime @map("due_date")       // تاريخ الإنجاز
+  assignee   String                          // المسؤول عن التنفيذ
+  follower   String                          // المعني بالمتابعة
+  weight     Int                             // الوزن النسبي (1-100)
+  cost       Float    @default(0)            // التكلفة / الموازنة
+  currency   String   @default("SAR")        // العملة
+  priority   String   @default("normal")     // normal | medium | high
+  status     String   @default("not_started") // not_started | in_progress | overdue | completed
+  progress   Int      @default(0)            // نسبة الإنجاز (0-100)
+  budgetDistribution Json? @map("budget_distribution") // خطة توزيع الميزانية
+  createdBy  String   @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  goal SwotCustomGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId])
+  @@map("swot_tasks")
 }
 
 // ——————————————————————————————————————————————

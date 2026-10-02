@@ -1,0 +1,534 @@
+import React, { useState, useCallback } from "react";
+import {
+  ChevronDown,
+  Plus,
+  Pencil,
+  Trash2,
+  Copy,
+  ClipboardList,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
+import clsx from "clsx";
+import { toast } from "react-hot-toast";
+import api from "@/lib/axios";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { TaskModal, TaskFormData } from "./TaskModal";
+
+// ——————————————————————————————————————————————
+// Types
+// ——————————————————————————————————————————————
+
+export interface Task {
+  id: string;
+  goalId: string;
+  goalIndex: number;
+  taskIndex: number;
+  title: string;
+  dueDate: string;
+  assignee: string;
+  follower: string;
+  weight: number;
+  cost: number;
+  currency: string;
+  priority: "normal" | "medium" | "high";
+  status: "not_started" | "in_progress" | "overdue" | "completed";
+  progress: number;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface TasksAccordionProps {
+  goalId: string;
+  goalIndex: number;
+  goalText: string;
+  tasks: Task[];
+  onTasksChange: () => void;
+  members: { id: string; name: string; email: string }[];
+  defaultCurrency?: string;
+}
+
+// ——————————————————————————————————————————————
+// Helpers
+// ——————————————————————————————————————————————
+
+const ar = (value: number): string => value.toLocaleString("ar-EG");
+
+const formatCurrency = (amount: number, currency: string): string => {
+  const symbols: Record<string, string> = {
+    SAR: "ر.س", AED: "د.إ", USD: "$", EUR: "€", KWD: "د.ك",
+    QAR: "ر.ق", BHD: "د.ب", OMR: "ر.ع", EGP: "ج.م",
+  };
+  return `${amount.toLocaleString("ar-EG")} ${symbols[currency] || currency}`;
+};
+
+const PRIORITY_BADGE: Record<string, { label: string; class: string }> = {
+  high: { label: "عالية", class: "bg-red-50 text-red-700 ring-red-600/20" },
+  medium: { label: "متوسطة", class: "bg-amber-50 text-amber-700 ring-amber-600/20" },
+  normal: { label: "عادية", class: "bg-slate-100 text-slate-600 ring-slate-500/20" },
+};
+
+const STATUS_BADGE: Record<string, { label: string; class: string }> = {
+  completed: { label: "أُنجزت", class: "bg-emerald-50 text-emerald-700 ring-emerald-600/20" },
+  in_progress: { label: "قيد الإنجاز", class: "bg-blue-50 text-blue-700 ring-blue-600/20" },
+  overdue: { label: "متأخرة", class: "bg-red-50 text-red-700 ring-red-600/20" },
+  not_started: { label: "لم تبدأ", class: "bg-slate-100 text-slate-600 ring-slate-500/20" },
+};
+
+// ——————————————————————————————————————————————
+// Component
+// ——————————————————————————————————————————————
+
+export const TasksAccordion: React.FC<TasksAccordionProps> = ({
+  goalId,
+  goalIndex,
+  goalText,
+  tasks,
+  onTasksChange,
+  members,
+  defaultCurrency = "SAR",
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [deletingTask, setDeletingTask] = useState<Task | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const [quickAddText, setQuickAddText] = useState("");
+  const [isQuickAdding, setIsQuickAdding] = useState(false);
+
+  const weightSum = tasks.reduce((s, t) => s + t.weight, 0);
+  const goalProgress = tasks.length > 0
+    ? Math.round(tasks.reduce((s, t) => s + t.weight * t.progress, 0) / 100)
+    : 0;
+  const totalCost = tasks.reduce((s, t) => s + t.cost, 0);
+
+  const handleSaveTask = useCallback(
+    async (data: TaskFormData | TaskFormData[], addAnother: boolean) => {
+      try {
+        if (Array.isArray(data)) {
+          await Promise.all(
+            data.map((d) => api.post(`/swot-tasks/${goalId}`, { ...d, goalIndex }, { skipToast: true }))
+          );
+          toast.success(`تم إضافة ${data.length} مهام بنجاح.`);
+        } else if (editingTask) {
+          await api.put(`/swot-tasks/${editingTask.id}`, data, { skipToast: true });
+          toast.success("تم تعديل المهمة بنجاح.");
+        } else {
+          await api.post(`/swot-tasks/${goalId}`, { ...data, goalIndex }, { skipToast: true });
+          toast.success("تم إضافة المهمة بنجاح.");
+        }
+        onTasksChange();
+        if (!addAnother) {
+          setShowModal(false);
+          setEditingTask(null);
+        }
+      } catch (err: any) {
+        const message = err?.response?.data?.message || err?.response?.data?.error?.message || "تعذّر حفظ المهمة.";
+        toast.error(message);
+        throw err;
+      }
+    },
+    [editingTask, goalId, goalIndex, onTasksChange]
+  );
+
+  const handleDelete = useCallback(async () => {
+    if (!deletingTask) return;
+    setIsDeleting(true);
+    try {
+      await api.delete(`/swot-tasks/${deletingTask.id}`, { skipToast: true });
+      toast.success("تم حذف المهمة.");
+      onTasksChange();
+    } catch {
+      toast.error("تعذّر حذف المهمة.");
+    } finally {
+      setIsDeleting(false);
+      setDeletingTask(null);
+    }
+  }, [deletingTask, onTasksChange]);
+
+  const handleInlineQuickAdd = useCallback(async () => {
+    const titles = quickAddText.split('\n').map(t => t.trim()).filter(Boolean);
+    if(titles.length === 0) return;
+    setIsQuickAdding(true);
+
+    try {
+      const remainingWeight = 100 - weightSum;
+      const wPerTask = Math.max(1, Math.floor(remainingWeight / titles.length));
+      
+      const defaultAssignee = members[0]?.name || "غير محدد";
+      const defaultFollower = members[0]?.name || "غير محدد";
+      const defaultDate = new Date();
+      defaultDate.setDate(defaultDate.getDate() + 7);
+      const defaultDateStr = defaultDate.toISOString().split('T')[0];
+
+      const tasksToSave = titles.map((title) => ({
+        title,
+        dueDate: defaultDateStr,
+        assignee: defaultAssignee,
+        follower: defaultFollower,
+        weight: wPerTask,
+        cost: 0,
+        currency: defaultCurrency,
+        priority: "normal" as const,
+        status: "not_started" as const,
+        progress: 0,
+      }));
+
+      await handleSaveTask(tasksToSave, false);
+      setQuickAddText("");
+    } finally {
+      setIsQuickAdding(false);
+    }
+  }, [quickAddText, weightSum, members, defaultCurrency, handleSaveTask]);
+
+  const handleDuplicate = useCallback(async (taskId: string) => {
+    try {
+      await api.post(`/swot-tasks/${taskId}/duplicate`, {}, { skipToast: true });
+      toast.success("تم تكرار المهمة.");
+      onTasksChange();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "تعذّر تكرار المهمة.");
+    }
+  }, [onTasksChange]);
+
+  const handleQuickStatusUpdate = useCallback(async (taskId: string, status: string, progress: number) => {
+    try {
+      await api.patch(`/swot-tasks/${taskId}/status`, { status, progress }, { skipToast: true });
+      onTasksChange();
+    } catch {
+      toast.error("تعذّر تحديث الحالة.");
+    }
+  }, [onTasksChange]);
+
+  const currentWeightForModal = editingTask
+    ? weightSum - editingTask.weight
+    : weightSum;
+
+  const nextTaskIndex = tasks.length > 0
+    ? Math.max(...tasks.map((t) => t.taskIndex)) + 1
+    : 1;
+
+  return (
+    <>
+      {/* Accordion Header */}
+      <div className="mt-3">
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200 rounded-xl transition-all group"
+        >
+          <div className="flex items-center gap-3">
+            <span className="p-1.5 bg-white rounded-lg shadow-sm ring-1 ring-slate-200/60 text-indigo-500 group-hover:text-indigo-600 transition-colors">
+              <ClipboardList className="w-4 h-4" />
+            </span>
+            <span className="text-sm font-bold text-slate-700">إدارة المهام</span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-600 ring-1 ring-inset ring-indigo-500/20">
+              {ar(tasks.length)} مهمة
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* شريط إنجاز الهدف مصغّر */}
+            {tasks.length > 0 && (
+              <div className="hidden sm:flex items-center gap-2">
+                <div className="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className={clsx("h-full rounded-full transition-all duration-700", goalProgress >= 100 ? "bg-emerald-500" : goalProgress > 50 ? "bg-blue-500" : goalProgress > 0 ? "bg-amber-500" : "bg-slate-300")}
+                    style={{ width: `${goalProgress}%` }}
+                  />
+                </div>
+                <span className="text-[11px] font-bold text-slate-500">{ar(goalProgress)}%</span>
+              </div>
+            )}
+            <ChevronDown className={clsx("w-4 h-4 text-slate-400 transition-transform duration-300", isOpen && "rotate-180")} />
+          </div>
+        </button>
+
+        {/* Accordion Content */}
+        <div className={clsx("overflow-hidden transition-all duration-500 ease-out", isOpen ? "max-h-[5000px] opacity-100 mt-3" : "max-h-0 opacity-0")}>
+          {tasks.length === 0 ? (
+            /* Empty State / Quick Add */
+            <div className="flex flex-col p-5 bg-slate-50/50 border border-dashed border-slate-200 rounded-xl">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+                  <ClipboardList className="w-5 h-5 text-indigo-500" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800">إضافة سريعة للمهام</h4>
+                  <p className="text-xs text-slate-500">لا توجد مهام حالياً. أضف المهام مباشرة (كل مهمة في سطر منفصل)</p>
+                </div>
+              </div>
+              <textarea
+                rows={3}
+                value={quickAddText}
+                onChange={(e) => setQuickAddText(e.target.value)}
+                placeholder={"المهمة الأولى...\nالمهمة الثانية..."}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all resize-none mb-3"
+              />
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-1">
+                  <p className="text-[11px] text-slate-400">سيتم تعيين الافتراضيات وتوزيع الوزن ({ar(100 - weightSum)}%) تلقائياً.</p>
+                  <button type="button" onClick={() => { setEditingTask(null); setShowModal(true); }} className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 text-right">إضافة بالتفصيل (فتح نافذة)</button>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleInlineQuickAdd}
+                  disabled={isQuickAdding || !quickAddText.trim()}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#5452F6] hover:bg-[#4338CA] disabled:opacity-50 text-white text-sm font-bold rounded-xl shadow-md transition-all hover:-translate-y-0.5"
+                >
+                  {isQuickAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  إضافة المهام
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Tasks Table */}
+              <div className="overflow-x-auto pb-2 -mx-1 px-1">
+                <table className="w-full text-right border-separate border-spacing-y-1.5 min-w-[900px]">
+                  <thead>
+                    <tr>
+                      <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center w-16">رقم</th>
+                      <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">عنوان المهمة</th>
+                      <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center w-16">الوزن</th>
+                      <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24">المسؤول</th>
+                      <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24">المتابعة</th>
+                      <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center w-24">تاريخ الإنجاز</th>
+                      <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center w-16">الأهمية</th>
+                      <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center w-20">الحالة</th>
+                      <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center w-28">الإنجاز</th>
+                      <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center w-24">التكلفة</th>
+                      <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center w-24">إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tasks.map((task) => {
+                      const pBadge = PRIORITY_BADGE[task.priority] || PRIORITY_BADGE.normal;
+                      const sBadge = STATUS_BADGE[task.status] || STATUS_BADGE.not_started;
+
+                      return (
+                        <tr key={task.id} className="group bg-white hover:bg-blue-50/30 shadow-[0_1px_4px_-2px_rgba(0,0,0,0.06)] hover:shadow-md ring-1 ring-slate-200/50 hover:ring-indigo-200 transition-all duration-200">
+                          <td className="px-3 py-3 text-center rounded-r-xl">
+                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-50 text-slate-500 text-[11px] font-bold ring-1 ring-slate-200/50">
+                              {ar(task.goalIndex)}.{ar(task.taskIndex)}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3">
+                            <span className="text-[13px] font-semibold text-slate-800 leading-relaxed">{task.title}</span>
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <span className="text-[12px] font-bold text-indigo-600">{ar(task.weight)}%</span>
+                          </td>
+                          <td className="px-3 py-3">
+                            <span className="text-[12px] text-slate-600 font-medium">{task.assignee}</span>
+                          </td>
+                          <td className="px-3 py-3">
+                            <span className="text-[12px] text-slate-500">{task.follower}</span>
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <span className="text-[12px] text-slate-600 font-medium whitespace-nowrap">
+                              {new Date(task.dueDate).toLocaleDateString("ar-EG", { year: "numeric", month: "short", day: "numeric" })}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <span className={clsx("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ring-1 ring-inset whitespace-nowrap", pBadge.class)}>
+                              {pBadge.label}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const nextMap: Record<string, { status: string; progress: number }> = {
+                                  not_started: { status: "in_progress", progress: task.progress || 10 },
+                                  in_progress: { status: "completed", progress: 100 },
+                                  overdue: { status: "completed", progress: 100 },
+                                  completed: { status: "not_started", progress: 0 },
+                                };
+                                const next = nextMap[task.status] || nextMap.not_started;
+                                handleQuickStatusUpdate(task.id, next.status, next.progress);
+                              }}
+                              className="group/status"
+                              title="انقر للتبديل"
+                            >
+                              <span className={clsx("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ring-1 ring-inset whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity", sBadge.class)}>
+                                {sBadge.label}
+                              </span>
+                            </button>
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <div className="flex items-center gap-1.5 justify-center">
+                              <div className="w-14 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                <div
+                                  className={clsx("h-full rounded-full transition-all duration-500", task.progress >= 100 ? "bg-emerald-500" : task.progress > 50 ? "bg-blue-500" : task.progress > 0 ? "bg-amber-500" : "bg-slate-300")}
+                                  style={{ width: `${task.progress}%` }}
+                                />
+                              </div>
+                              <span className="text-[11px] font-bold text-slate-500 min-w-[28px]">{ar(task.progress)}%</span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <span className="text-[12px] text-slate-600 font-medium whitespace-nowrap">{formatCurrency(task.cost, task.currency)}</span>
+                          </td>
+                          <td className="px-3 py-3 text-center rounded-l-xl">
+                            <div className="flex items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                type="button"
+                                onClick={() => { setEditingTask(task); setShowModal(true); }}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                                title="تعديل"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDuplicate(task.id)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                title="تكرار"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeletingTask(task)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                title="حذف"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+
+                  {/* Summary row */}
+                  <tfoot>
+                    <tr className="bg-slate-50/80">
+                      <td colSpan={2} className="px-3 py-3 text-[12px] font-bold text-slate-700 rounded-r-xl">الإجمالي</td>
+                      <td className="px-3 py-3 text-center">
+                        <span className={clsx("text-[12px] font-bold", weightSum === 100 ? "text-emerald-600" : "text-amber-600")}>
+                          {ar(weightSum)}%
+                        </span>
+                      </td>
+                      <td colSpan={5} className="px-3 py-3" />
+                      <td className="px-3 py-3 text-center">
+                        <div className="flex items-center gap-1.5 justify-center">
+                          <div className="w-14 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                            <div
+                              className={clsx("h-full rounded-full transition-all", goalProgress >= 100 ? "bg-emerald-500" : goalProgress > 50 ? "bg-blue-500" : "bg-amber-500")}
+                              style={{ width: `${goalProgress}%` }}
+                            />
+                          </div>
+                          <span className="text-[11px] font-bold text-slate-600">{ar(goalProgress)}%</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <span className="text-[12px] font-bold text-slate-700">{formatCurrency(totalCost, tasks[0]?.currency || defaultCurrency)}</span>
+                      </td>
+                      <td className="px-3 py-3 rounded-l-xl" />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Weight indicator */}
+              {weightSum !== 100 && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-xs font-bold mt-2">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  مجموع الأوزان: {ar(weightSum)}% — متبقٍّ {ar(100 - weightSum)}% لإكمال 100%.
+                </div>
+              )}
+
+              {/* Add Task Button */}
+              {weightSum < 100 && (
+                <div className="mt-4 p-4 bg-slate-50/80 border border-slate-200 rounded-xl flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-bold text-slate-700">إضافة مهام سريعة (كل مهمة في سطر)</label>
+                    <button
+                      type="button"
+                      onClick={() => { setEditingTask(null); setShowModal(true); }}
+                      className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-lg"
+                    >
+                      <Plus className="w-3 h-3" />
+                      إضافة بالتفصيل
+                    </button>
+                  </div>
+                  <textarea
+                    rows={2}
+                    value={quickAddText}
+                    onChange={(e) => setQuickAddText(e.target.value)}
+                    placeholder="اضغط هنا لكتابة المهام السريعة..."
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all resize-none"
+                  />
+                  <div className="flex justify-between items-center">
+                    <p className="text-[11px] text-slate-400">سيتم تعيين الافتراضيات وتوزيع الوزن ({ar(100 - weightSum)}%) تلقائياً.</p>
+                    <button
+                      type="button"
+                      onClick={handleInlineQuickAdd}
+                      disabled={isQuickAdding || !quickAddText.trim()}
+                      className="inline-flex items-center gap-2 px-6 py-2 bg-[#5452F6] hover:bg-[#4338CA] disabled:opacity-50 text-white text-sm font-bold rounded-xl shadow-md transition-all hover:-translate-y-0.5"
+                    >
+                      {isQuickAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                      حفظ المهام
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Task Modal */}
+      <TaskModal
+        open={showModal}
+        onClose={() => { setShowModal(false); setEditingTask(null); }}
+        onSave={handleSaveTask}
+        initialData={
+          editingTask
+            ? {
+                title: editingTask.title,
+                dueDate: editingTask.dueDate.split("T")[0],
+                assignee: editingTask.assignee,
+                follower: editingTask.follower,
+                weight: editingTask.weight,
+                cost: editingTask.cost,
+                currency: editingTask.currency,
+                priority: editingTask.priority,
+                status: editingTask.status,
+                progress: editingTask.progress,
+              }
+            : null
+        }
+        goalIndex={goalIndex}
+        goalText={goalText}
+        taskIndex={editingTask?.taskIndex || nextTaskIndex}
+        currentWeightSum={currentWeightForModal}
+        members={members}
+        defaultCurrency={defaultCurrency}
+        isEdit={!!editingTask}
+      />
+
+      {/* Delete Confirm */}
+      <ConfirmDialog
+        open={!!deletingTask}
+        title="حذف المهمة"
+        message={
+          <>
+            هل تريد حذف المهمة <strong className="text-slate-900">&ldquo;{deletingTask?.title}&rdquo;</strong>؟ لا يمكن التراجع عن هذا الإجراء.
+          </>
+        }
+        confirmLabel={isDeleting ? "جارٍ الحذف..." : "حذف المهمة"}
+        tone="destructive"
+        onConfirm={handleDelete}
+        onCancel={() => setDeletingTask(null)}
+      />
+    </>
+  );
+};
+
+export default TasksAccordion;

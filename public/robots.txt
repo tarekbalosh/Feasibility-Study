@@ -1,0 +1,9 @@
+# *
+User-agent: *
+Allow: /
+
+# Host
+Host: https://feasibility-study-saas.vercel.app
+
+# Sitemaps
+Sitemap: https://feasibility-study-saas.vercel.app/sitemap.xml
