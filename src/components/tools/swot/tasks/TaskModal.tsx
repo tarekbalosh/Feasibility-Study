@@ -62,7 +62,7 @@ interface TaskModalProps {
   /** مجموع الأوزان الحالية لمهام الهدف (بدون المهمة الحالية عند التعديل) */
   currentWeightSum: number;
   /** قائمة أعضاء مساحة العمل */
-  members: { id: string; name: string; email: string }[];
+  members: { id: string; name: string; email: string; role?: string }[];
   /** عملة المشروع الافتراضية */
   defaultCurrency?: string;
   /** هل هو تعديل */
@@ -297,8 +297,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   const filteredAssignees = members.filter(
     (m) =>
-      m.name.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
-      m.email.toLowerCase().includes(assigneeSearch.toLowerCase())
+      m.role !== 'owner' && m.role !== 'admin' &&
+      (m.name.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
+       m.email.toLowerCase().includes(assigneeSearch.toLowerCase()))
   );
 
   const filteredFollowers = members.filter(

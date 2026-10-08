@@ -505,6 +505,8 @@ export async function listTasks(
     title: t.title,
     description: t.description,
     assignee: t.assignee ? toMember(t.assignee) : null,
+    assigneeName: t.assigneeName || (t.assignee?.user?.name ?? null),
+    followerName: t.followerName,
     dueDate: t.dueDate,
     priority: t.priority,
     status: t.status,
@@ -642,6 +644,8 @@ export interface ImportGoalInput {
     priority?: string;
     weight?: number;
     cost?: number;
+    assigneeName?: string | null;
+    followerName?: string | null;
   }[];
 }
 
@@ -679,6 +683,8 @@ export async function getGoalCandidates(actor: Actor, planId: string, runId: str
         priority: priorityMap[t.priority] ?? "medium",
         weight: t.weight,
         cost: t.cost,
+        assigneeName: t.assignee,
+        followerName: t.follower,
       })),
     })),
   };
@@ -725,6 +731,8 @@ export async function importGoals(
                 priority: oneOf(TASK_PRIORITIES, t.priority, "medium"),
                 weight: Math.min(100, Math.max(1, Number(t.weight) || 1)),
                 cost: Math.max(0, Number(t.cost) || 0),
+                assigneeName: t.assigneeName || null,
+                followerName: t.followerName || null,
                 order: taskOrder++,
                 createdById: actor.userId,
               })),

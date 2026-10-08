@@ -56,7 +56,7 @@ interface TasksAccordionProps {
   goalText: string;
   tasks: Task[];
   onTasksChange: () => void;
-  members: { id: string; name: string; email: string }[];
+  members: { id: string; name: string; email: string; role?: string }[];
   defaultCurrency?: string;
 }
 

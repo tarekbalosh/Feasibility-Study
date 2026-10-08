@@ -4,6 +4,8 @@ import clsx from "clsx"
 import { ArrowLeft, Clock, Trash2, User, Edit2 } from "lucide-react"
 import { getToolBySlug, getToolStartPath } from "@/config/tools.registry"
 import type { ToolRunSummary } from "@/types/toolRun"
+import { useAuth } from "@/context/AuthContext"
+import { useWorkspace } from "@/context/WorkspaceContext"
 
 interface ToolRunCardProps {
   run: ToolRunSummary
@@ -36,6 +38,13 @@ export const ToolRunCard: React.FC<ToolRunCardProps> = ({
   onDelete,
   index = 0,
 }) => {
+  const { user } = useAuth()
+  const { workspace } = useWorkspace()
+  
+  const isCreator = user?.id === run.user?.id
+  const isAdminOrOwner = workspace?.role === "admin" || workspace?.role === "owner"
+  const canManage = isCreator || isAdminOrOwner
+
   const tool = getToolBySlug(run.toolSlug)
   const Icon = tool?.icon
   const openHref = tool
@@ -71,24 +80,28 @@ export const ToolRunCard: React.FC<ToolRunCardProps> = ({
         </div>
 
         <div className="flex items-center gap-1 shrink-0 transition-opacity">
-          {openHref && (
-            <Link
-              href={openHref}
-              className="p-1.5 rounded-lg text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors group-hover:text-gray-400"
-              title={`تعديل ${run.title}`}
-            >
-              <Edit2 size={16} />
-            </Link>
+          {canManage && (
+            <>
+              {openHref && (
+                <Link
+                  href={openHref}
+                  className="p-1.5 rounded-lg text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors group-hover:text-gray-400"
+                  title={`تعديل ${run.title}`}
+                >
+                  <Edit2 size={16} />
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={() => onDelete(run.id)}
+                aria-label={`حذف ${run.title}`}
+                title="حذف"
+                className="p-1.5 rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-600 group-hover:text-gray-400"
+              >
+                <Trash2 size={16} />
+              </button>
+            </>
           )}
-          <button
-            type="button"
-            onClick={() => onDelete(run.id)}
-            aria-label={`حذف ${run.title}`}
-            title="حذف"
-            className="p-1.5 rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-600 group-hover:text-gray-400"
-          >
-            <Trash2 size={16} />
-          </button>
         </div>
       </div>
 

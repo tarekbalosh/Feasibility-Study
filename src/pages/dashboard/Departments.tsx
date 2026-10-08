@@ -1,11 +1,25 @@
 import React, { useState } from 'react';
 import Head from 'next/head';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
+import { useWorkspace } from '@/context/WorkspaceContext';
+import { useRouter } from 'next/router';
 import { useDepartments, useCreateDepartment, useUpdateDepartment, useDeleteDepartment } from '@/hooks/useDepartments';
 import { Building2, Plus, Trash2, Edit2, Loader2 } from 'lucide-react';
 
 export default function Departments() {
-  const { data: departments, isLoading } = useDepartments();
+  const router = useRouter();
+  const { workspace, isLoading: isWorkspaceLoading } = useWorkspace();
+  const isAdminOrOwner = workspace?.role === 'owner' || workspace?.role === 'admin';
+
+  React.useEffect(() => {
+    if (!isWorkspaceLoading && !isAdminOrOwner) {
+      router.replace('/dashboard/Plans');
+    }
+  }, [isWorkspaceLoading, isAdminOrOwner, router]);
+
+  const { data: departments, isLoading: isDepsLoading } = useDepartments();
+  const isLoading = isWorkspaceLoading || isDepsLoading;
+  
   const createDepartment = useCreateDepartment();
   const updateDepartment = useUpdateDepartment();
   const deleteDepartment = useDeleteDepartment();

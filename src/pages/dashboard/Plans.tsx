@@ -158,7 +158,11 @@ export default function Plans() {
               <div className="mt-auto pt-4 border-t border-gray-50 space-y-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500 flex items-center gap-1.5"><Calendar size={14} /> الأعضاء</span>
-                  <span className="font-semibold text-gray-900">{plan.stats?.members ?? plan.membersCount ?? plan.members?.length ?? 0}</span>
+                  <span className="font-semibold text-gray-900">
+                    {plan.members
+                      ? plan.members.filter((m: any) => m.workspaceRole !== 'owner' && m.workspaceRole !== 'admin').length
+                      : (plan.stats?.members ?? plan.membersCount ?? 0)}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500 flex items-center gap-1.5"><Briefcase size={14} /> الأهداف / المهام</span>

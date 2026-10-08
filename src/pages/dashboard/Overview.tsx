@@ -4,7 +4,9 @@ import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { BudgetMonthlyChart } from '@/components/dashboard/BudgetMonthlyChart';
 import { TasksByAssigneeChart } from '@/components/dashboard/TasksByAssigneeChart';
 import { useAuth } from '@/context/AuthContext';
+import { useWorkspace } from '@/context/WorkspaceContext';
 import { useOrgOverview } from '@/hooks/useOrg';
+import { useRouter } from 'next/router';
 import {
   Building2,
   Briefcase,
@@ -18,9 +20,20 @@ import {
 
 export default function Overview() {
   const { isAuthenticated } = useAuth();
-  const { data: overview, isLoading, isError } = useOrgOverview(isAuthenticated);
+  const router = useRouter();
+  const { workspace, isLoading: isWorkspaceLoading } = useWorkspace();
+  
+  const isAdminOrOwner = workspace?.role === 'owner' || workspace?.role === 'admin';
 
-  if (isLoading) {
+  React.useEffect(() => {
+    if (!isWorkspaceLoading && !isAdminOrOwner) {
+      router.replace('/dashboard/Plans');
+    }
+  }, [isWorkspaceLoading, isAdminOrOwner, router]);
+
+  const { data: overview, isLoading, isError } = useOrgOverview(isAuthenticated && isAdminOrOwner);
+
+  if (isLoading || isWorkspaceLoading) {
     return (
       <DashboardLayout>
         <div className="flex h-[70vh] items-center justify-center">

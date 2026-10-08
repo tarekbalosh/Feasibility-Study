@@ -12,7 +12,9 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   const { user, logout } = useAuth();
   const { workspace } = useWorkspace();
 
-  const navigation = [
+  const isAdminOrOwner = workspace?.role === 'owner' || workspace?.role === 'admin';
+
+  let navigation = [
     { name: 'نظرة عامة', href: '/dashboard/Overview', icon: require('lucide-react').LayoutDashboard },
     { name: 'الأقسام', href: '/dashboard/Departments', icon: require('lucide-react').Building2 },
     { name: 'الخطط التشغيلية', href: '/dashboard/Plans', icon: require('lucide-react').Briefcase },
@@ -21,6 +23,12 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
     { name: 'التقارير', href: '/dashboard/Reports', icon: FileText },
     { name: 'الإعدادات', href: '/dashboard/Settings', icon: Settings },
   ];
+
+  if (!isAdminOrOwner) {
+    navigation = navigation.filter(
+      (item) => item.name !== 'نظرة عامة' && item.name !== 'الأقسام'
+    );
+  }
 
   const handleLogout = () => {
     logout();

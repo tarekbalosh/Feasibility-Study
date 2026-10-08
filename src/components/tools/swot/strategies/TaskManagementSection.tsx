@@ -186,6 +186,7 @@ export const TaskManagementSection: React.FC<TaskManagementSectionProps> = ({
           id: m.id,
           name: m.user?.name || m.name || m.email.split("@")[0],
           email: m.email,
+          role: m.role,
         }));
       setMembers(membersList);
     } catch {

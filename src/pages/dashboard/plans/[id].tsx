@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { usePlan, useGoals, useTasks } from '@/hooks/usePlans';
 import { useToolRuns, useDeleteToolRun } from '@/hooks/useToolRuns';
-import { Briefcase, ArrowRight, Loader2, Target, CheckSquare, FolderGit2, Calendar, LayoutList, Search, Filter } from 'lucide-react';
+import { Briefcase, ArrowRight, Loader2, Target, CheckSquare, FolderGit2, Calendar, LayoutList, Search, Filter, User, Eye } from 'lucide-react';
 import Link from 'next/link';
 import ToolRunCard from '@/components/dashboard/ToolRunCard';
 
@@ -326,6 +326,24 @@ export default function PlanDetails() {
                         <div>
                           <h3 className={`font-bold text-md mb-1 ${task.status === 'done' ? 'text-gray-500 line-through' : 'text-gray-900'}`}>{task.title}</h3>
                           {task.goal?.title && <p className="text-xs text-gray-500 mb-2 line-clamp-1 flex items-center gap-1.5"><Target size={12}/>الهدف المرتبط: {task.goal.title}</p>}
+                          
+                          {(task.assigneeName || task.followerName) && (
+                            <div className="flex flex-wrap items-center gap-4 mb-3">
+                              {task.assigneeName && (
+                                <div className="flex items-center gap-1.5 text-xs text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100">
+                                  <User size={12} />
+                                  <span>المسؤول: <strong>{task.assigneeName}</strong></span>
+                                </div>
+                              )}
+                              {task.followerName && (
+                                <div className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-100">
+                                  <Eye size={12} />
+                                  <span>المتابع: <strong>{task.followerName}</strong></span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                           <div className="flex items-center gap-3 text-xs font-medium text-gray-500">
                             {task.dueDate && (
                               <span className={`flex items-center gap-1 px-2.5 py-1 rounded-lg ${isOverdue ? 'bg-red-100 text-red-700' : 'bg-gray-100'}`}>

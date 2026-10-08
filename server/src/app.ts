@@ -11,6 +11,9 @@ import { logger } from "./utils/logger";
 
 const app = express();
 
+// Trust proxy to ensure correct IP is used for rate limiting when behind a reverse proxy (like Render)
+app.set('trust proxy', 1);
+
 // ——————————————————————————————————————————————
 // Root & Health Routes
 // ——————————————————————————————————————————————
@@ -61,8 +64,9 @@ app.use(
 );
 
 // ——————————————————————————————————————————————
-// Body Parsing
+// Security & Body Parsing
 // ——————————————————————————————————————————————
+app.use(helmet());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 

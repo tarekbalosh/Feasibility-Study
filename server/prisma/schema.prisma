@@ -361,6 +361,8 @@ model PlanTask {
   title            String
   description      String?
   assigneeMemberId String?   @map("assignee_member_id")
+  assigneeName     String?   @map("assignee_name")
+  followerName     String?   @map("follower_name")
   dueDate          DateTime? @map("due_date")
   priority         String    @default("medium")
   status           String    @default("todo")

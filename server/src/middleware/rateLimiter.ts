@@ -9,7 +9,7 @@ const isDev = process.env.NODE_ENV !== "production";
  */
 export const rateLimiter = rateLimit({
   windowMs: isDev ? 60 * 1000 : 15 * 60 * 1000,
-  max: isDev ? 1000 : 100,
+  max: 1000, // Increased from 100 to 1000 per 15 minutes in production
   standardHeaders: true,
   legacyHeaders: false,
   message: {
