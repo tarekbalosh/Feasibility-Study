@@ -42,8 +42,7 @@ export const ToolRunCard: React.FC<ToolRunCardProps> = ({
   const { workspace } = useWorkspace()
   
   const isCreator = user?.id === run.user?.id
-  const isAdminOrOwner = workspace?.role === "admin" || workspace?.role === "owner"
-  const canManage = isCreator || isAdminOrOwner
+  const canManage = isCreator
 
   const tool = getToolBySlug(run.toolSlug)
   const Icon = tool?.icon
@@ -85,7 +84,7 @@ export const ToolRunCard: React.FC<ToolRunCardProps> = ({
               {openHref && (
                 <Link
                   href={openHref}
-                  className="p-1.5 rounded-lg text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors group-hover:text-gray-400"
+                  className="p-1.5 rounded-lg text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
                   title={`تعديل ${run.title}`}
                 >
                   <Edit2 size={16} />
@@ -96,7 +95,7 @@ export const ToolRunCard: React.FC<ToolRunCardProps> = ({
                 onClick={() => onDelete(run.id)}
                 aria-label={`حذف ${run.title}`}
                 title="حذف"
-                className="p-1.5 rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-600 group-hover:text-gray-400"
+                className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
               >
                 <Trash2 size={16} />
               </button>
