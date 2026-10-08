@@ -22,7 +22,7 @@ export async function getAllProjects(userId: string) {
     select: { userId: true }
   });
   
-  const teamUserIds = teamMembers.map(m => m.userId);
+  const teamUserIds = teamMembers.map(m => m.userId).filter((id): id is string => id !== null);
   teamUserIds.push(userId); // للتأكد
 
   const projects = await prisma.project.findMany({
