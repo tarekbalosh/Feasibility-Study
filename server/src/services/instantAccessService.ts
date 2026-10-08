@@ -85,7 +85,7 @@ export async function instantAccess(data: { email: string; name?: string }) {
 
   return {
     needsName: false as const,
-    userId: user.id,
+    id: user.id,
     email: user.email,
     name: user.name,
     subscriptionTier: user.subscriptionTier,

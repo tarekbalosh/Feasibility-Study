@@ -174,7 +174,7 @@ export const instantAccess = asyncHandler(async (req: Request, res: Response) =>
   }
 
   const { token, refreshToken } = authService.issueSessionTokens(
-    result.userId,
+    result.id,
     result.email
   );
 
@@ -185,7 +185,7 @@ export const instantAccess = asyncHandler(async (req: Request, res: Response) =>
     refreshToken,
     hasWorkspace: result.hasWorkspace,
     data: {
-      userId: result.userId,
+      id: result.id,
       name: result.name,
       email: result.email,
       subscriptionTier: result.subscriptionTier,

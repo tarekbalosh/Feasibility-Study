@@ -143,7 +143,7 @@ export async function login(data: { email: string; password: string }) {
     hasWorkspace,
     pendingInvites: pendingLinked,
     data: {
-      userId: user.id,
+      id: user.id,
       name: user.name,
       email: user.email,
       subscriptionTier: user.subscriptionTier,

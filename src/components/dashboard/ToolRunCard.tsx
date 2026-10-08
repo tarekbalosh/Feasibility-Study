@@ -43,6 +43,8 @@ export const ToolRunCard: React.FC<ToolRunCardProps> = ({
   
   const isCreator = user?.id === run.user?.id
   const canManage = isCreator
+  
+  console.log(`[ToolRunCard ${run.title}] user.id:`, user?.id, `run.user.id:`, run.user?.id, `canManage:`, canManage)
 
   const tool = getToolBySlug(run.toolSlug)
   const Icon = tool?.icon
