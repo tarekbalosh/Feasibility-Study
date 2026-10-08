@@ -109,10 +109,12 @@ model Workspace {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  owner    User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members  WorkspaceMember[]
-  invites  WorkspaceInvite[]
-  toolRuns ToolRun[]
+  owner       User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     WorkspaceMember[]
+  invites     WorkspaceInvite[]
+  toolRuns    ToolRun[]
+  departments Department[]
+  plans       Plan[]
 
   @@index([ownerId])
   @@map("workspaces")
@@ -137,6 +139,11 @@ model WorkspaceMember {
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  departmentMemberships DepartmentMember[]
+  planMemberships       PlanMember[]
+  projectPermissions    ProjectPermission[]
+  assignedTasks         PlanTask[]          @relation("TaskAssignee")
 
   // البريد مخزَّن بحروف صغيرة دائماً، فالمفتاح المركّب يمنع تكرار العضو
   @@unique([workspaceId, email])
@@ -211,13 +218,187 @@ model ToolRun {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // ——— المشروع داخل الهيكل التنظيمي ———
+  //  departmentId: القسم المالك للمشروع (إلزامي منطقياً للعضو العادي)
+  //  planId:       الخطة التي شُغّلت الأداة من داخلها (اختياري)
+  //  visibility:   department = يراه كل أعضاء القسم
+  //                restricted = الأعضاء المختارون فقط (+ المالك والمشرفون)
+  departmentId String? @map("department_id")
+  planId       String? @map("plan_id")
+  visibility   String  @default("department")
+
+  workspace       Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department      Department?         @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  plan            Plan?               @relation(fields: [planId], references: [id], onDelete: SetNull)
   swotCustomGoals SwotCustomGoal[]
+  permissions     ProjectPermission[]
+  sourcedGoals    PlanGoal[]
 
   @@index([workspaceId, updatedAt])
   @@index([workspaceId, toolSlug])
+  @@index([departmentId])
+  @@index([planId])
   @@map("tool_runs")
+}
+
+// ——————————————————————————————————————————————
+// Departments — أقسام مساحة العمل (التسويق، المالية…)
+// ——————————————————————————————————————————————
+model Department {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  name        String
+  description String?
+  color       String   @default("indigo")
+  icon        String   @default("building")
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members   DepartmentMember[]
+  plans     Plan[]
+  toolRuns  ToolRun[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+  @@map("departments")
+}
+
+//  role: head | member — العضو قد ينتمي لأكثر من قسم
+model DepartmentMember {
+  id                String   @id @default(uuid())
+  departmentId      String   @map("department_id")
+  workspaceMemberId String   @map("workspace_member_id")
+  role              String   @default("member")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  department      Department      @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  workspaceMember WorkspaceMember @relation(fields: [workspaceMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([departmentId, workspaceMemberId])
+  @@index([workspaceMemberId])
+  @@map("department_members")
+}
+
+// ——————————————————————————————————————————————
+// Plans — خطة تشغيلية لقسم: أهداف + مهام + فريق + مشاريع
+//   status: draft | active | on_hold | completed | archived
+// ——————————————————————————————————————————————
+model Plan {
+  id           String    @id @default(uuid())
+  workspaceId  String    @map("workspace_id")
+  departmentId String    @map("department_id")
+  name         String
+  description  String?
+  status       String    @default("active")
+  startDate    DateTime? @map("start_date")
+  endDate      DateTime? @map("end_date")
+  createdById  String    @map("created_by_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  workspace  Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  // Restrict: لا يُحذف قسم وفيه خطط — الخدمة ترفض الحذف برسالة واضحة
+  department Department   @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  members    PlanMember[]
+  goals      PlanGoal[]
+  tasks      PlanTask[]
+  toolRuns   ToolRun[]
+
+  @@index([workspaceId, status])
+  @@index([departmentId])
+  @@map("plans")
+}
+
+//  role: lead | contributor | viewer
+model PlanMember {
+  id                String   @id @default(uuid())
+  planId            String   @map("plan_id")
+  workspaceMemberId String   @map("workspace_member_id")
+  role              String   @default("contributor")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  plan            Plan            @relation(fields: [planId], references: [id], onDelete: Cascade)
+  workspaceMember WorkspaceMember @relation(fields: [workspaceMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, workspaceMemberId])
+  @@index([workspaceMemberId])
+  @@map("plan_members")
+}
+
+//  status: not_started | in_progress | completed
+//  نسبة الإنجاز تُحسب من أوزان المهام وتقدّمها — لا تُخزَّن
+model PlanGoal {
+  id          String    @id @default(uuid())
+  planId      String    @map("plan_id")
+  title       String
+  description String?
+  weight      Int       @default(1)
+  dueDate     DateTime? @map("due_date")
+  status      String    @default("not_started")
+  order       Int       @default(0)
+  sourceRunId String?   @map("source_run_id") // المشروع الذي اشتُقّ منه الهدف
+  createdById String    @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  plan      Plan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+  sourceRun ToolRun?   @relation(fields: [sourceRunId], references: [id], onDelete: SetNull)
+  tasks     PlanTask[]
+
+  @@index([planId, order])
+  @@map("plan_goals")
+}
+
+//  status:   todo | in_progress | review | done
+//  priority: low | medium | high | urgent
+model PlanTask {
+  id               String    @id @default(uuid())
+  planId           String    @map("plan_id")
+  goalId           String?   @map("goal_id")
+  title            String
+  description      String?
+  assigneeMemberId String?   @map("assignee_member_id")
+  dueDate          DateTime? @map("due_date")
+  priority         String    @default("medium")
+  status           String    @default("todo")
+  progress         Int       @default(0)
+  weight           Int       @default(1)
+  cost             Float     @default(0)
+  order            Int       @default(0)
+  createdById      String    @map("created_by_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  plan     Plan             @relation(fields: [planId], references: [id], onDelete: Cascade)
+  goal     PlanGoal?        @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  assignee WorkspaceMember? @relation("TaskAssignee", fields: [assigneeMemberId], references: [id], onDelete: SetNull)
+
+  @@index([planId, status])
+  @@index([goalId])
+  @@index([assigneeMemberId])
+  @@map("plan_tasks")
+}
+
+// ——————————————————————————————————————————————
+// Project permissions — صلاحية عضو محدد على مشروع (ToolRun)
+//   level: view | edit | manage
+// ——————————————————————————————————————————————
+model ProjectPermission {
+  id                String   @id @default(uuid())
+  toolRunId         String   @map("tool_run_id")
+  workspaceMemberId String   @map("workspace_member_id")
+  level             String   @default("view")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  toolRun         ToolRun         @relation(fields: [toolRunId], references: [id], onDelete: Cascade)
+  workspaceMember WorkspaceMember @relation(fields: [workspaceMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([toolRunId, workspaceMemberId])
+  @@index([workspaceMemberId])
+  @@map("project_permissions")
 }
 
 model FeasibilityStudy {

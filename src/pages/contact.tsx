@@ -9,10 +9,18 @@ export default function Contact() {
     <PublicLayout>
       <Head>
         <title>تواصل معنا | Feasibility Suite</title>
-        <meta
-          name="description"
-          content="تواصل مع فريق Feasibility Suite للدعم الفني أو الاشتراكات المؤسسية أو الشراكات التجارية."
-        />
+        <meta name="description" content="نحن هنا لمساعدتك. تواصل مع فريق الدعم الفني أو المبيعات في Feasibility Suite لأي استفسار حول منصتنا." />
+        <link rel="canonical" href="https://feasibilitysuite.com/contact" />
+        <meta property="og:title" content="تواصل معنا | Feasibility Suite" />
+        <meta property="og:description" content="نحن هنا لمساعدتك. تواصل مع فريق الدعم الفني أو المبيعات في Feasibility Suite لأي استفسار حول منصتنا." />
+        <meta property="og:url" content="https://feasibilitysuite.com/contact" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Feasibility Suite" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="تواصل معنا | Feasibility Suite" />
+        <meta name="twitter:description" content="نحن هنا لمساعدتك. تواصل مع فريق الدعم الفني أو المبيعات في Feasibility Suite لأي استفسار حول منصتنا." />
+        <meta name="author" content="CoreLogic Systems" />
+        <link rel="author" href="https://www.corelogic-system.my/" />
       </Head>
 
       {/* Header Section */}

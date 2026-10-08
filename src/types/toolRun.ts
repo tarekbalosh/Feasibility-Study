@@ -7,6 +7,8 @@ export interface ToolRunSummary {
   createdAt: string
   updatedAt: string
   user: { id: string; name: string } | null
+  plan?: { id: string; name: string } | null
+  department?: { id: string; name: string } | null
 }
 
 /** تحليل محفوظ بحمولته الكاملة — لإعادة فتحه داخل أداته */
@@ -16,7 +18,6 @@ export interface ToolRunDetail<TInput = unknown, TOutput = unknown>
   output: TOutput | null
 }
 
-/** ما تُرسله الأداة عند الحفظ. تمرير id يعني تحديث السجل نفسه. */
 export interface SaveToolRunPayload {
   id?: string
   toolSlug: string
@@ -24,4 +25,6 @@ export interface SaveToolRunPayload {
   summary?: string
   input: unknown
   output: unknown
+  planId?: string
+  departmentId?: string
 }

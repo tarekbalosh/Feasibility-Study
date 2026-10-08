@@ -2,14 +2,14 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 
 /**
- * /dashboard → redirects to /dashboard/Projects
+ * /dashboard → redirects to /dashboard/Overview
  * This page acts as the entry point for the dashboard area.
  */
 export default function DashboardIndex() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/dashboard/Projects');
+    router.replace('/dashboard/Overview');
   }, [router]);
 
   return null;

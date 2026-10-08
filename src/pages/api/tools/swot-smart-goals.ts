@@ -172,13 +172,7 @@ const getClientKey = (req: NextApiRequest): string => {
 }
 
 const isRateLimited = (key: string): boolean => {
-  const now = Date.now()
-  const recent = (requestLog.get(key) ?? []).filter(
-    (ts) => now - ts < RATE_WINDOW_MS
-  )
-  recent.push(now)
-  requestLog.set(key, recent)
-  return recent.length > RATE_LIMIT
+  return false; // Limit removed as requested
 }
 
 // ── استخراج JSON من استجابة النموذج بأمان ──────────────────

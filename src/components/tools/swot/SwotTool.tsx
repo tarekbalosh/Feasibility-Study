@@ -88,6 +88,8 @@ const SaveStatus: React.FC<{ state: "idle" | "saving" | "saved" | "error" }> = (
   )
 }
 
+import { Breadcrumb } from "@/components/Breadcrumb"
+
 /**
  * أداة تحليل SWOT — تُحمّل عبر سجلّ الأدوات على المسار
  * /tools/swot/start
@@ -141,6 +143,22 @@ export const SwotTool: React.FC = () => {
     void loadSavedRun(runId)
   }, [router.isReady, router.query.run, loadSavedRun])
 
+  let currentPhaseLabel = ""
+  switch (phase) {
+    case "form":
+      currentPhaseLabel = "إعداد المدخلات"
+      break
+    case "selection":
+      currentPhaseLabel = "تحديد البنود"
+      break
+    case "generating":
+      currentPhaseLabel = "توليد التحليل"
+      break
+    case "result":
+      currentPhaseLabel = "النتائج والاستراتيجيات"
+      break
+  }
+
   return (
     <div
       className="bg-gray-50 min-h-screen py-6 sm:py-12 px-3 sm:px-6 lg:px-8"
@@ -155,8 +173,10 @@ export const SwotTool: React.FC = () => {
       </Head>
 
       <div className="max-w-5xl mx-auto">
+        <Breadcrumb appendItems={[{ label: currentPhaseLabel }]} />
+        
         {/* الترويسة */}
-        <div className="text-center mb-10 print:hidden">
+        <div className="text-center mb-10 print:hidden mt-4">
           <div className="flex items-center justify-center gap-3 mb-3">
             <span className="w-11 h-11 rounded-xl bg-sky-50 border border-sky-100 text-sky-600 flex items-center justify-center">
               <Grid2x2 className="w-6 h-6" />
@@ -200,8 +220,6 @@ export const SwotTool: React.FC = () => {
             />
           ) : phase === "result" && analysis ? (
             <>
-              {/* حالة الحفظ في لوحة التحكم — سطر خفيف لا يزاحم النتيجة */}
-              <SaveStatus state={saveState} />
               <SwotResult
                 input={input}
                 analysis={analysis}

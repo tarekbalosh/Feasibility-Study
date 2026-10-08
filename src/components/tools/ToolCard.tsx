@@ -13,12 +13,14 @@ interface ToolCardProps {
   index?: number
   /** إخفاء قائمة المخرجات (مفيد في الشبكات المضغوطة داخل لوحة التحكم) */
   compact?: boolean
+  planId?: string
 }
 
 export const ToolCard: React.FC<ToolCardProps> = ({
   tool,
   index = 0,
   compact = false,
+  planId,
 }) => {
   const Icon = tool.icon
   const isSoon = tool.status === "soon"
@@ -31,9 +33,13 @@ export const ToolCard: React.FC<ToolCardProps> = ({
     <Badge variant="success">{TOOL_STATUS_LABELS.live}</Badge>
   )
 
+  const toolHref = planId 
+    ? `${getToolPath(tool.slug)}?planId=${planId}` 
+    : getToolPath(tool.slug);
+
   return (
     <Link
-      href={getToolPath(tool.slug)}
+      href={toolHref}
       className="group block h-full focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 rounded-xl"
       style={{ animationDelay: `${index * 60}ms` }}
     >

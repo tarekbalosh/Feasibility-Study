@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Shield } from "lucide-react";
 import clsx from "clsx";
 import type { SwotAnalysis, SwotStrategyKey } from "@/types/swot";
+import { useRouter } from "next/router";
 import { IntersectionStrategiesTab } from "./IntersectionStrategiesTab";
 import { TraditionalStrategiesTab } from "./TraditionalStrategiesTab";
 import { ReviewGoalsSection } from "./ReviewGoalsSection";
@@ -16,6 +17,9 @@ interface SwotStrategiesSectionProps {
 type TabType = "intersection" | "traditional";
 
 export const SwotStrategiesSection: React.FC<SwotStrategiesSectionProps> = ({ analysis, showGoalsMode, setShowGoalsMode }) => {
+  const router = useRouter();
+  const isLoadedRun = !!router.query.run;
+
   const [activeTab, setActiveTab] = useState<TabType>("traditional");
 
   // مرفوع من TraditionalStrategiesTab
@@ -32,7 +36,14 @@ export const SwotStrategiesSection: React.FC<SwotStrategiesSectionProps> = ({ an
   // حالة الأهداف المحولة لـ SMART
   const [smartifiedGoals, setSmartifiedGoals] = useState<Record<string, string>>({});
 
-  const [showTasksMode, setShowTasksMode] = useState(false);
+  const [showTasksMode, setShowTasksMode] = useState(isLoadedRun);
+
+  // إذا كانت رحلة محملة، اجعل وضع الأهداف نشطاً أيضاً (حتى لو رجع من المهام يجد الأهداف)
+  React.useEffect(() => {
+    if (isLoadedRun && !showGoalsMode) {
+      setShowGoalsMode(true);
+    }
+  }, [isLoadedRun, showGoalsMode, setShowGoalsMode]);
 
   if (showTasksMode) {
     return (

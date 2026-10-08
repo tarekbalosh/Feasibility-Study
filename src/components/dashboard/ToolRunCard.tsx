@@ -1,7 +1,7 @@
 import React from "react"
 import Link from "next/link"
 import clsx from "clsx"
-import { ArrowLeft, Clock, Trash2, User } from "lucide-react"
+import { ArrowLeft, Clock, Trash2, User, Edit2 } from "lucide-react"
 import { getToolBySlug, getToolStartPath } from "@/config/tools.registry"
 import type { ToolRunSummary } from "@/types/toolRun"
 
@@ -70,20 +70,48 @@ export const ToolRunCard: React.FC<ToolRunCardProps> = ({
           </span>
         </div>
 
-        <button
-          type="button"
-          onClick={() => onDelete(run.id)}
-          aria-label={`حذف ${run.title}`}
-          className="shrink-0 p-2 rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-600 group-hover:text-gray-400"
-        >
-          <Trash2 size={16} />
-        </button>
+        <div className="flex items-center gap-1 shrink-0 transition-opacity">
+          {openHref && (
+            <Link
+              href={openHref}
+              className="p-1.5 rounded-lg text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors group-hover:text-gray-400"
+              title={`تعديل ${run.title}`}
+            >
+              <Edit2 size={16} />
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={() => onDelete(run.id)}
+            aria-label={`حذف ${run.title}`}
+            title="حذف"
+            className="p-1.5 rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-600 group-hover:text-gray-400"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
       </div>
 
       {/* الملخّص */}
       <p className="text-sm text-gray-500 leading-relaxed line-clamp-2 min-h-[2.5rem] mb-4">
         {run.summary || "تحليل محفوظ — افتحه لعرض التفاصيل الكاملة."}
       </p>
+
+      {/* Tags: Plan / Department */}
+      {(run.plan || run.department) && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {run.plan && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-100">
+              خطة: {run.plan.name}
+            </span>
+          )}
+          {!run.plan && run.department && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-blue-50 text-blue-600 border border-blue-100">
+              قسم: {run.department.name}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* التذييل — من أنشأه ومتى */}
       <div className="mt-auto flex items-center justify-between gap-2 border-t border-gray-100 pt-3 text-xs text-gray-400">

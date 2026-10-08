@@ -24,11 +24,18 @@ export default function Home() {
     <PublicLayout>
       <Head>
         <title>Feasibility Suite | منصة أدوات تخطيط المشاريع الذكية</title>
-        <meta
-          name="description"
-          content="منصة أدوات رقمية لرواد الأعمال: دراسة جدوى احترافية، تحليل SWOT استراتيجي، وحاسبات مالية — كلها بالذكاء الاصطناعي وخلال دقائق."
-        />
+        <meta name="description" content="منصة أدوات رقمية لرواد الأعمال: دراسة جدوى احترافية، تحليل SWOT استراتيجي، وحاسبات مالية — كلها بالذكاء الاصطناعي وخلال دقائق." />
         <link rel="canonical" href="https://feasibilitysuite.com/" />
+        <meta property="og:title" content="Feasibility Suite | منصة أدوات تخطيط المشاريع الذكية" />
+        <meta property="og:description" content="منصة أدوات رقمية لرواد الأعمال: دراسة جدوى احترافية، تحليل SWOT استراتيجي، وحاسبات مالية — كلها بالذكاء الاصطناعي وخلال دقائق." />
+        <meta property="og:url" content="https://feasibilitysuite.com/" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Feasibility Suite" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Feasibility Suite | منصة أدوات تخطيط المشاريع الذكية" />
+        <meta name="twitter:description" content="منصة أدوات رقمية لرواد الأعمال: دراسة جدوى احترافية، تحليل SWOT استراتيجي، وحاسبات مالية — كلها بالذكاء الاصطناعي وخلال دقائق." />
+        <meta name="author" content="CoreLogic Systems" />
+        <link rel="author" href="https://www.corelogic-system.my/" />
       </Head>
 
       <PlatformHero />

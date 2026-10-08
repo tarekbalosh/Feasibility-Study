@@ -32,6 +32,7 @@ import {
   EXCLUDED_PATHS,
   EXCLUDED_PREFIXES,
   EXCLUDED_LAST_SEGMENTS,
+  HIDDEN_SEGMENTS,
 } from "@/config/breadcrumb.config"
 import { getToolBySlug } from "@/config/tools.registry"
 import type { BreadcrumbItem } from "@/config/breadcrumb.config"
@@ -51,6 +52,11 @@ interface BreadcrumbProps {
   overrides?: Record<string, string>
   /** className إضافية لتخصيص المكوّن من الخارج */
   className?: string
+  /** 
+   * إضافة أجزاء مسار يدوياً في النهاية.
+   * مفيد عند الرغبة في إظهار العمليات الداخلية للصفحة (مثل خطوات أداة).
+   */
+  appendItems?: BreadcrumbItem[]
 }
 
 // ─── Helper: بناء مسار التنقل من pathname ────────────────────
@@ -89,6 +95,8 @@ function buildBreadcrumbs(
     const segment = rawSegments[i]
     accumulatedPath += `/${segment}`
     const isLast = i === rawSegments.length - 1
+
+    if (HIDDEN_SEGMENTS.has(segment)) continue
 
     // ── a. هل هو dynamic segment مثل [slug] أو [id]؟ ──────────
     // Next.js يضع Next router params في query
@@ -160,22 +168,27 @@ const Separator: React.FC = () => (
 export const Breadcrumb: React.FC<BreadcrumbProps> = ({
   overrides = {},
   className = "",
+  appendItems = [],
 }) => {
   const router = useRouter()
 
   const items = useMemo(
-    () =>
-      buildBreadcrumbs(
-        router.pathname,
+    () => {
+      if (!router.isReady) return null
+      return buildBreadcrumbs(
+        router.asPath.split("?")[0],
         router.query as Record<string, string | string[] | undefined>,
         overrides
-      ),
+      )
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [router.pathname, router.query]
+    [router.isReady, router.asPath, router.query]
   )
 
+  const finalItems = items ? [...items, ...appendItems] : null
+
   // لا نعرض شيئاً في الصفحات المستثناة
-  if (!items || items.length === 0) return null
+  if (!finalItems || finalItems.length === 0) return null
 
   return (
     <nav
@@ -184,9 +197,9 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
       className={`flex items-center flex-wrap gap-0.5 mb-3 ${className}`}
     >
       <ol className="flex items-center flex-wrap gap-0.5 min-w-0">
-        {items.map((item, index) => {
+        {finalItems.map((item, index) => {
           const isFirst = index === 0
-          const isLast = index === items.length - 1
+          const isLast = index === finalItems.length - 1
 
           return (
             <li key={index} className="flex items-center gap-0.5 min-w-0">

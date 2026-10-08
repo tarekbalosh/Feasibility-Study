@@ -69,11 +69,19 @@ export default function Pricing() {
   return (
     <PublicLayout>
       <Head>
-        <title>الخطط والأسعار | Feasibility Suite</title>
-        <meta
-          name="description"
-          content="خطط منصة Feasibility Suite — ابدأ مجاناً، وارتقِ إلى الخطة الاحترافية لفتح القوائم التفصيلية وبقية الميزات المدفوعة."
-        />
+        <title>الأسعار | Feasibility Suite</title>
+        <meta name="description" content="خطط أسعار مرنة تناسب جميع الاحتياجات. ابدأ مجاناً أو اختر الباقة الاحترافية لميزات متقدمة في دراسة الجدوى." />
+        <link rel="canonical" href="https://feasibilitysuite.com/pricing" />
+        <meta property="og:title" content="الأسعار | Feasibility Suite" />
+        <meta property="og:description" content="خطط أسعار مرنة تناسب جميع الاحتياجات. ابدأ مجاناً أو اختر الباقة الاحترافية لميزات متقدمة في دراسة الجدوى." />
+        <meta property="og:url" content="https://feasibilitysuite.com/pricing" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Feasibility Suite" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="الأسعار | Feasibility Suite" />
+        <meta name="twitter:description" content="خطط أسعار مرنة تناسب جميع الاحتياجات. ابدأ مجاناً أو اختر الباقة الاحترافية لميزات متقدمة في دراسة الجدوى." />
+        <meta name="author" content="CoreLogic Systems" />
+        <link rel="author" href="https://www.corelogic-system.my/" />
       </Head>
 
       <section className="py-16 sm:py-20 bg-white">

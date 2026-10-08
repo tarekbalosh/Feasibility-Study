@@ -16,11 +16,14 @@ const SILENT = { silent: true } as const
 
 /** كل تحليلات مساحة العمل — أحدثها أولاً */
 export const listToolRuns = async (
-  toolSlug?: string
+  options?: { toolSlug?: string; planId?: string }
 ): Promise<ToolRunSummary[]> => {
   const { data } = await apiClient.get("/tool-runs", {
     ...SILENT,
-    params: toolSlug ? { tool: toolSlug } : undefined,
+    params: {
+      tool: options?.toolSlug,
+      planId: options?.planId,
+    },
   })
   return data.data ?? []
 }

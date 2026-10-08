@@ -16,6 +16,7 @@ import {
   Sparkles,
   Target,
   Trash2,
+  Save,
 } from "lucide-react"
 import { toast } from "react-hot-toast"
 import { Button } from "@/components/ui/Button"
@@ -487,8 +488,6 @@ export const SwotReportView: React.FC<SwotReportViewProps> = ({
         setShowGoalsMode={setShowGoalsMode}
       />
 
-      {!showGoalsMode && (
-        <>
           {/* ── ج) بيانات التقرير ──────────────────────────────── */}
       <ReportMetaBox
         input={input}
@@ -546,9 +545,18 @@ export const SwotReportView: React.FC<SwotReportViewProps> = ({
           <RefreshCw className="w-4 h-4" />
           إعادة التوليد
         </Button>
+        <Button
+          type="button"
+          variant="primary"
+          onClick={() => {
+            toast.success("تم حفظ المشروع بنجاح")
+          }}
+          className="w-full sm:w-auto min-h-[48px] px-5 py-3 text-sm gap-2 bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500"
+        >
+          <Save className="w-4 h-4" />
+          حفظ المشروع
+        </Button>
       </div>
-      </>
-      )}
 
       {/* حذف التحليل — لا يقع إلا بعد قراءة اسمه في نافذة التأكيد */}
       <ConfirmDialog

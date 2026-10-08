@@ -11,6 +11,9 @@ import toolRunRoutes from "./toolRunRoutes";
 import swotGoalsRoutes from "./swotGoalsRoutes";
 import swotTasksRoutes from "./swotTasksRoutes";
 import adminRoutes from "./adminRoutes";
+import departmentRoutes from "./departmentRoutes";
+import planRoutes from "./planRoutes";
+import orgRoutes from "./orgRoutes";
 
 const router = Router();
 
@@ -27,6 +30,10 @@ router.use("/swot-goals", swotGoalsRoutes);
 router.use("/swot-tasks", swotTasksRoutes);
 router.use("/admin", adminRoutes);
 router.use('/system', systemRoutes);
+router.use("/departments", departmentRoutes);
+router.use("/plans", planRoutes);
+router.use("/org", orgRoutes);
+
 // Health check
 router.get("/health", (_req, res) => {
   res.status(200).json({

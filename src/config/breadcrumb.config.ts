@@ -60,12 +60,21 @@ export const SEGMENT_LABELS: Record<string, { label: string; href: string }> = {
   },
   "business-plan": { label: "مولّد خطة العمل", href: "/tools/business-plan" },
 
-  // ── لوحة التحكم ────────────────────────────────────────────
-  dashboard: { label: "لوحة التحكم", href: "/dashboard/Projects" },
+  dashboard: { label: "لوحة التحكم", href: "/dashboard/Overview" },
+  Overview: { label: "نظرة عامة", href: "/dashboard/Overview" },
+  overview: { label: "نظرة عامة", href: "/dashboard/overview" },
+  Departments: { label: "الأقسام", href: "/dashboard/Departments" },
+  departments: { label: "الأقسام", href: "/dashboard/departments" },
+  Plans: { label: "الخطط التشغيلية", href: "/dashboard/Plans" },
+  plans: { label: "الخطط التشغيلية", href: "/dashboard/plans" },
   Projects: { label: "مشاريعي", href: "/dashboard/Projects" },
+  projects: { label: "مشاريعي", href: "/dashboard/projects" },
   Reports: { label: "التقارير", href: "/dashboard/Reports" },
+  reports: { label: "التقارير", href: "/dashboard/reports" },
   Settings: { label: "الإعدادات", href: "/dashboard/Settings" },
+  settings: { label: "الإعدادات", href: "/dashboard/settings" },
   Team: { label: "فريق العمل", href: "/dashboard/Team" },
+  team: { label: "فريق العمل", href: "/dashboard/team" },
 
   // ── مساحة العمل ────────────────────────────────────────────
   workspace: { label: "مساحة العمل", href: "/workspace" },
@@ -115,4 +124,4 @@ export const HIDDEN_SEGMENTS: Set<string> = new Set(["start"])
  * المسارات التي تنتهي بهذه الـ segments لا تعرض Breadcrumb.
  * مثال: /tools/swot/start → آخر segment هو "start" → لا breadcrumb.
  */
-export const EXCLUDED_LAST_SEGMENTS: Set<string> = new Set(["start"])
+export const EXCLUDED_LAST_SEGMENTS: Set<string> = new Set([])

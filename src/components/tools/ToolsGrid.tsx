@@ -3,6 +3,7 @@ import clsx from "clsx"
 import { SearchX } from "lucide-react"
 import { ToolCard } from "@/components/tools/ToolCard"
 import { TOOL_CATEGORIES, getAllTools } from "@/config/tools.registry"
+import { useRouter } from "next/router"
 import type { ToolCategory, ToolDefinition } from "@/types/tool"
 
 interface ToolsGridProps {
@@ -15,6 +16,7 @@ interface ToolsGridProps {
   /** عدد الأعمدة على الشاشات الكبيرة */
   columns?: 2 | 3
   className?: string
+  planId?: string
 }
 
 export const ToolsGrid: React.FC<ToolsGridProps> = ({
@@ -23,7 +25,10 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
   compact = false,
   columns = 3,
   className = "",
+  planId,
 }) => {
+  const router = useRouter()
+  const activePlanId = planId || router.query.planId as string
   const [activeCategory, setActiveCategory] = useState<ToolCategory | "all">("all")
   const source = useMemo(() => tools ?? getAllTools(), [tools])
 
@@ -93,6 +98,7 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
               tool={tool}
               index={index}
               compact={compact}
+              planId={activePlanId}
             />
           ))}
         </div>

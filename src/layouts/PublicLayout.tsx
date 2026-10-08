@@ -164,9 +164,8 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
 
       {/* Main Content */}
       <main className="flex-grow">
-        {/* Breadcrumb — يظهر فقط في صفحات /tools/* الداخلية */}
-        {router.pathname.startsWith("/tools/") &&
-          !router.pathname.endsWith("/start") && (
+        {/* Breadcrumb — يظهر في صفحات /tools/* الداخلية */}
+        {router.pathname.startsWith("/tools/") && (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-0">
               <Breadcrumb />
             </div>
@@ -270,9 +269,14 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
 
           {/* الشريط السفلي */}
           <div className="mt-12 border-t border-slate-800 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
-            <p className="text-slate-500 text-center md:text-right">
-              &copy; {new Date().getFullYear()} Feasibility Suite. جميع الحقوق محفوظة.
-            </p>
+            <div className="flex flex-col gap-1 text-center md:text-right">
+              <p className="text-slate-500">
+                &copy; {new Date().getFullYear()} Feasibility Suite. جميع الحقوق محفوظة.
+              </p>
+              <p className="text-slate-400">
+                Developed by <a href="https://www.corelogic-system.my/" target="_blank" rel="noopener" className="hover:text-indigo-400 hover:underline transition-all">CoreLogic Systems</a>
+              </p>
+            </div>
             <p className="flex items-center gap-1.5 text-slate-500">
               صُنع بشغف لرواد الأعمال العرب
               <Heart className="w-3.5 h-3.5 text-indigo-400 fill-indigo-400" />

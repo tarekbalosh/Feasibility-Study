@@ -1,9 +1,17 @@
 # *
 User-agent: *
 Allow: /
+Disallow: /dashboard*
+Disallow: /admin*
+Disallow: /api*
+Disallow: /workspace*
+Disallow: /tools/*/start
+Disallow: /tool/steps/*
+Disallow: /invite*
+Disallow: /auth*
 
 # Host
-Host: https://feasibility-study-saas.vercel.app
+Host: https://feasibilitysuite.com
 
 # Sitemaps
-Sitemap: https://feasibility-study-saas.vercel.app/sitemap.xml
+Sitemap: https://feasibilitysuite.com/sitemap.xml

@@ -13,6 +13,9 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   const { workspace } = useWorkspace();
 
   const navigation = [
+    { name: 'نظرة عامة', href: '/dashboard/Overview', icon: require('lucide-react').LayoutDashboard },
+    { name: 'الأقسام', href: '/dashboard/Departments', icon: require('lucide-react').Building2 },
+    { name: 'الخطط التشغيلية', href: '/dashboard/Plans', icon: require('lucide-react').Briefcase },
     { name: 'مشاريعي', href: '/dashboard/Projects', icon: FolderGit2 },
     { name: 'فريق العمل', href: '/dashboard/Team', icon: Users },
     { name: 'التقارير', href: '/dashboard/Reports', icon: FileText },

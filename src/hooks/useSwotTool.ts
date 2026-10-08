@@ -345,6 +345,9 @@ export const useSwotTool = () => {
       setSaveState("saving")
 
       try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const planId = urlParams.get('planId') || undefined;
+
         const saved = await toolRunsService.saveToolRun({
           id: runIdRef.current ?? undefined,
           toolSlug: "swot",
@@ -352,6 +355,7 @@ export const useSwotTool = () => {
           summary: currentAnalysis.summary?.slice(0, 300) || undefined,
           input: currentInput,
           output: currentAnalysis,
+          planId: planId,
         })
 
         runIdRef.current = saved.id

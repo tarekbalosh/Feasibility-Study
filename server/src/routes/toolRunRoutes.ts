@@ -3,7 +3,7 @@ import { body, param } from "express-validator";
 import * as toolRunController from "../controllers/toolRunController";
 import { authMiddleware } from "../middleware/authMiddleware";
 import { requireWorkspace } from "../middleware/workspaceMiddleware";
-import { requirePermission } from "../middleware/rbacMiddleware";
+import { attachActor } from "../middleware/actorMiddleware";
 import { validateRequest } from "../middleware/validateRequest";
 
 const router = Router();
@@ -11,9 +11,10 @@ const router = Router();
 // مخرجات الأدوات مملوكة لمساحة العمل، فالمساران متلازمان
 router.use(authMiddleware);
 router.use(requireWorkspace);
+router.use(attachActor);
 
 // ——— GET /api/tool-runs ———
-// القراءة متاحة لجميع الأدوار بما فيها المُطّلع (viewer)
+// القراءة متاحة بناء على صلاحيات الفاعل (Actor)
 router.get("/", toolRunController.list);
 
 // ——— GET /api/tool-runs/:id ———
@@ -24,10 +25,9 @@ router.get(
 );
 
 // ——— POST /api/tool-runs ———
-// الإنشاء والتعديل يتطلبان صلاحية الكتابة (owner + admin + member)
+// الإنشاء والتعديل تخضع لصلاحيات الفاعل
 router.post(
   "/",
-  requirePermission("canWrite"),
   validateRequest([
     body("id")
       .optional({ values: "falsy" })
@@ -47,15 +47,16 @@ router.post(
       .isLength({ max: 300 })
       .withMessage("الملخّص يجب ألا يتجاوز 300 حرف."),
     body("output").exists().withMessage("مخرجات التحليل مطلوبة."),
+    body("departmentId").optional({ values: "falsy" }).isUUID(),
+    body("planId").optional({ values: "falsy" }).isUUID(),
   ]),
   toolRunController.save
 );
 
 // ——— DELETE /api/tool-runs/:id ———
-// الحذف يتطلب صلاحية الكتابة (owner + admin + member)
+// الحذف يخضع لصلاحيات الفاعل
 router.delete(
   "/:id",
-  requirePermission("canWrite"),
   validateRequest([param("id").isUUID().withMessage("معرّف التحليل غير صالح.")]),
   toolRunController.remove
 );

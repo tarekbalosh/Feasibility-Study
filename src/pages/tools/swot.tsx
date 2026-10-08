@@ -169,7 +169,12 @@ const COMPOSITION = [
   },
 ]
 
+import { useRouter } from "next/router"
+
 export default function SwotLanding() {
+  const router = useRouter()
+  const planId = router.query.planId as string | undefined
+
   return (
     <PublicLayout>
       <Head>
@@ -200,7 +205,7 @@ export default function SwotLanding() {
                 باستراتيجيات عملية مستخرجة من تقاطعاتها.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-                <Link href={START_PATH} passHref>
+                <Link href={planId ? `${START_PATH}?planId=${planId}` : START_PATH} passHref>
                   <Button
                     variant="primary"
                     className="w-full sm:w-auto text-base px-8 py-3 bg-sky-600 hover:bg-sky-700 focus:ring-sky-500"

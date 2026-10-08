@@ -3,6 +3,7 @@ import { PublicLayout } from "@/layouts/PublicLayout"
 import { Card, CardContent } from "@/components/ui/Card"
 import { Shield, Lightbulb, Users2, Target } from "lucide-react"
 import { StartWorkspaceButton } from "@/components/workspace/StartWorkspaceButton"
+import Head from "next/head"
 
 export default function About() {
   const values = [
@@ -25,6 +26,21 @@ export default function About() {
 
   return (
     <PublicLayout>
+      <Head>
+        <title>من نحن | Feasibility Suite</title>
+        <meta name="description" content="تعرف على Feasibility Suite وكيف نساعد رواد الأعمال في بناء دراسات الجدوى والخطط المالية بالذكاء الاصطناعي." />
+        <link rel="canonical" href="https://feasibilitysuite.com/about" />
+        <meta property="og:title" content="من نحن | Feasibility Suite" />
+        <meta property="og:description" content="تعرف على Feasibility Suite وكيف نساعد رواد الأعمال في بناء دراسات الجدوى والخطط المالية بالذكاء الاصطناعي." />
+        <meta property="og:url" content="https://feasibilitysuite.com/about" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Feasibility Suite" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="من نحن | Feasibility Suite" />
+        <meta name="twitter:description" content="تعرف على Feasibility Suite وكيف نساعد رواد الأعمال في بناء دراسات الجدوى والخطط المالية بالذكاء الاصطناعي." />
+        <meta name="author" content="CoreLogic Systems" />
+        <link rel="author" href="https://www.corelogic-system.my/" />
+      </Head>
       {/* Header Section */}
       <section className="bg-slate-50 border-b border-slate-200 py-16 animate-fade-in-up">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center flex flex-col items-center gap-4">

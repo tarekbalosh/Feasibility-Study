@@ -76,6 +76,14 @@ export const createGoal = async (req: Request, res: Response) => {
       });
     }
 
+    const existingGoal = await prisma.swotCustomGoal.findFirst({
+      where: { swotAnalysisId: toolRun.id, goalText },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (existingGoal) {
+      return res.status(200).json({ goal: existingGoal });
+    }
+
     const goal = await prisma.swotCustomGoal.create({
       data: {
         swotAnalysisId: toolRun.id,

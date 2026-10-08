@@ -7,8 +7,26 @@ import { generateFeasibilityAnalysis } from "./openaiService";
 // Get All Projects for a User
 // ——————————————————————————————————————————————
 export async function getAllProjects(userId: string) {
-  const projects = await prisma.project.findMany({
+  // للوصول إلى مشاريع أعضاء الفريق (التوافق مع المشاريع القديمة قبل ToolRun):
+  // نجلب جميع المستخدمين المشاركين مع هذا المستخدم في أي مساحة عمل
+  const userWorkspaces = await prisma.workspaceMember.findMany({
     where: { userId },
+    select: { workspaceId: true, role: true }
+  });
+
+  const workspaceIds = userWorkspaces.map(w => w.workspaceId);
+  
+  // نجلب كل الأعضاء في هذه المساحات
+  const teamMembers = await prisma.workspaceMember.findMany({
+    where: { workspaceId: { in: workspaceIds } },
+    select: { userId: true }
+  });
+  
+  const teamUserIds = teamMembers.map(m => m.userId);
+  teamUserIds.push(userId); // للتأكد
+
+  const projects = await prisma.project.findMany({
+    where: { userId: { in: Array.from(new Set(teamUserIds)) } },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,

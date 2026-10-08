@@ -8,10 +8,10 @@ import { useToolRuns, useDeleteToolRun } from '@/hooks/useToolRuns';
 import { ToolRunCard } from '@/components/dashboard/ToolRunCard';
 import { useAuth } from '@/context/AuthContext';
 import {
-  Plus, MoreVertical, FileText, Edit2, Trash2, AlertCircle,
+  Plus, FileText, Edit2, Trash2, AlertCircle,
   Save, Loader2, Info, TrendingUp, Calendar, DollarSign,
   Building2, Briefcase, Cpu, Wrench, BarChart3, Eye,
-  MapPin, Clock, Sparkles, ChevronLeft
+  MapPin, Clock, Sparkles, ChevronLeft, Filter, ChevronDown, Check
 } from 'lucide-react';
 import axios from '@/lib/axios';
 import { toast } from 'react-hot-toast';
@@ -108,8 +108,7 @@ const ProjectCard = ({
   onSaveDraft?: () => void;
   isSavingDraft?: boolean;
 }) => {
-  const [menuOpen, setMenuOpen] = useState(false);
-  
+  // No local state needed anymore for dropdown
   let config = getIndustryConfig(project.industry);
   if (isDraft) {
     config = { icon: FileText, gradient: 'from-slate-400 to-gray-500', accent: 'text-slate-600', bg: 'bg-slate-100', label: 'مسودة غير محفوظة' };
@@ -174,37 +173,23 @@ const ProjectCard = ({
             </div>
           </div>
 
-          {/* Actions Menu (Hidden for draft) */}
+          {/* Actions (Hidden for draft) */}
           {!isDraft && onDelete && (
-            <div className="relative shrink-0 mr-1">
-              <button
-                onClick={() => setMenuOpen(!menuOpen)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors opacity-0 group-hover:opacity-100"
+            <div className="flex items-center gap-1 shrink-0 mr-1 transition-opacity">
+              <Link
+                href={`/tools/feasibility-study/start?edit=${project.id}`}
+                className="p-1.5 rounded-lg text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors group-hover:text-gray-400"
+                title="تعديل المشروع"
               >
-                <MoreVertical size={18} />
+                <Edit2 size={16} />
+              </Link>
+              <button
+                onClick={() => onDelete(project.id)}
+                className="p-1.5 rounded-lg text-gray-300 hover:text-red-600 hover:bg-red-50 transition-colors group-hover:text-gray-400"
+                title="حذف المشروع"
+              >
+                <Trash2 size={16} />
               </button>
-              {menuOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-                  <div className="absolute left-0 top-full mt-1 w-44 bg-white border border-gray-100 shadow-xl shadow-gray-200/50 rounded-xl overflow-hidden z-50 animate-in slide-in-from-top-2 duration-200">
-                    <Link
-                      href={`/tools/feasibility-study/start?edit=${project.id}`}
-                      className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      <Edit2 size={15} className="text-gray-400" /> تعديل المشروع
-                    </Link>
-                    <button
-                      onClick={() => {
-                        setMenuOpen(false);
-                        onDelete(project.id);
-                      }}
-                      className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors border-t border-gray-50"
-                    >
-                      <Trash2 size={15} /> حذف المشروع
-                    </button>
-                  </div>
-                </>
-              )}
             </div>
           )}
           {isDraft && (
@@ -212,7 +197,7 @@ const ProjectCard = ({
               {onDelete && (
                 <button
                   onClick={(e) => { e.stopPropagation(); onDelete(project.id); }}
-                  className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                  className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                   title="حذف المسودة"
                 >
                   <Trash2 size={18} />
@@ -339,13 +324,56 @@ export default function Projects() {
   // ── تحليلات الأدوات المحفوظة ─────────────────────────────
   // لوحة واحدة تجمع مخرجات كل الأدوات، لا دراسات الجدوى وحدها.
   const { isAuthenticated } = useAuth();
-  const { data: toolRuns, isLoading: isLoadingRuns } = useToolRuns(isAuthenticated);
+  const { data: toolRuns, isLoading: isLoadingRuns } = useToolRuns({ enabled: isAuthenticated });
   const { mutate: deleteToolRun } = useDeleteToolRun();
   const [deleteRunId, setDeleteRunId] = useState<string | null>(null);
 
-  const runsCount = toolRuns?.length ?? 0;
-  const projectsCount = projects?.length ?? 0;
+  // ── Filters State ────────────────────────────────────────
+  const [filterType, setFilterType] = useState<'all' | 'projects' | 'tool'>('all');
+  const [filterToolSlug, setFilterToolSlug] = useState<string>('all');
+  const [filterPlan, setFilterPlan] = useState<string>('all');
+  const [isToolDropdownOpen, setIsToolDropdownOpen] = useState(false);
 
+  const availableTools = React.useMemo(() => {
+    // Dynamically import getAvailableTools to avoid hydration issues if it depends on browser APIs
+    // But since it's just an array of objects, we can import it at the top or here.
+    return require('@/config/tools.registry').getAvailableTools();
+  }, []);
+
+  const uniquePlans = React.useMemo(() => {
+    const plans = new Set<string>();
+    toolRuns?.forEach(run => {
+      if (run.plan?.name) {
+        plans.add(run.plan.name);
+      }
+    });
+    return Array.from(plans);
+  }, [toolRuns]);
+
+  const filteredToolRuns = React.useMemo(() => {
+    if (!toolRuns) return [];
+    if (filterType === 'projects') return [];
+    
+    let filtered = toolRuns;
+    if (filterType === 'tool' && filterToolSlug !== 'all') {
+      filtered = filtered.filter(run => run.toolSlug === filterToolSlug);
+    }
+    
+    if (filterPlan !== 'all') {
+      filtered = filtered.filter(run => run.plan?.name === filterPlan);
+    }
+    return filtered;
+  }, [toolRuns, filterType, filterToolSlug, filterPlan]);
+
+  const filteredProjects = React.useMemo(() => {
+    if (!projects) return [];
+    if (filterType === 'tool') {
+      if (filterToolSlug === 'feasibility-study') return projects;
+      return [];
+    }
+    if (filterPlan !== 'all') return [];
+    return projects;
+  }, [projects, filterType, filterToolSlug, filterPlan]);
 
   // Unsaved project handling
   const [unsavedData, setUnsavedData] = useState<any>(null);
@@ -363,6 +391,8 @@ export default function Projects() {
       } catch (e) {}
     }
   }, []);
+
+  const showUnsaved = (filterType === 'all' || (filterType === 'tool' && filterToolSlug === 'feasibility-study')) && filterPlan === 'all' && !!unsavedData;
 
   const handleSaveUnsaved = async () => {
     try {
@@ -401,7 +431,8 @@ export default function Projects() {
   };
 
   /** إجمالي ما يظهر في الشبكة — مشاريع + تحليلات + مسودة */
-  const totalCount = projectsCount + runsCount + (unsavedData ? 1 : 0);
+  const totalCount = projects?.length ?? 0 + (toolRuns?.length ?? 0) + (unsavedData ? 1 : 0);
+  const totalFilteredCount = filteredProjects.length + filteredToolRuns.length + (showUnsaved ? 1 : 0);
 
   const handleDeleteRun = () => {
     if (deleteRunId) {
@@ -444,6 +475,92 @@ export default function Projects() {
         </div>
       </div>
 
+      {/* ── Filters Bar ────────────────────────────────── */}
+      {!isLoading && !isLoadingRuns && totalCount > 0 && (
+        <div className="flex items-center gap-2 bg-white/50 p-1.5 rounded-2xl border border-gray-100 overflow-x-auto hide-scrollbar mb-6 backdrop-blur-xl">
+          <button
+            onClick={() => { setFilterType('all'); setFilterPlan('all'); setFilterToolSlug('all'); }}
+            className={`px-5 py-2.5 text-sm font-bold rounded-xl whitespace-nowrap transition-all ${
+              filterType === 'all' && filterPlan === 'all'
+                ? 'bg-white text-blue-600 shadow-sm border border-gray-200/50'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50'
+            }`}
+          >
+            الكل
+          </button>
+          
+          {/* Tools Dropdown */}
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setIsToolDropdownOpen(!isToolDropdownOpen)}
+              className={`px-5 py-2.5 text-sm font-bold rounded-xl whitespace-nowrap transition-all flex items-center gap-2 ${
+                filterType === 'tool'
+                  ? 'bg-white text-blue-600 shadow-sm border border-gray-200/50'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50'
+              }`}
+            >
+              <BarChart3 size={16} className={filterType === 'tool' ? "text-blue-500" : ""} />
+              {filterType === 'tool' && filterToolSlug !== 'all' 
+                ? availableTools.find((t: any) => t.slug === filterToolSlug)?.name || 'الأدوات'
+                : 'الأدوات'}
+              <ChevronDown size={14} className={`transition-transform ${isToolDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {isToolDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsToolDropdownOpen(false)} />
+                <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-100 shadow-xl shadow-gray-200/50 rounded-xl overflow-hidden z-50 animate-in slide-in-from-top-2 duration-200 py-1">
+                  <button
+                    onClick={() => { setFilterType('tool'); setFilterToolSlug('all'); setIsToolDropdownOpen(false); }}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors ${filterToolSlug === 'all' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    <span>جميع الأدوات</span>
+                    {filterToolSlug === 'all' && <Check size={16} />}
+                  </button>
+                  {availableTools.map((tool: any) => {
+                    const ToolIcon = tool.icon;
+                    return (
+                      <button
+                        key={tool.slug}
+                        onClick={() => { setFilterType('tool'); setFilterToolSlug(tool.slug); setIsToolDropdownOpen(false); }}
+                        className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors ${filterToolSlug === tool.slug ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700 hover:bg-gray-50'}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <ToolIcon size={14} className="text-gray-400" />
+                          <span>{tool.name}</span>
+                        </div>
+                        {filterToolSlug === tool.slug && <Check size={16} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Plan filters */}
+          {uniquePlans.length > 0 && (
+            <>
+              <div className="w-px h-6 bg-gray-200 mx-2 shrink-0" />
+              {uniquePlans.map(plan => (
+                <button
+                  key={plan}
+                  onClick={() => { setFilterType('tool'); setFilterPlan(plan); }}
+                  className={`px-4 py-2.5 text-sm font-bold rounded-xl whitespace-nowrap transition-all flex items-center gap-2 ${
+                    filterPlan === plan
+                      ? 'bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-100'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                  خطة: {plan}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
       {/* ── Error Banner ───────────────────────────────── */}
       {isError && (
         <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl flex items-center gap-3 mb-8">
@@ -451,22 +568,6 @@ export default function Projects() {
             <AlertCircle size={20} />
           </div>
           <p className="font-medium">حدث خطأ أثناء جلب المشاريع. يرجى المحاولة مرة أخرى.</p>
-        </div>
-      )}
-
-      {/* ── Stats Bar (only when projects exist) ─────── */}
-      {!isLoading && !isLoadingRuns && totalCount > 0 && (
-        <div className="flex items-center gap-3 mb-6 flex-wrap">
-          <span className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 shadow-sm">
-            <BarChart3 size={16} className="text-blue-500" />
-            {totalCount} {totalCount === 1 ? 'عنصر محفوظ' : 'عنصر محفوظ'}
-          </span>
-          {runsCount > 0 && (
-            <span className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 shadow-sm">
-              <Sparkles size={16} className="text-indigo-500" />
-              {runsCount} تحليل من الأدوات
-            </span>
-          )}
         </div>
       )}
 
@@ -500,11 +601,26 @@ export default function Projects() {
             </Link>
           </div>
         </div>
+      ) : totalFilteredCount === 0 ? (
+        /* ── Empty Filter State ───────────────────────────────── */
+        <div className="bg-white rounded-3xl border border-gray-100 p-12 text-center flex flex-col items-center justify-center">
+          <div className="w-16 h-16 bg-gray-50 text-gray-400 rounded-2xl flex items-center justify-center mb-4">
+            <Filter size={28} />
+          </div>
+          <h3 className="text-lg font-bold text-gray-900 mb-1">لا توجد نتائج مطابقة</h3>
+          <p className="text-gray-500 text-sm">جرب إزالة بعض الفلاتر لرؤية المزيد من النتائج</p>
+          <button 
+            onClick={() => { setFilterType('all'); setFilterPlan('all'); }}
+            className="mt-4 text-blue-600 text-sm font-semibold hover:underline"
+          >
+            مسح الفلاتر
+          </button>
+        </div>
       ) : (
         /* ── Projects Grid ─────────────────────────────── */
         <div className="dashboard-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {/* Draft Project (if any) */}
-          {unsavedData && (
+          {showUnsaved && (
              <ProjectCard
                 key="unsaved-draft-project"
                 project={{
@@ -523,22 +639,22 @@ export default function Projects() {
           )}
 
           {/* تحليلات الأدوات المحفوظة — أحدثها أولاً */}
-          {toolRuns?.map((run, index) => (
+          {filteredToolRuns.map((run, index) => (
             <ToolRunCard
               key={run.id}
               run={run}
               onDelete={(id) => setDeleteRunId(id)}
-              index={unsavedData ? index + 1 : index}
+              index={showUnsaved ? index + 1 : index}
             />
           ))}
 
           {/* Saved Projects */}
-          {projects?.map((project: any, index: number) => (
+          {filteredProjects.map((project: any, index: number) => (
             <ProjectCard
               key={project.id}
               project={project}
               onDelete={(id) => setDeleteId(id)}
-              index={runsCount + (unsavedData ? 1 : 0) + index}
+              index={filteredToolRuns.length + (showUnsaved ? 1 : 0) + index}
             />
           ))}
         </div>

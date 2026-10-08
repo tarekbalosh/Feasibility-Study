@@ -297,10 +297,16 @@ export const BudgetWizardModal: React.FC<BudgetWizardModalProps> = ({
                     ))}
                   </div>
                   <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs font-bold">
+                    <div className="flex justify-between items-center text-xs font-bold">
                       <span className={clsx(isBalanced ? "text-emerald-600" : monthlyTotal > cost ? "text-red-600" : "text-amber-600")}>
                         المُخصَّص: {monthlyTotal.toLocaleString("ar-SA")} {currency}
                       </span>
+                      {monthlyTotal > 0 && cost - monthlyTotal !== 0 && (
+                        <span className={clsx("px-2 py-0.5 rounded-full", cost - monthlyTotal > 0 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700")}>
+                          {cost - monthlyTotal > 0 ? "المتبقي: " : "المتجاوز: "}
+                          {Math.abs(cost - monthlyTotal).toLocaleString("ar-SA")} {currency}
+                        </span>
+                      )}
                       <span className="text-slate-500">الهدف: {cost.toLocaleString("ar-SA")} {currency}</span>
                     </div>
                     <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">

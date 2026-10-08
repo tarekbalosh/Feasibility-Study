@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { ListChecks, Sparkles, Loader2 } from "lucide-react";
 import clsx from "clsx";
 import { toast } from "react-hot-toast";
@@ -203,8 +203,13 @@ export const TaskManagementSection: React.FC<TaskManagementSectionProps> = ({
   const [dbGoals, setDbGoals] = useState<{ id: string; goalText: string }[]>([]);
   const [isSyncingGoals, setIsSyncingGoals] = useState(false);
 
+  const syncInFlightRef = useRef<Promise<void> | null>(null);
+
   const syncGoalsToDb = useCallback(async () => {
     if (allGoalsList.length === 0) return;
+    // شغّل مزامنة واحدة فقط في كل مرة لمنع إنشاء أهداف مكررة
+    if (syncInFlightRef.current) return syncInFlightRef.current;
+    const run = (async () => {
     setIsSyncingGoals(true);
     try {
       // 1. جلب الأهداف الموجودة
@@ -234,11 +239,25 @@ export const TaskManagementSection: React.FC<TaskManagementSectionProps> = ({
         }
       }
 
-      setDbGoals([...existing, ...newGoals]);
+      // الأقدم أولاً: نُبقي هدفاً واحداً لكل نص
+      const seen = new Set<string>();
+      const unique = [...existing, ...newGoals].filter((g) => {
+        if (seen.has(g.goalText)) return false;
+        seen.add(g.goalText);
+        return true;
+      });
+      setDbGoals(unique);
     } catch {
       // silent — goals will just miss the accordion
     } finally {
       setIsSyncingGoals(false);
+    }
+    })();
+    syncInFlightRef.current = run;
+    try {
+      await run;
+    } finally {
+      syncInFlightRef.current = null;
     }
   }, [analysis.id, allGoalsList.length]); // only re-run when goals list size changes
 
@@ -261,14 +280,9 @@ export const TaskManagementSection: React.FC<TaskManagementSectionProps> = ({
     });
   }, [allGoalsList, dbGoals]);
 
-  const tasksPerGoal = useMemo(() => {
-    const map: Record<string, Task[]> = {};
-    allTasks.forEach((t) => {
-      if (!map[t.goalId]) map[t.goalId] = [];
-      map[t.goalId].push(t);
-    });
-    return map;
-  }, [allTasks]);
+
+
+
 
   // ——————————————————————————————————————————————
   // Filtered tasks for dashboard
@@ -294,6 +308,17 @@ export const TaskManagementSection: React.FC<TaskManagementSectionProps> = ({
     if (f.dueDateTo) result = result.filter((t) => new Date(t.dueDate) <= new Date(f.dueDateTo!));
     return result;
   }, [validTasks, dashboardFilters]);
+
+  const filteredTasksPerGoal = useMemo(() => {
+    const map: Record<string, Task[]> = {};
+    filteredTasks.forEach((t) => {
+      if (!map[t.goalId]) map[t.goalId] = [];
+      map[t.goalId].push(t);
+    });
+    return map;
+  }, [filteredTasks]);
+
+  const hasActiveFilters = Object.values(dashboardFilters).some(Boolean);
 
 
   const getBadgeStyle = (source: string) => {
@@ -335,7 +360,10 @@ export const TaskManagementSection: React.FC<TaskManagementSectionProps> = ({
               {goalsList.map((g, index) => {
                 const globalIndex = startIndex + index;
                 const goalInfo = goalMapping[globalIndex];
-                const goalTasks = goalInfo?.dbGoalId ? (tasksPerGoal[goalInfo.dbGoalId] || []) : [];
+                const goalTasks = goalInfo?.dbGoalId ? (filteredTasksPerGoal[goalInfo.dbGoalId] || []) : [];
+                
+                // Hide goals that have no tasks IF a filter is active
+                if (hasActiveFilters && goalTasks.length === 0) return null;
 
                 return (
                   <React.Fragment key={index}>
@@ -462,8 +490,35 @@ export const TaskManagementSection: React.FC<TaskManagementSectionProps> = ({
       <div className="flex flex-col w-full">
         {renderGoalsTable(traditionalGoals, "الأهداف التقليدية", 0)}
         {renderGoalsTable(intersectionGoals, "الأهداف التقاطعية", traditionalGoals.length)}
+      </div>
 
-        
+      <div className="mt-8 pt-8 border-t border-slate-200">
+        <div className="bg-emerald-50 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 border border-emerald-100 shadow-sm relative overflow-hidden">
+          <div className="absolute -left-6 -top-6 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl"></div>
+          <div className="absolute right-10 -bottom-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-2xl"></div>
+          
+          <div className="flex items-start gap-4 relative z-10">
+            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+            </div>
+            <div>
+              <h4 className="text-xl font-bold text-emerald-900 mb-1">اكتمل تحليل المشروع بنجاح</h4>
+              <p className="text-emerald-700/80 text-sm leading-relaxed max-w-lg">
+                تم استخراج الاستراتيجيات وصياغة الأهداف وإضافة المهام التنفيذية. المشروع بأكمله محفوظ الآن في لوحة التحكم بشكل آمن. يمكنك المتابعة لإدارة تقدم الخطة.
+              </p>
+            </div>
+          </div>
+          
+          <div className="shrink-0 w-full sm:w-auto relative z-10">
+            <a 
+              href="/dashboard/Plans" 
+              className="flex items-center justify-center w-full sm:w-auto gap-2 px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md shadow-emerald-600/20 transition-all hover:scale-[1.02]"
+            >
+              الانتقال إلى لوحة التحكم
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </a>
+          </div>
+        </div>
       </div>
     </div>
     </>

@@ -74,7 +74,7 @@ export async function getUserWorkspaces(userId: string) {
   const memberships = await prisma.workspaceMember.findMany({
     where: { userId, status: "active" },
     include: { workspace: true },
-    orderBy: { invitedAt: "asc" },
+    orderBy: { invitedAt: "desc" },
   });
 
   return memberships.map((m) => toWorkspaceSummary(m.workspace, m.role));

@@ -10,11 +10,11 @@ export const TOOL_RUNS_KEY = ["tool-runs"] as const
  * enabled يمنع النداء قبل وجود جلسة: المسار محروس بمساحة العمل،
  * فنداؤه بلا رمز دخول ضجيج شبكة ورسائل 401 بلا فائدة.
  */
-export const useToolRuns = (enabled = true) =>
+export const useToolRuns = (options?: { enabled?: boolean; planId?: string }) =>
   useQuery<ToolRunSummary[]>({
-    queryKey: TOOL_RUNS_KEY,
-    queryFn: () => toolRunsService.listToolRuns(),
-    enabled,
+    queryKey: [...TOOL_RUNS_KEY, options?.planId].filter(Boolean),
+    queryFn: () => toolRunsService.listToolRuns({ planId: options?.planId }),
+    enabled: options?.enabled ?? true,
     staleTime: 30_000,
   })
 
