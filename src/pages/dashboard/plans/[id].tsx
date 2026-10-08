@@ -26,6 +26,8 @@ export default function PlanDetails() {
   const [taskStatusFilter, setTaskStatusFilter] = useState<string>('all');
   const [taskPriorityFilter, setTaskPriorityFilter] = useState<string>('all');
   const [taskGoalFilter, setTaskGoalFilter] = useState<string>('all');
+  const [taskAssigneeFilter, setTaskAssigneeFilter] = useState<string>('all');
+  const [taskFollowerFilter, setTaskFollowerFilter] = useState<string>('all');
 
   // Goal filters state
   const [goalSearch, setGoalSearch] = useState('');
@@ -65,6 +67,25 @@ export default function PlanDetails() {
     return Array.from(sources.values());
   }, [goals]);
 
+  // Extract unique assignees and followers for task filter dropdowns
+  const uniqueAssignees = useMemo(() => {
+    if (!tasks) return [];
+    const names = new Set<string>();
+    tasks.forEach((t: any) => {
+      if (t.assigneeName) names.add(t.assigneeName);
+    });
+    return Array.from(names);
+  }, [tasks]);
+
+  const uniqueFollowers = useMemo(() => {
+    if (!tasks) return [];
+    const names = new Set<string>();
+    tasks.forEach((t: any) => {
+      if (t.followerName) names.add(t.followerName);
+    });
+    return Array.from(names);
+  }, [tasks]);
+
   // Filter tasks logic
   const filteredTasks = useMemo(() => {
     if (!tasks) return [];
@@ -85,9 +106,11 @@ export default function PlanDetails() {
 
       const matchPriority = taskPriorityFilter === 'all' || task.priority === taskPriorityFilter;
       const matchGoal = taskGoalFilter === 'all' || task.goal?.id === taskGoalFilter;
-      return matchSearch && matchStatus && matchPriority && matchGoal;
+      const matchAssignee = taskAssigneeFilter === 'all' || task.assigneeName === taskAssigneeFilter;
+      const matchFollower = taskFollowerFilter === 'all' || task.followerName === taskFollowerFilter;
+      return matchSearch && matchStatus && matchPriority && matchGoal && matchAssignee && matchFollower;
     });
-  }, [tasks, taskSearch, taskStatusFilter, taskPriorityFilter, taskGoalFilter]);
+  }, [tasks, taskSearch, taskStatusFilter, taskPriorityFilter, taskGoalFilter, taskAssigneeFilter, taskFollowerFilter]);
 
   return (
     <DashboardLayout>
@@ -303,6 +326,32 @@ export default function PlanDetails() {
                       <option value="all">كل الأهداف</option>
                       {goals.map((g: any) => (
                         <option key={g.id} value={g.id}>{g.title.substring(0, 30)}...</option>
+                      ))}
+                    </select>
+                  )}
+
+                  {uniqueAssignees.length > 0 && (
+                    <select
+                      value={taskAssigneeFilter}
+                      onChange={(e) => setTaskAssigneeFilter(e.target.value)}
+                      className="block w-full py-2 pl-3 pr-8 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-emerald-500 focus:border-emerald-500"
+                    >
+                      <option value="all">كل المسؤولين</option>
+                      {uniqueAssignees.map((name) => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                  )}
+
+                  {uniqueFollowers.length > 0 && (
+                    <select
+                      value={taskFollowerFilter}
+                      onChange={(e) => setTaskFollowerFilter(e.target.value)}
+                      className="block w-full py-2 pl-3 pr-8 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-emerald-500 focus:border-emerald-500"
+                    >
+                      <option value="all">كل المتابعين</option>
+                      {uniqueFollowers.map((name) => (
+                        <option key={name} value={name}>{name}</option>
                       ))}
                     </select>
                   )}
