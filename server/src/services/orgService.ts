@@ -60,7 +60,7 @@ export async function listOrgMembers(actor: Actor) {
 
 /** لوحة الإدارة — كل الأرقام محصورة بما يحق للفاعل رؤيته */
 export async function getOverview(actor: Actor) {
-  const [departments, plans, projectsCount, recentProjects, membersCount, myTasks] =
+  const [departments, plans, projectsCount, recentProjects, membersCount, myTasks, swotTasks, workloadTasks, wsMembers] =
     await Promise.all([
       prisma.department.findMany({
         where: departmentListWhere(actor),
@@ -121,25 +121,24 @@ export async function getOverview(actor: Actor) {
           plan: { select: { id: true, name: true } },
         },
       }),
+      // توزيع التكلفة الشهري لكل مهام الأهداف (SWOT) — مجمَّعاً حسب العملة
+      prisma.swotTask.findMany({
+        where: { cost: { gt: 0 }, goal: { toolRun: projectListWhere(actor) } },
+        select: {
+          cost: true,
+          currency: true,
+          budgetDistribution: true,
+        },
+      }),
+      prisma.swotTask.findMany({
+        where: { goal: { toolRun: projectListWhere(actor) } },
+        select: { title: true, assignee: true, status: true, progress: true, dueDate: true },
+      }),
+      prisma.workspaceMember.findMany({
+        where: { workspaceId: actor.workspaceId },
+        select: memberSelect,
+      })
     ]);
-
-  // توزيع التكلفة الشهري لكل مهام الأهداف (SWOT) — مجمَّعاً حسب العملة
-  const swotTasks = await prisma.swotTask.findMany({
-    where: { cost: { gt: 0 }, goal: { toolRun: projectListWhere(actor) } },
-    select: {
-      cost: true,
-      currency: true,
-      budgetDistribution: true,
-    },
-  });
-  const workloadTasks = await prisma.swotTask.findMany({
-    where: { goal: { toolRun: projectListWhere(actor) } },
-    select: { title: true, assignee: true, status: true, progress: true, dueDate: true },
-  });
-  const wsMembers = await prisma.workspaceMember.findMany({
-    where: { workspaceId: actor.workspaceId },
-    select: memberSelect,
-  });
   const memberNames = new Map(wsMembers.map((m) => [m.id, toMember(m).name]));
   const workloadMap = new Map<
     string,

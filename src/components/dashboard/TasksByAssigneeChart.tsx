@@ -1,5 +1,5 @@
-import React from 'react';
-import { Users, AlertTriangle, CheckCircle2, Circle, Clock, Timer } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Users, AlertTriangle, CheckCircle2, Circle, Clock, Timer, Search, Filter } from 'lucide-react';
 import clsx from 'clsx';
 
 export interface AssigneeWorkload {
@@ -31,9 +31,33 @@ const SEGMENTS: {
 ];
 
 export function TasksByAssigneeChart({ data }: { data: AssigneeWorkload[] }) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'overloaded' | 'hasOverdue'>('all');
+
+  const filteredData = useMemo(() => {
+    return data.filter((p) => {
+      // Text Search
+      if (searchTerm && !p.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+        return false;
+      }
+      
+      // Quick Filters
+      if (filterType === 'overloaded') {
+        const open = p.total - p.completed;
+        if (open < OVERLOAD_OPEN_TASKS) return false;
+      }
+      
+      if (filterType === 'hasOverdue') {
+        if (p.overdue === 0) return false;
+      }
+      
+      return true;
+    });
+  }, [data, searchTerm, filterType]);
+
   return (
     <section className="mb-10 animate-fade-in-up" id="tasks-by-assignee-chart">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-6">
         <div>
           <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-1">
             <Users className="text-indigo-600" size={24} />
@@ -44,18 +68,67 @@ export function TasksByAssigneeChart({ data }: { data: AssigneeWorkload[] }) {
           </p>
         </div>
         
-        {/* مفتاح الألوان */}
-        <div className="flex flex-wrap gap-3 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
-          {SEGMENTS.map((s) => {
-            const Icon = s.icon;
-            return (
-              <span key={s.key} className="flex items-center gap-1.5 text-xs font-semibold text-gray-600">
-                <span className={`w-3 h-3 rounded-full ${s.color}`} />
-                {s.label}
-              </span>
-            );
-          })}
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          {/* شريط البحث */}
+          <div className="relative w-full sm:w-64">
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="ابحث عن مسؤول..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="block w-full pl-3 pr-10 py-2 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-shadow shadow-sm hover:shadow-md"
+            />
+          </div>
+
+          {/* فلاتر سريعة */}
+          <div className="flex bg-gray-100/80 p-1 rounded-xl shadow-inner w-full sm:w-auto overflow-x-auto">
+            <button
+              onClick={() => setFilterType('all')}
+              className={clsx(
+                "px-4 py-1.5 text-xs font-semibold rounded-lg transition-all whitespace-nowrap",
+                filterType === 'all' ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"
+              )}
+            >
+              الكل
+            </button>
+            <button
+              onClick={() => setFilterType('overloaded')}
+              className={clsx(
+                "px-4 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap",
+                filterType === 'overloaded' ? "bg-white text-amber-700 shadow-sm" : "text-gray-500 hover:text-amber-600 hover:bg-amber-50"
+              )}
+            >
+              <AlertTriangle size={14} />
+              ضغط عمل
+            </button>
+            <button
+              onClick={() => setFilterType('hasOverdue')}
+              className={clsx(
+                "px-4 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap",
+                filterType === 'hasOverdue' ? "bg-white text-red-700 shadow-sm" : "text-gray-500 hover:text-red-600 hover:bg-red-50"
+              )}
+            >
+              <Clock size={14} />
+              مهام متأخرة
+            </button>
+          </div>
         </div>
+      </div>
+      
+      {/* مفتاح الألوان */}
+      <div className="flex flex-wrap gap-3 mb-6 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm w-max max-w-full">
+        {SEGMENTS.map((s) => {
+          const Icon = s.icon;
+          return (
+            <span key={s.key} className="flex items-center gap-1.5 text-xs font-semibold text-gray-600">
+              <span className={`w-3 h-3 rounded-full ${s.color}`} />
+              {s.label}
+            </span>
+          );
+        })}
       </div>
 
       {data.length === 0 ? (
@@ -66,9 +139,26 @@ export function TasksByAssigneeChart({ data }: { data: AssigneeWorkload[] }) {
           <h3 className="text-lg font-bold text-gray-900 mb-2">لا توجد مهام مُسندة بعد</h3>
           <p className="text-gray-500">لم يتم تعيين أي مهام للمسؤولين في هذا القسم حتى الآن.</p>
         </div>
+      ) : filteredData.length === 0 ? (
+        <div className="bg-white rounded-3xl border border-gray-100 p-12 text-center shadow-sm">
+          <div className="w-16 h-16 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Filter size={32} />
+          </div>
+          <h3 className="text-lg font-bold text-gray-900 mb-2">لا توجد نتائج مطابقة</h3>
+          <p className="text-gray-500">حاول تعديل خيارات البحث أو الفلترة.</p>
+          <button
+            onClick={() => {
+              setSearchTerm('');
+              setFilterType('all');
+            }}
+            className="mt-4 text-sm text-indigo-600 font-semibold hover:text-indigo-800 transition-colors"
+          >
+            مسح الفلاتر
+          </button>
+        </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {data.map((p, idx) => {
+          {filteredData.map((p, idx) => {
             const open = p.total - p.completed;
             const overloaded = open >= OVERLOAD_OPEN_TASKS;
 

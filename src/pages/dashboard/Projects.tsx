@@ -477,7 +477,7 @@ export default function Projects() {
 
       {/* ── Filters Bar ────────────────────────────────── */}
       {!isLoading && !isLoadingRuns && totalCount > 0 && (
-        <div className="flex items-center gap-2 bg-white/50 p-1.5 rounded-2xl border border-gray-100 overflow-x-auto hide-scrollbar mb-6 backdrop-blur-xl">
+        <div className="relative z-20 flex flex-wrap items-center gap-2 bg-white/50 p-1.5 rounded-2xl border border-gray-100 mb-6 backdrop-blur-xl">
           <button
             onClick={() => { setFilterType('all'); setFilterPlan('all'); setFilterToolSlug('all'); }}
             className={`px-5 py-2.5 text-sm font-bold rounded-xl whitespace-nowrap transition-all ${

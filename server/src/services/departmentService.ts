@@ -64,6 +64,12 @@ export async function listDepartments(actor: Actor) {
         select: {
           id: true,
           status: true,
+          members: { 
+            select: { 
+              workspaceMemberId: true,
+              workspaceMember: { select: { role: true } }
+            } 
+          },
           tasks: { select: { weight: true, progress: true, status: true } },
         },
       },
@@ -74,6 +80,23 @@ export async function listDepartments(actor: Actor) {
   return departments.map((d) => {
     const activePlans = d.plans.filter((p) => p.status === "active");
     const allTasks = d.plans.flatMap((p) => p.tasks);
+    
+    const uniqueMemberIds = new Set<string>();
+    
+    d.members.forEach(m => {
+      if (m.workspaceMember.role !== 'owner' && m.workspaceMember.role !== 'admin') {
+        uniqueMemberIds.add(m.workspaceMemberId);
+      }
+    });
+    
+    d.plans.forEach(p => {
+      p.members.forEach(m => {
+        if (m.workspaceMember.role !== 'owner' && m.workspaceMember.role !== 'admin') {
+          uniqueMemberIds.add(m.workspaceMemberId);
+        }
+      });
+    });
+
     return {
       id: d.id,
       name: d.name,
@@ -81,7 +104,7 @@ export async function listDepartments(actor: Actor) {
       color: d.color,
       icon: d.icon,
       createdAt: d.createdAt,
-      membersCount: d.members.length,
+      membersCount: uniqueMemberIds.size,
       members: d.members.map((m) => ({ ...toMember(m.workspaceMember), departmentRole: m.role })),
       plansCount: d.plans.length,
       activePlansCount: activePlans.length,

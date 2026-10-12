@@ -190,8 +190,6 @@ export function projectListWhere(actor: Actor): Prisma.ToolRunWhereInput {
         visibility: "department",
         plan: { members: { some: { workspaceMemberId: actor.memberId } } },
       },
-      // مشاريع ما قبل الأقسام — تبقى مشتركة لكل المساحة
-      { visibility: "department", departmentId: null, planId: null },
     ],
   };
 }
@@ -218,15 +216,13 @@ export function computeProjectLevel(actor: Actor, run: RunForAccess): ProjectLev
   let level: ProjectLevel | null = explicit ? (explicit.level as ProjectLevel) : null;
 
   if (run.visibility === "department") {
-    const legacy = !run.departmentId && !run.planId;
     const inDepartment = run.departmentId && actor.departmentIds.includes(run.departmentId);
     const inPlan = run.plan?.members.some((m) => m.workspaceMemberId === actor.memberId);
 
-    // المشاريع القديمة كانت قابلة للتعديل لكل الأعضاء — نُبقي السلوك
     // مشاريع الخطة يتاح تعديلها لأعضاء الخطة
-    const implicit: ProjectLevel | null = legacy
-      ? actor.canWrite ? "edit" : "view"
-      : inPlan ? (actor.canWrite ? "edit" : "view") : (inDepartment ? "view" : null);
+    const implicit: ProjectLevel | null = inPlan
+      ? (actor.canWrite ? "edit" : "view") 
+      : (inDepartment ? "view" : null);
 
     if (implicit && (!level || LEVEL_RANK[implicit] > LEVEL_RANK[level])) {
       level = implicit;
