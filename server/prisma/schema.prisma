@@ -12,30 +12,33 @@ datasource db {
 // Users table
 // ——————————————————————————————————————————————
 model User {
-  id                 String    @id @default(uuid())
-  name               String
-  email              String    @unique
-  passwordHash       String    @map("password_hash")
-  subscriptionTier   String    @default("free") @map("subscription_tier")
-  subscriptionStatus String    @default("none") @map("subscription_status")
-  stripeCustomerId   String?   @map("stripe_customer_id")
-  isVerified         Boolean   @default(false) @map("is_verified")
-  verificationToken  String?   @map("verification_token")
+  id                      String    @id @default(uuid())
+  name                    String
+  email                   String    @unique
+  passwordHash            String    @map("password_hash")
+  subscriptionTier        String    @default("free") @map("subscription_tier")
+  subscriptionStatus      String    @default("none") @map("subscription_status")
+  stripeCustomerId        String?   @map("stripe_customer_id")
+  isVerified              Boolean   @default(false) @map("is_verified")
+  verificationToken       String?   @map("verification_token")
   verificationTokenExpiry DateTime? @map("verification_token_expiry")
-  resetToken         String?   @map("reset_token")
-  resetTokenExpiry   DateTime? @map("reset_token_expiry")
-  role               String    @default("user")
-  status             String    @default("active")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
+  resetToken              String?   @map("reset_token")
+  resetTokenExpiry        DateTime? @map("reset_token_expiry")
+  role                    String    @default("user")
+  status                  String    @default("active")
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
 
   projects  Project[]
   payments  Payment[]
   userLimit UserLimit?
 
-  ownedWorkspaces      Workspace[]       @relation("WorkspaceOwner")
+  ownedWorkspaces      Workspace[]         @relation("WorkspaceOwner")
   workspaceMemberships WorkspaceMember[]
   toolRuns             ToolRun[]
+  pestAnalyses         PestAnalysis[]
+  pestFactors          PestFactor[]
+  pestGenerationLogs   PestGenerationLog[]
 
   @@map("users")
 }
@@ -54,8 +57,8 @@ model Project {
   durationYears   Int      @default(3) @map("duration_years")
   description     String
   financialInputs String   @map("financial_inputs") // JSON stored as string
-  aiOutput        String?  @map("ai_output")        // JSON stored as string
-  financialOutput String?  @map("financial_output")  // JSON stored as string
+  aiOutput        String?  @map("ai_output") // JSON stored as string
+  financialOutput String?  @map("financial_output") // JSON stored as string
   isShared        Boolean  @default(false) @map("is_shared")
   shareToken      String?  @unique @map("share_token")
   createdAt       DateTime @default(now()) @map("created_at")
@@ -109,12 +112,13 @@ model Workspace {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  owner       User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members     WorkspaceMember[]
-  invites     WorkspaceInvite[]
-  toolRuns    ToolRun[]
-  departments Department[]
-  plans       Plan[]
+  owner        User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members      WorkspaceMember[]
+  invites      WorkspaceInvite[]
+  toolRuns     ToolRun[]
+  departments  Department[]
+  plans        Plan[]
+  pestAnalyses PestAnalysis[]
 
   @@index([ownerId])
   @@map("workspaces")
@@ -234,6 +238,7 @@ model ToolRun {
   swotCustomGoals SwotCustomGoal[]
   permissions     ProjectPermission[]
   sourcedGoals    PlanGoal[]
+  pestAnalysis    PestAnalysis?
 
   @@index([workspaceId, updatedAt])
   @@index([workspaceId, toolSlug])
@@ -256,10 +261,11 @@ model Department {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  workspace Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  members   DepartmentMember[]
-  plans     Plan[]
-  toolRuns  ToolRun[]
+  workspace    Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members      DepartmentMember[]
+  plans        Plan[]
+  toolRuns     ToolRun[]
+  pestAnalyses PestAnalysis[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId])
@@ -408,8 +414,8 @@ model FeasibilityStudy {
   createdAt      DateTime @default(now())
   sector         String
   detectedSector String? // AI-detected sector when user selects "Other"
-  rawData        String  // store JSON as string
-  resultData     String  // store JSON as string
+  rawData        String // store JSON as string
+  resultData     String // store JSON as string
   reportHtml     String?
   reportPdf      String?
 }
@@ -428,7 +434,7 @@ model SwotCustomGoal {
   createdAt           DateTime @default(now()) @map("created_at")
 
   // swotAnalysisId is actually the toolRun id
-  toolRun ToolRun @relation(fields: [swotAnalysisId], references: [id], onDelete: Cascade)
+  toolRun ToolRun    @relation(fields: [swotAnalysisId], references: [id], onDelete: Cascade)
   tasks   SwotTask[]
 
   @@index([swotAnalysisId])
@@ -439,24 +445,24 @@ model SwotCustomGoal {
 // SWOT Tasks — مهام تنفيذية مرتبطة بأهداف SWOT
 // ——————————————————————————————————————————————
 model SwotTask {
-  id         String   @id @default(uuid())
-  goalId     String   @map("goal_id")
-  goalIndex  Int      @map("goal_index")     // رقم الهدف (1, 2, 3...)
-  taskIndex  Int      @map("task_index")     // رقم المهمة داخل الهدف (1, 2, 3...)
-  title      String                          // عنوان المهمة (الوسيلة)
-  dueDate    DateTime @map("due_date")       // تاريخ الإنجاز
-  assignee   String                          // المسؤول عن التنفيذ
-  follower   String                          // المعني بالمتابعة
-  weight     Int                             // الوزن النسبي (1-100)
-  cost       Float    @default(0)            // التكلفة / الموازنة
-  currency   String   @default("SAR")        // العملة
-  priority   String   @default("normal")     // normal | medium | high
-  status     String   @default("not_started") // not_started | in_progress | overdue | completed
-  progress   Int      @default(0)            // نسبة الإنجاز (0-100)
-  budgetDistribution Json? @map("budget_distribution") // خطة توزيع الميزانية
-  createdBy  String   @map("created_by")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id                 String   @id @default(uuid())
+  goalId             String   @map("goal_id")
+  goalIndex          Int      @map("goal_index") // رقم الهدف (1, 2, 3...)
+  taskIndex          Int      @map("task_index") // رقم المهمة داخل الهدف (1, 2, 3...)
+  title              String // عنوان المهمة (الوسيلة)
+  dueDate            DateTime @map("due_date") // تاريخ الإنجاز
+  assignee           String // المسؤول عن التنفيذ
+  follower           String // المعني بالمتابعة
+  weight             Int // الوزن النسبي (1-100)
+  cost               Float    @default(0) // التكلفة / الموازنة
+  currency           String   @default("SAR") // العملة
+  priority           String   @default("normal") // normal | medium | high
+  status             String   @default("not_started") // not_started | in_progress | overdue | completed
+  progress           Int      @default(0) // نسبة الإنجاز (0-100)
+  budgetDistribution Json?    @map("budget_distribution") // خطة توزيع الميزانية
+  createdBy          String   @map("created_by")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   goal SwotCustomGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
 
@@ -473,9 +479,140 @@ model AuditLog {
   action     String
   targetType String   @map("target_type")
   targetId   String?  @map("target_id")
-  metadata   String?  // JSON string
+  metadata   String? // JSON string
   createdAt  DateTime @default(now()) @map("created_at")
 
   @@index([adminId])
   @@map("audit_logs")
+}
+
+// ——————————————————————————————————————————————
+// PEST Analysis — تحليل البيئة الخارجية (سياسي/اقتصادي/اجتماعي/تقني/قانوني)
+// ——————————————————————————————————————————————
+//  بخلاف SWOT (JSON داخل tool_runs) يُخزَّن كل بند في صفّ مستقل،
+//  فيُعدَّل ويُرتَّب ويُولَّد جزئياً دون إعادة كتابة التحليل كله، ويُعرف مصدره
+//  (يدوي/ذكاء اصطناعي/معدّل) لحماية عمل المستخدم عند إعادة التوليد.
+//  toolRunId: سجل مرآة في tool_runs — به يظهر التحليل في لوحة التحكم
+//  ويرث نظام الأقسام والرؤية والمشاركة القائم.
+// ——————————————————————————————————————————————
+
+enum PestDimension {
+  political
+  economic
+  social
+  technological
+  legal
+
+  @@map("pest_dimension")
+}
+
+enum PestCategory {
+  trend
+  positive_impact
+  negative_impact
+
+  @@map("pest_category")
+}
+
+enum PestFactorSource {
+  manual
+  ai
+  ai_edited
+
+  @@map("pest_factor_source")
+}
+
+enum PestCreationMode {
+  manual
+  ai
+  hybrid
+
+  @@map("pest_creation_mode")
+}
+
+enum PestStatus {
+  draft
+  completed
+
+  @@map("pest_status")
+}
+
+enum PestGenerationScope {
+  full
+  dimension
+  category
+
+  @@map("pest_generation_scope")
+}
+
+model PestAnalysis {
+  id                 String           @id @default(uuid()) @db.Uuid
+  workspaceId        String           @map("workspace_id")
+  departmentId       String?          @map("department_id") // «الفريق» في هذا المشروع = القسم
+  toolRunId          String?          @unique @map("tool_run_id")
+  createdById        String           @map("created_by")
+  title              String
+  projectName        String?          @map("project_name")
+  projectDescription String?          @map("project_description")
+  industry           String?
+  countryRegion      String?          @map("country_region")
+  status             PestStatus       @default(draft)
+  creationMode       PestCreationMode @default(manual) @map("creation_mode")
+  language           String           @default("ar")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+
+  workspace      Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  department     Department?         @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  toolRun        ToolRun?            @relation(fields: [toolRunId], references: [id], onDelete: Cascade)
+  createdBy      User                @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  factors        PestFactor[]
+  generationLogs PestGenerationLog[]
+
+  @@index([workspaceId, updatedAt])
+  @@index([createdById])
+  @@index([departmentId])
+  @@map("pest_analyses")
+}
+
+model PestFactor {
+  id          String           @id @default(uuid()) @db.Uuid
+  analysisId  String           @map("analysis_id") @db.Uuid
+  dimension   PestDimension
+  category    PestCategory
+  content     String           @db.Text
+  sortOrder   Int              @default(0) @map("sort_order")
+  source      PestFactorSource @default(manual)
+  createdById String?          @map("created_by")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  analysis  PestAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  createdBy User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([analysisId, dimension, category, sortOrder])
+  @@map("pest_factors")
+}
+
+model PestGenerationLog {
+  id               String              @id @default(uuid()) @db.Uuid
+  analysisId       String              @map("analysis_id") @db.Uuid
+  userId           String              @map("user_id")
+  scope            PestGenerationScope
+  dimension        PestDimension?
+  category         PestCategory?
+  strategy         String              @default("replace") // replace | append
+  model            String?
+  promptTokens     Int                 @default(0) @map("prompt_tokens")
+  completionTokens Int                 @default(0) @map("completion_tokens")
+  totalTokens      Int                 @default(0) @map("total_tokens")
+  itemsCount       Int                 @default(0) @map("items_count")
+  createdAt        DateTime            @default(now()) @map("created_at")
+
+  analysis PestAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId])
+  @@index([userId, createdAt])
+  @@map("pest_generation_logs")
 }

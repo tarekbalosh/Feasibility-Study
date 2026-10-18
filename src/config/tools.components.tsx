@@ -33,6 +33,10 @@ export const toolComponents: Record<string, React.ComponentType> = {
     ssr: false,
     loading: () => <ToolLoading />,
   }),
+  pest: dynamic(() => import("@/components/tools/pest/PestTool"), {
+    ssr: false,
+    loading: () => <ToolLoading />,
+  }),
 }
 
 /** هل للأداة مكوّن مربوط فعلياً؟ */

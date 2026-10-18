@@ -1,7 +1,7 @@
 import React from "react"
 import Link from "next/link"
 import clsx from "clsx"
-import { ArrowLeft, Clock, Trash2, User, Edit2 } from "lucide-react"
+import { ArrowLeft, Clock, Trash2, User, Edit2, Globe2 } from "lucide-react"
 import { getToolBySlug, getToolStartPath } from "@/config/tools.registry"
 import type { ToolRunSummary } from "@/types/toolRun"
 import { useAuth } from "@/context/AuthContext"
@@ -43,13 +43,13 @@ export const ToolRunCard: React.FC<ToolRunCardProps> = ({
   
   const isCreator = user?.id === run.user?.id
   const canManage = isCreator
-  
-  console.log(`[ToolRunCard ${run.title}] user.id:`, user?.id, `run.user.id:`, run.user?.id, `canManage:`, canManage)
 
   const tool = getToolBySlug(run.toolSlug)
-  const Icon = tool?.icon
-  const openHref = tool
-    ? `${getToolStartPath(tool.slug)}?run=${run.id}`
+  const resolvedSlug = tool?.slug || (typeof run.toolSlug === "string" ? run.toolSlug.trim().toLowerCase() : undefined)
+  const Icon = tool?.icon ?? (resolvedSlug === "pest" ? Globe2 : undefined)
+  const toolName = tool?.name ?? (resolvedSlug === "pest" ? "تحليل PEST" : "أداة غير معروفة")
+  const openHref = resolvedSlug
+    ? `${getToolStartPath(resolvedSlug)}?run=${run.id}`
     : undefined
 
   return (
@@ -65,6 +65,8 @@ export const ToolRunCard: React.FC<ToolRunCardProps> = ({
               "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border",
               tool
                 ? [tool.accent.bg, tool.accent.border, tool.accent.text]
+                : resolvedSlug === "pest"
+                ? "bg-emerald-50 border-emerald-100 text-emerald-600"
                 : "bg-gray-50 border-gray-200 text-gray-400"
             )}
           >
@@ -72,7 +74,7 @@ export const ToolRunCard: React.FC<ToolRunCardProps> = ({
           </span>
           <span className="flex flex-col min-w-0">
             <span className="text-[11px] font-bold text-gray-400 truncate">
-              {tool?.name ?? "أداة غير معروفة"}
+              {toolName}
             </span>
             <h3 className="font-bold text-gray-900 truncate" title={run.title}>
               {run.title}

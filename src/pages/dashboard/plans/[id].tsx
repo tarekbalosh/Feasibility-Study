@@ -132,29 +132,31 @@ export default function PlanDetails() {
             <div className="h-8 w-48 bg-gray-200 rounded-lg animate-pulse"></div>
           </div>
         ) : plan ? (
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                <Briefcase size={24} />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{plan.name}</h1>
-                <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
-                  <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${plan.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
-                    {plan.status === 'active' ? 'نشطة' : plan.status}
-                  </span>
-                  {plan.department?.name && (
-                    <>
-                      <span>•</span>
-                      <span>قسم: {plan.department.name}</span>
-                    </>
-                  )}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                  <Briefcase size={24} />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">{plan.name}</h1>
+                  <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                    <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${plan.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                      {plan.status === 'active' ? 'نشطة' : plan.status}
+                    </span>
+                    {plan.department?.name && (
+                      <>
+                        <span>•</span>
+                        <span>قسم: {plan.department.name}</span>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
+              {plan.description && (
+                <p className="text-gray-600 text-sm mt-4 max-w-3xl leading-relaxed">{plan.description}</p>
+              )}
             </div>
-            {plan.description && (
-              <p className="text-gray-600 text-sm mt-4 max-w-3xl leading-relaxed">{plan.description}</p>
-            )}
           </div>
         ) : (
           <div className="text-red-500 font-medium">لم يتم العثور على الخطة.</div>
@@ -428,6 +430,14 @@ export default function PlanDetails() {
           <div>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-900">مخرجات الأدوات ضمن هذه الخطة</h2>
+              {toolRuns && toolRuns.length > 0 && (
+                <Link
+                  href={`/tools?planId=${planId}`}
+                  className="inline-flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-emerald-700 transition-all shadow-sm hover:shadow active:scale-95"
+                >
+                  تصفح الأدوات للبدء
+                </Link>
+              )}
             </div>
             
             {isLoadingRuns ? (

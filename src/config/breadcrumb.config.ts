@@ -42,10 +42,7 @@ export const SEGMENT_LABELS: Record<string, { label: string; href: string }> = {
     href: "/tools/feasibility-study",
   },
   swot: { label: "تحليل SWOT", href: "/tools/swot" },
-  "break-even-calculator": {
-    label: "حاسبة نقطة التعادل",
-    href: "/tools/break-even-calculator",
-  },
+  pest: { label: "تحليل PEST", href: "/tools/pest" },
   "pricing-calculator": {
     label: "حاسبة التسعير",
     href: "/tools/pricing-calculator",

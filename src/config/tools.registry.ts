@@ -1,7 +1,7 @@
 import {
-  BarChart3,
   Calculator,
   ClipboardList,
+  Globe2,
   Grid2x2,
   Landmark,
   PieChart,
@@ -81,15 +81,15 @@ export const TOOLS: ToolDefinition[] = [
     featured: true,
   },
   {
-    slug: "break-even-calculator",
-    name: "حاسبة نقطة التعادل",
+    slug: "pest",
+    name: "تحليل PEST",
     shortDescription:
-      "احسب حجم المبيعات المطلوب لتغطية تكاليفك الثابتة والمتغيرة.",
+      "حلّل البيئة الخارجية لمشروعك عبر الأبعاد السياسية والاقتصادية والاجتماعية والتقنية والقانونية، يدوياً أو بمساعدة الذكاء الاصطناعي.",
     longDescription:
-      "أدخل تكاليفك الثابتة والمتغيرة وسعر البيع، لتعرف فوراً عدد الوحدات وقيمة الإيرادات التي يبدأ عندها مشروعك بتحقيق الربح، مع رسم بياني توضيحي لنقطة التعادل.",
-    icon: BarChart3,
-    category: "financial",
-    status: "soon",
+      "أداة لتحليل البيئة الخارجية المحيطة بمشروعك عبر خمسة أبعاد: السياسي والاقتصادي والاجتماعي والتقني والقانوني. لكل بُعد أبرز التوجهات والمؤشرات، وانعكاساتها الإيجابية والسلبية المحتملة. اكتب التحليل بنفسك، أو ولّده بالذكاء الاصطناعي، أو اجمع بين الطريقتين، ثم صدّره PDF.",
+    icon: Globe2,
+    category: "analysis",
+    status: "live",
     accent: {
       gradient: "from-emerald-500 to-teal-600",
       text: "text-emerald-600",
@@ -100,11 +100,11 @@ export const TOOLS: ToolDefinition[] = [
     requiresAuth: false,
     order: 3,
     highlights: [
-      "نقطة التعادل بالوحدات وبالقيمة",
-      "رسم بياني تفاعلي",
-      "هامش الأمان التشغيلي",
+      "إدخال يدوي أو توليد بالذكاء الاصطناعي",
+      "الانعكاسات الإيجابية والسلبية لكل بُعد",
+      "تحرير البنود وتصدير التقرير PDF",
     ],
-    estimatedMinutes: 3,
+    estimatedMinutes: 5,
     featured: true,
   },
   {
@@ -243,7 +243,8 @@ export const getAvailableTools = (): ToolDefinition[] =>
 /** البحث عن أداة عبر المعرّف */
 export const getToolBySlug = (slug?: string | string[]): ToolDefinition | undefined => {
   if (typeof slug !== "string") return undefined
-  return TOOLS.find((tool) => tool.slug === slug)
+  const clean = slug.trim().toLowerCase()
+  return TOOLS.find((tool) => tool.slug.toLowerCase() === clean)
 }
 
 /** فلترة الأدوات حسب التصنيف */
