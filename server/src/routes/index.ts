@@ -15,6 +15,7 @@ import departmentRoutes from "./departmentRoutes";
 import planRoutes from "./planRoutes";
 import orgRoutes from "./orgRoutes";
 import pestRoutes from "./pestRoutes";
+import porterRoutes from "./porterRoutes";
 
 const router = Router();
 
@@ -36,6 +37,8 @@ router.use("/plans", planRoutes);
 router.use("/org", orgRoutes);
 router.use("/pest", pestRoutes);
 router.use("/tools/pest", pestRoutes);
+router.use("/porter", porterRoutes);
+router.use("/tools/porter", porterRoutes);
 
 // Health check
 router.get("/health", (_req, res) => {

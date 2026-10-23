@@ -1,7 +1,7 @@
 import React from "react"
 import Link from "next/link"
 import clsx from "clsx"
-import { ArrowLeft, Clock, Trash2, User, Edit2, Globe2 } from "lucide-react"
+import { ArrowLeft, Clock, Trash2, User, Edit2, Globe2, Shield } from "lucide-react"
 import { getToolBySlug, getToolStartPath } from "@/config/tools.registry"
 import type { ToolRunSummary } from "@/types/toolRun"
 import { useAuth } from "@/context/AuthContext"
@@ -46,8 +46,8 @@ export const ToolRunCard: React.FC<ToolRunCardProps> = ({
 
   const tool = getToolBySlug(run.toolSlug)
   const resolvedSlug = tool?.slug || (typeof run.toolSlug === "string" ? run.toolSlug.trim().toLowerCase() : undefined)
-  const Icon = tool?.icon ?? (resolvedSlug === "pest" ? Globe2 : undefined)
-  const toolName = tool?.name ?? (resolvedSlug === "pest" ? "تحليل PEST" : "أداة غير معروفة")
+  const Icon = tool?.icon ?? (resolvedSlug === "pest" ? Globe2 : resolvedSlug === "porter" ? Shield : undefined)
+  const toolName = tool?.name ?? (resolvedSlug === "pest" ? "تحليل PEST" : resolvedSlug === "porter" ? "تحليل قوى بورتر" : "أداة غير معروفة")
   const openHref = resolvedSlug
     ? `${getToolStartPath(resolvedSlug)}?run=${run.id}`
     : undefined
@@ -67,6 +67,8 @@ export const ToolRunCard: React.FC<ToolRunCardProps> = ({
                 ? [tool.accent.bg, tool.accent.border, tool.accent.text]
                 : resolvedSlug === "pest"
                 ? "bg-emerald-50 border-emerald-100 text-emerald-600"
+                : resolvedSlug === "porter"
+                ? "bg-teal-50 border-teal-100 text-teal-600"
                 : "bg-gray-50 border-gray-200 text-gray-400"
             )}
           >

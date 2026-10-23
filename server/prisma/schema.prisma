@@ -39,6 +39,7 @@ model User {
   pestAnalyses         PestAnalysis[]
   pestFactors          PestFactor[]
   pestGenerationLogs   PestGenerationLog[]
+  porterAnalyses       PorterAnalysis[]
 
   @@map("users")
 }
@@ -112,13 +113,14 @@ model Workspace {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  owner        User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members      WorkspaceMember[]
-  invites      WorkspaceInvite[]
-  toolRuns     ToolRun[]
-  departments  Department[]
-  plans        Plan[]
-  pestAnalyses PestAnalysis[]
+  owner          User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members        WorkspaceMember[]
+  invites        WorkspaceInvite[]
+  toolRuns       ToolRun[]
+  departments    Department[]
+  plans          Plan[]
+  pestAnalyses   PestAnalysis[]
+  porterAnalyses PorterAnalysis[]
 
   @@index([ownerId])
   @@map("workspaces")
@@ -239,6 +241,7 @@ model ToolRun {
   permissions     ProjectPermission[]
   sourcedGoals    PlanGoal[]
   pestAnalysis    PestAnalysis?
+  porterAnalysis  PorterAnalysis?
 
   @@index([workspaceId, updatedAt])
   @@index([workspaceId, toolSlug])
@@ -261,11 +264,12 @@ model Department {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  workspace    Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  members      DepartmentMember[]
-  plans        Plan[]
-  toolRuns     ToolRun[]
-  pestAnalyses PestAnalysis[]
+  workspace      Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members        DepartmentMember[]
+  plans          Plan[]
+  toolRuns       ToolRun[]
+  pestAnalyses   PestAnalysis[]
+  porterAnalyses PorterAnalysis[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId])
@@ -615,4 +619,64 @@ model PestGenerationLog {
   @@index([analysisId])
   @@index([userId, createdAt])
   @@map("pest_generation_logs")
+}
+
+// ——————————————————————————————————————————————
+// Porter's Five Forces — تحليل قوى بورتر الخمس
+// ——————————————————————————————————————————————
+//  على خلاف PEST (صفّ لكل بند) لكل قوة هنا ثلاثة نصوص حرّة فقط
+//  (التوجهات / الانعكاسات الإيجابية / الانعكاسات السلبية)، فتُخزَّن
+//  كل قوة في عمود JSON واحد بالشكل:
+//    { "trends": "", "positiveImpacts": "", "negativeImpacts": "" }
+//  ويُطبَّع الشكل ويُتحقَّق منه في porterService عند القراءة والكتابة.
+//  toolRunId: سجل مرآة في tool_runs — به يظهر التحليل في لوحة التحكم
+//  ويرث نظام الأقسام والرؤية والمشاركة القائم (كما في PEST).
+// ——————————————————————————————————————————————
+
+enum PorterStatus {
+  draft
+  completed
+
+  @@map("porter_status")
+}
+
+enum PorterCreationMode {
+  manual
+  ai
+  hybrid
+
+  @@map("porter_creation_mode")
+}
+
+model PorterAnalysis {
+  id                 String             @id @default(uuid()) @db.Uuid
+  workspaceId        String             @map("workspace_id")
+  departmentId       String?            @map("department_id")
+  toolRunId          String?            @unique @map("tool_run_id")
+  createdById        String             @map("created_by")
+  title              String
+  projectName        String?            @map("project_name")
+  projectDescription String?            @map("project_description")
+  industry           String?
+  countryRegion      String?            @map("country_region")
+  newEntrants        Json               @default("{}") @map("new_entrants")
+  buyers             Json               @default("{}")
+  suppliers          Json               @default("{}")
+  substitutes        Json               @default("{}")
+  rivalry            Json               @default("{}")
+  status             PorterStatus       @default(draft)
+  creationMode       PorterCreationMode @default(manual) @map("creation_mode")
+  language           String             @default("ar")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  workspace  Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  toolRun    ToolRun?    @relation(fields: [toolRunId], references: [id], onDelete: Cascade)
+  createdBy  User        @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, updatedAt])
+  @@index([createdById])
+  @@index([departmentId])
+  @@map("porter_analyses")
 }

@@ -5,6 +5,7 @@ import {
   Grid2x2,
   Landmark,
   PieChart,
+  Shield,
   Tags,
 } from "lucide-react"
 import type {
@@ -103,6 +104,33 @@ export const TOOLS: ToolDefinition[] = [
       "إدخال يدوي أو توليد بالذكاء الاصطناعي",
       "الانعكاسات الإيجابية والسلبية لكل بُعد",
       "تحرير البنود وتصدير التقرير PDF",
+    ],
+    estimatedMinutes: 5,
+    featured: true,
+  },
+  {
+    slug: "porter",
+    name: "تحليل قوى بورتر الخمس",
+    shortDescription:
+      "حلل البيئة التنافسية لقطاعك وقس مدى جاذبيته عبر قوى بورتر، يدوياً أو باستخدام الذكاء الاصطناعي.",
+    longDescription:
+      "أداة لتحليل البيئة التنافسية وجاذبية قطاعك عبر قوى بورتر الخمس: المنافسون الجدد، العملاء والجمهور، مزودو الخدمة والموردون، المنتجات البديلة، والمنافسة الحالية. رصد أبرز التوجهات والمؤشرات، وانعكاساتها الإيجابية والسلبية يدوياً أو بمساعدة الذكاء الاصطناعي، ثم تصدير تقريرك بصيغة PDF.",
+    icon: Shield,
+    category: "analysis",
+    status: "live",
+    accent: {
+      gradient: "from-teal-500 to-indigo-600",
+      text: "text-teal-600",
+      bg: "bg-teal-50",
+      border: "border-teal-100",
+      dot: "bg-teal-500",
+    },
+    requiresAuth: false,
+    order: 4,
+    highlights: [
+      "إدخال يدوي أو بالذكاء الاصطناعي",
+      "تحليل الانعكاسات الإيجابية والسلبية",
+      "تصدير التقرير بصيغة PDF",
     ],
     estimatedMinutes: 5,
     featured: true,

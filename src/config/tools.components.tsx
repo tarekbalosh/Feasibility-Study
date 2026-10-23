@@ -37,6 +37,10 @@ export const toolComponents: Record<string, React.ComponentType> = {
     ssr: false,
     loading: () => <ToolLoading />,
   }),
+  porter: dynamic(() => import("@/components/tools/porter/PorterTool"), {
+    ssr: false,
+    loading: () => <ToolLoading />,
+  }),
 }
 
 /** هل للأداة مكوّن مربوط فعلياً؟ */
