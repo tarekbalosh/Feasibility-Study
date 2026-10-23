@@ -66,7 +66,7 @@ export function usePorterEditor(initialId?: string) {
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [industry, setIndustry] = useState("");
-  const [countryRegion, setCountryRegion] = useState("المملكة العربية السعودية");
+  const [countryRegion, setCountryRegion] = useState("");
 
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const autoSaveDebounceRef = useRef<NodeJS.Timeout | null>(null);

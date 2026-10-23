@@ -35,7 +35,7 @@ export const PorterStart: React.FC<PorterStartProps> = ({ onSelectAnalysis }) =>
   const [title, setTitle] = useState("");
   const [projectName, setProjectName] = useState("");
   const [industry, setIndustry] = useState("");
-  const [countryRegion, setCountryRegion] = useState("المملكة العربية السعودية");
+  const [countryRegion, setCountryRegion] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
 
   // History list
@@ -337,7 +337,7 @@ export const PorterStart: React.FC<PorterStartProps> = ({ onSelectAnalysis }) =>
                 value={countryRegion}
                 onChange={(e) => setCountryRegion(e.target.value)}
                 placeholder="المملكة العربية السعودية"
-                className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm font-medium"
+                className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm placeholder:text-slate-400 font-medium"
               />
             </div>
 

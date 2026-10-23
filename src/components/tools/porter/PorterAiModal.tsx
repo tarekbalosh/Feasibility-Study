@@ -23,7 +23,7 @@ export const PorterAiModal: React.FC<PorterAiModalProps> = ({
   const [projectName, setProjectName] = useState(initialData?.projectName || "");
   const [projectDescription, setProjectDescription] = useState(initialData?.projectDescription || "");
   const [industry, setIndustry] = useState(initialData?.industry || "");
-  const [countryRegion, setCountryRegion] = useState(initialData?.countryRegion || "المملكة العربية السعودية");
+  const [countryRegion, setCountryRegion] = useState(initialData?.countryRegion || "");
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
