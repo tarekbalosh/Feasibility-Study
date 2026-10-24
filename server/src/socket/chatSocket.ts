@@ -5,6 +5,7 @@ import { env } from "../config/env";
 import { prisma } from "../config/prisma";
 import * as chatService from "../services/chatService";
 import { logger } from "../utils/logger";
+import { markUserInChat, markUserLeaveChat } from "./presenceTracker";
 
 interface SocketUser {
   userId: string;
@@ -15,6 +16,7 @@ interface SocketUser {
 interface AuthenticatedSocket extends Socket {
   user?: SocketUser;
   workspaceId?: string;
+  inChat?: boolean;
 }
 
 // تخزين معدل الإرسال لمنع السبام
@@ -135,17 +137,39 @@ export function initSocketServer(httpServer: HttpServer): Server {
     socket.join(`user:${user.userId}`);
     socket.join(`workspace:${workspaceId}`);
 
-    // تحديث التواجد وإشعار أعضاء مساحة العمل
-    try {
-      await chatService.updateUserPresence(workspaceId, user.userId, "online");
-      io.to(`workspace:${workspaceId}`).emit("presence:update", {
-        userId: user.userId,
-        status: "online",
-        lastSeenAt: new Date(),
-      });
-    } catch (e) {
-      logger.error("خطأ في تحديث التواجد:", e);
-    }
+    // إشارة دخول صفحة الدردشة
+    socket.on("presence:chat_enter", async () => {
+      markUserInChat(workspaceId, user.userId);
+      socket.inChat = true;
+      try {
+        await chatService.updateUserPresence(workspaceId, user.userId, "online");
+        io.to(`workspace:${workspaceId}`).emit("presence:update", {
+          userId: user.userId,
+          status: "online",
+          lastSeenAt: new Date(),
+        });
+      } catch (e) {
+        logger.error("خطأ في تحديث التواجد (دخول الدردشة):", e);
+      }
+    });
+
+    // إشارة مغادرة صفحة الدردشة
+    socket.on("presence:chat_leave", async () => {
+      const isFullyLeft = markUserLeaveChat(workspaceId, user.userId);
+      socket.inChat = false;
+      if (isFullyLeft) {
+        try {
+          await chatService.updateUserPresence(workspaceId, user.userId, "offline");
+          io.to(`workspace:${workspaceId}`).emit("presence:update", {
+            userId: user.userId,
+            status: "offline",
+            lastSeenAt: new Date(),
+          });
+        } catch (e) {
+          logger.error("خطأ في تحديث التواجد (مغادرة الدردشة):", e);
+        }
+      }
+    });
 
     // 1. الانضمام إلى غرفة محادثة
     socket.on("chat:join", async ({ conversationId }: { conversationId: string }) => {
@@ -236,11 +260,12 @@ export function initSocketServer(httpServer: HttpServer): Server {
     // 5. تأكيد القراءة (Read Receipt)
     socket.on("chat:read", async ({ conversationId }: { conversationId: string }) => {
       try {
+        const readAt = new Date();
         await chatService.markConversationAsRead(workspaceId, user.userId, conversationId);
         io.to(`conversation:${conversationId}`).emit("chat:read", {
           conversationId,
           userId: user.userId,
-          readAt: new Date(),
+          readAt: readAt.toISOString(),
         });
       } catch (e) {
         // تجاهل الخطأ البسيط
@@ -374,9 +399,14 @@ export function initSocketServer(httpServer: HttpServer): Server {
     socket.on("disconnect", async () => {
       logger.info(`🔌 قطع اتصال: ${user.name} (${user.userId})`);
 
+      let isFullyLeft = false;
+      if (socket.inChat) {
+        isFullyLeft = markUserLeaveChat(workspaceId, user.userId);
+      }
+
       // التحقق إن كان لديه اتصالات أخرى مفتوحة (مثلاً في تبويب آخر)
       const sockets = await io.in(`user:${user.userId}`).fetchSockets();
-      if (sockets.length === 0) {
+      if (sockets.length === 0 || isFullyLeft) {
         try {
           await chatService.updateUserPresence(workspaceId, user.userId, "offline");
           io.to(`workspace:${workspaceId}`).emit("presence:update", {

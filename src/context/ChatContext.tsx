@@ -44,6 +44,8 @@ interface ChatContextType {
   refreshConversations: () => Promise<void>;
   startDirectConversation: (targetUserId: string) => Promise<string>;
   createNewGroup: (title: string, memberUserIds: string[]) => Promise<string>;
+  enterChat: () => void;
+  leaveChat: () => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -108,6 +110,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     s.on("connect", () => {
       setIsConnected(true);
       refreshConversations();
+      if (typeof window !== "undefined" && window.location.pathname.includes("/dashboard/Chat")) {
+        s.emit("presence:chat_enter");
+      }
       if (activeConvRef.current) {
         s.emit("chat:join", { conversationId: activeConvRef.current });
       }
@@ -131,6 +136,31 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }));
     });
 
+    // استماع لتأكيد قراءة الرسائل لتحديث علامات الصح (✓✓) فورياً
+    s.on("chat:read", (data: { conversationId: string; userId: string; readAt: string }) => {
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id !== data.conversationId) return c;
+          return {
+            ...c,
+            members: c.members.map((m) =>
+              m.userId === data.userId ? { ...m, lastReadAt: data.readAt } : m
+            ),
+          };
+        })
+      );
+
+      setActiveConversation((prev) => {
+        if (!prev || prev.id !== data.conversationId) return prev;
+        return {
+          ...prev,
+          members: prev.members.map((m) =>
+            m.userId === data.userId ? { ...m, lastReadAt: data.readAt } : m
+          ),
+        };
+      });
+    });
+
     s.on("chat:message", ({ conversationId, message }: { conversationId: string; message: ChatMessage }) => {
       // إذا كانت المحادثة مفتوحة حالياً، نضيف الرسالة ونرسل إشعار قراءة
       if (activeConvRef.current === conversationId) {
@@ -138,7 +168,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (prev.some((m) => m.id === message.id)) return prev;
           return [...prev, message];
         });
-        s.emit("chat:read", { conversationId });
+        if (message.senderId !== user?.id) {
+          s.emit("chat:read", { conversationId });
+          chatService.markAsRead(conversationId).catch(() => {});
+        }
       }
 
       // تحديث قائمة المحادثات وترتيبها
@@ -238,6 +271,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (socket) {
         socket.emit("chat:join", { conversationId: id });
         socket.emit("chat:read", { conversationId: id });
+        chatService.markAsRead(id).catch(() => {});
       }
 
       try {
@@ -372,6 +406,18 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     0
   );
 
+  const enterChat = useCallback(() => {
+    if (socket && isConnected) {
+      socket.emit("presence:chat_enter");
+    }
+  }, [socket, isConnected]);
+
+  const leaveChat = useCallback(() => {
+    if (socket && isConnected) {
+      socket.emit("presence:chat_leave");
+    }
+  }, [socket, isConnected]);
+
   return (
     <ChatContext.Provider
       value={{
@@ -393,6 +439,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshConversations,
         startDirectConversation,
         createNewGroup,
+        enterChat,
+        leaveChat,
       }}
     >
       {children}

@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError";
 import sanitizeHtml from "sanitize-html";
 import { AccessToken } from "livekit-server-sdk";
 import { env } from "../config/env";
+import { isUserInChat } from "../socket/presenceTracker";
 
 /** تنقية النص من أي كود HTML أو وسوم خبيثة */
 export function sanitizeMessageContent(content: string): string {
@@ -145,6 +146,7 @@ export async function getUserConversations(workspaceId: string, userId: string) 
           role: cm.role,
           name: cm.user.name,
           email: cm.user.email,
+          lastReadAt: cm.lastReadAt,
         })),
       };
     })
@@ -409,7 +411,6 @@ export async function getWorkspacePresence(workspaceId: string, userId: string) 
 
   const presences = await prisma.userPresence.findMany({
     where: {
-      workspaceId,
       userId: { in: memberUserIds },
     },
   });
@@ -420,6 +421,16 @@ export async function getWorkspacePresence(workspaceId: string, userId: string) 
       status: p.status,
       lastSeenAt: p.lastSeenAt,
     };
+  }
+
+  // دمج حالة المتواجدين في الذاكرة الحية (Live In-Memory Socket State) لضمان الدقة الفورية
+  for (const memberId of memberUserIds) {
+    if (isUserInChat(workspaceId, memberId)) {
+      presenceMap[memberId] = {
+        status: "online",
+        lastSeenAt: new Date(),
+      };
+    }
   }
 
   return presenceMap;

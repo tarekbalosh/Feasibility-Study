@@ -21,6 +21,7 @@ export interface ConversationMemberItem {
   role: string;
   name: string;
   email: string;
+  lastReadAt?: string | null;
 }
 
 export interface ActiveCallSummary {
@@ -87,6 +88,7 @@ export async function sendChatMessage(
 export async function markConversationAsRead(conversationId: string): Promise<void> {
   await api.post(`/chat/conversations/${conversationId}/read`);
 }
+export const markAsRead = markConversationAsRead;
 
 export async function getWorkspacePresence(): Promise<Record<string, PresenceInfo>> {
   const res = await api.get("/chat/presence");

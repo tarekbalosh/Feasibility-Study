@@ -80,6 +80,9 @@ export default function ChatPage() {
     loadMoreMessages,
     startDirectConversation,
     createNewGroup,
+    enterChat,
+    leaveChat,
+    refreshConversations,
   } = useChat();
 
   const { startCall } = useCall();
@@ -105,6 +108,50 @@ export default function ChatPage() {
         .catch(console.error);
     }
   }, [workspace?.id]);
+
+  // تفعيل التواجد داخل الدردشة فور فتح الصفحة ومغادرته عند الخروج
+  useEffect(() => {
+    refreshConversations();
+    enterChat();
+
+    // تحديث دوري هادئ كل 15 ثانية كشبكة أمان
+    const interval = setInterval(() => {
+      refreshConversations();
+    }, 15000);
+
+    const handleFocus = () => {
+      refreshConversations();
+      enterChat();
+    };
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+      leaveChat();
+    };
+  }, [refreshConversations, enterChat, leaveChat]);
+
+  // فحص ما إذا تم قراءة الرسالة من قِبل الطرف الآخر (صحان = مقروءة، صح واحد = غير مقروءة)
+  const isMessageRead = (msg: ChatMessage): boolean => {
+    if (!activeConversation) return false;
+
+    const msgTime = new Date(msg.createdAt).getTime();
+
+    if (activeConversation.type === "direct") {
+      const otherMember = activeConversation.members.find((m) => m.userId !== user?.id);
+      if (!otherMember?.lastReadAt) return false;
+      return new Date(otherMember.lastReadAt).getTime() >= msgTime - 1000;
+    }
+
+    // في المجموعات: إذا قرأها أي عضو آخر في المجموعة
+    return activeConversation.members.some(
+      (m) =>
+        m.userId !== user?.id &&
+        m.lastReadAt &&
+        new Date(m.lastReadAt).getTime() >= msgTime - 1000
+    );
+  };
 
   // التمرير التلقائي لأسفل عند وصول رسالة جديدة
   useEffect(() => {
@@ -553,7 +600,18 @@ export default function ChatPage() {
                               }`}
                             >
                               <span>{formatMessageTime(msg.createdAt)}</span>
-                              {isMe && <CheckCheck size={14} className="opacity-80" />}
+                              {isMe && (
+                                <span
+                                  className="inline-flex items-center"
+                                  title={isMessageRead(msg) ? "تمت القراءة" : "تم الإرسال"}
+                                >
+                                  {isMessageRead(msg) ? (
+                                    <CheckCheck size={14} className="text-blue-200 shrink-0" />
+                                  ) : (
+                                    <Check size={14} className="text-blue-200/60 shrink-0" />
+                                  )}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>

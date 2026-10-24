@@ -187,6 +187,18 @@ export async function markAsRead(
       conversationId
     );
 
+    // بث تأكيد القراءة فورياً لغرفة المحادثة
+    try {
+      const io = getIO();
+      io.to(`conversation:${conversationId}`).emit("chat:read", {
+        conversationId,
+        userId,
+        readAt: new Date().toISOString(),
+      });
+    } catch (e) {
+      // ignore
+    }
+
     res.json({
       success: true,
       data: result,
