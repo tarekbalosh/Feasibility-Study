@@ -42,6 +42,11 @@ api.interceptors.request.use(
         config.headers = config.headers ?? {};
         config.headers.Authorization = `Bearer ${token}`;
       }
+      const activeWorkspaceId = localStorage.getItem('active_workspace_id');
+      if (activeWorkspaceId) {
+        config.headers = config.headers ?? {};
+        config.headers['x-workspace-id'] = activeWorkspaceId;
+      }
     }
     return config;
   },

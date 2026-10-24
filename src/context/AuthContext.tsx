@@ -197,6 +197,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = useCallback(() => {
     localStorage.removeItem("accessToken")
     localStorage.removeItem("user")
+    localStorage.removeItem("active_workspace_id")
     setState({
       user: null,
       token: null,

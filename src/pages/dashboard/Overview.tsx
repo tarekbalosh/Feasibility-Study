@@ -58,11 +58,11 @@ export default function Overview() {
   return (
     <DashboardLayout>
       <Head>
-        <title>نظرة عامة - Feasibility Suite</title>
+        <title>الرئيسية - Feasibility Suite</title>
       </Head>
 
       <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">نظرة عامة على مساحة العمل</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">الرئيسية</h1>
         <p className="mt-2 text-sm text-gray-500">تابع أداء الأقسام، الخطط التشغيلية، ومستجدات المشاريع.</p>
       </div>
 

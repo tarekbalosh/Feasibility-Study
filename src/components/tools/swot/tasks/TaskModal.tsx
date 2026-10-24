@@ -382,7 +382,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           {addMode === "single" && (
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                عنوان المهمة (الوسيلة) <span className="text-red-500">*</span>
+                عنوان المهمة <span className="text-red-500">*</span>
               </label>
               <input
                 ref={titleRef}

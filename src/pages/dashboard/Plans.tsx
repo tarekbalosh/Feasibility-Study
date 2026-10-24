@@ -4,8 +4,9 @@ import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { usePlans, useCreatePlan, useDeletePlan, useUpdatePlan } from '@/hooks/usePlans';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useOrgMembers } from '@/hooks/useOrg';
-import { Briefcase, Plus, Trash2, Edit2, Loader2, Calendar, Users } from 'lucide-react';
+import { Briefcase, Plus, Trash2, Edit2, Loader2, Calendar, Users, Table, LayoutGrid } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import PlanSheet from '@/components/plans/PlanSheet';
 
 export default function Plans() {
   const { data: plans, isLoading } = usePlans();
@@ -15,6 +16,7 @@ export default function Plans() {
   const updatePlan = useUpdatePlan();
   const deletePlan = useDeletePlan();
   
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [newPlan, setNewPlan] = useState<{
@@ -85,43 +87,70 @@ export default function Plans() {
         <title>الخطط التشغيلية - Feasibility Suite</title>
       </Head>
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Briefcase className="text-emerald-600" /> الخطط التشغيلية
           </h1>
           <p className="text-gray-500 text-sm mt-1">أدر الخطط التشغيلية التابعة للأقسام وتابع نسبة إنجازها.</p>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-medium hover:bg-emerald-700 transition-colors shadow-sm"
-        >
-          <Plus size={18} />
-          إضافة خطة
-        </button>
-      </div>
 
-      {isLoading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="animate-spin text-emerald-500" size={32} />
-        </div>
-      ) : plans?.length === 0 ? (
-        <div className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-12 text-center">
-          <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Briefcase size={32} />
+        <div className="flex items-center gap-3">
+          {/* محول العرض بين الجدول والبطاقات */}
+          <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === 'table' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
+              title="عرض الجدول المجمّع"
+            >
+              <Table size={15} /> الجدول الشامل
+            </button>
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === 'cards' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
+              title="عرض البطاقات"
+            >
+              <LayoutGrid size={15} /> البطاقات
+            </button>
           </div>
-          <h3 className="text-lg font-bold text-gray-900 mb-1">لا توجد خطط تشغيلية بعد</h3>
-          <p className="text-gray-500 mb-6">قم بإنشاء خطة للبدء بتوزيع المهام ومتابعة الإنجاز.</p>
+
           <button
             onClick={openCreateModal}
-            className="inline-flex items-center gap-2 bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-emerald-700 transition-colors shadow-sm"
+            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors shadow-sm"
           >
-            <Plus size={18} />
+            <Plus size={16} />
             إضافة خطة
           </button>
         </div>
+      </div>
+
+      {viewMode === 'table' ? (
+        <div className="pb-12">
+          <PlanSheet planId={null} />
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <>
+          {isLoading ? (
+            <div className="flex justify-center py-20">
+              <Loader2 className="animate-spin text-emerald-500" size={32} />
+            </div>
+          ) : plans?.length === 0 ? (
+            <div className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-12 text-center">
+              <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Briefcase size={32} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-1">لا توجد خطط تشغيلية بعد</h3>
+              <p className="text-gray-500 mb-6">قم بإنشاء خطة للبدء بتوزيع المهام ومتابعة الإنجاز.</p>
+              <button
+                onClick={openCreateModal}
+                className="inline-flex items-center gap-2 bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-emerald-700 transition-colors shadow-sm"
+              >
+                <Plus size={18} />
+                إضافة خطة
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {plans?.map((plan: any) => (
             <div key={plan.id} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow relative group flex flex-col">
               {plan.access?.canManage && (
@@ -188,6 +217,8 @@ export default function Plans() {
             </div>
           ))}
         </div>
+      )}
+        </>
       )}
 
       {/* Modal إضافة/تعديل خطة */}

@@ -19,6 +19,7 @@ export interface Workspace {
 
 export interface WorkspaceMember {
   id: string
+  userId?: string | null
   email: string
   role: WorkspaceRole
   status: WorkspaceMemberStatus

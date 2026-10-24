@@ -336,7 +336,11 @@ export interface GoalInput {
   status?: string;
   order?: number;
   sourceRunId?: string | null;
+  referenceType?: string | null;
+  referenceDetail?: string | null;
 }
+
+export const REFERENCE_TYPES = ["kpi", "swot", "need"] as const;
 
 const taskSelectForGoal = {
   id: true,
@@ -348,13 +352,20 @@ const taskSelectForGoal = {
 } as const;
 
 export async function listGoals(actor: Actor, planId: string) {
-  await getPlanWithAccess(actor, planId);
+  const { access } = await getPlanWithAccess(actor, planId);
 
+  // الموظف العادي يرى أهدافاً فيها وسائل مسندة إليه فقط
   const goals = await prisma.planGoal.findMany({
-    where: { planId },
+    where: {
+      planId,
+      ...(access.canManage ? {} : { tasks: { some: memberTaskWhere(actor) } }),
+    },
     orderBy: [{ order: "asc" }, { createdAt: "asc" }],
     include: {
-      tasks: { select: taskSelectForGoal },
+      tasks: {
+        where: access.canManage ? undefined : memberTaskWhere(actor),
+        select: taskSelectForGoal,
+      },
       sourceRun: { select: { id: true, title: true, toolSlug: true } },
     },
   });
@@ -368,6 +379,8 @@ export async function listGoals(actor: Actor, planId: string) {
     status: g.status,
     order: g.order,
     sourceRun: g.sourceRun,
+    referenceType: g.referenceType,
+    referenceDetail: g.referenceDetail,
     createdAt: g.createdAt,
     tasksCount: g.tasks.length,
     tasksDone: g.tasks.filter((t) => t.status === "done").length,
@@ -400,6 +413,8 @@ export async function createGoal(actor: Actor, planId: string, input: GoalInput)
       title: title.slice(0, 200),
       description: input.description?.trim().slice(0, 1000) || null,
       weight: Math.min(100, Math.max(1, Number(input.weight) || 1)),
+      referenceType: oneOf(REFERENCE_TYPES, input.referenceType, null as never) ?? null,
+      referenceDetail: input.referenceDetail?.trim().slice(0, 300) || null,
       dueDate: parseDate(input.dueDate) ?? null,
       status: oneOf(GOAL_STATUSES, input.status, "not_started"),
       order: (last?.order ?? -1) + 1,
@@ -439,6 +454,12 @@ export async function updateGoal(actor: Actor, planId: string, goalId: string, i
       ...(dueDate !== undefined ? { dueDate } : {}),
       ...(input.status ? { status: oneOf(GOAL_STATUSES, input.status, "not_started") } : {}),
       ...(input.order !== undefined ? { order: Number(input.order) || 0 } : {}),
+      ...(input.referenceType !== undefined
+        ? { referenceType: oneOf(REFERENCE_TYPES, input.referenceType, null as never) ?? null }
+        : {}),
+      ...(input.referenceDetail !== undefined
+        ? { referenceDetail: input.referenceDetail?.trim().slice(0, 300) || null }
+        : {}),
       ...(input.sourceRunId !== undefined
         ? { sourceRunId: await assertRunInPlanScope(actor, input.sourceRunId) }
         : {}),
@@ -473,6 +494,17 @@ export interface TaskInput {
   weight?: number;
   cost?: number;
   order?: number;
+  followerMemberId?: string | null;
+  followerName?: string | null;
+  need?: string | null;
+  party?: string | null;
+}
+
+/** شرط «الوسائل المسندة إليّ»: مسؤول أو معني بالمتابعة */
+function memberTaskWhere(actor: Actor) {
+  return {
+    OR: [{ assigneeMemberId: actor.memberId }, { followerMemberId: actor.memberId }],
+  };
 }
 
 export async function listTasks(
@@ -480,11 +512,12 @@ export async function listTasks(
   planId: string,
   filters: { goalId?: string; assignee?: string; status?: string } = {}
 ) {
-  await getPlanWithAccess(actor, planId);
+  const { access } = await getPlanWithAccess(actor, planId);
 
   const tasks = await prisma.planTask.findMany({
     where: {
       planId,
+      ...(access.canManage ? {} : memberTaskWhere(actor)),
       ...(filters.goalId ? { goalId: filters.goalId === "none" ? null : filters.goalId } : {}),
       ...(filters.assignee
         ? { assigneeMemberId: filters.assignee === "me" ? actor.memberId : filters.assignee }
@@ -507,6 +540,9 @@ export async function listTasks(
     assignee: t.assignee ? toMember(t.assignee) : null,
     assigneeName: t.assigneeName || (t.assignee?.user?.name ?? null),
     followerName: t.followerName,
+    followerMemberId: t.followerMemberId,
+    need: t.need,
+    party: t.party,
     dueDate: t.dueDate,
     priority: t.priority,
     status: t.status,
@@ -524,6 +560,9 @@ async function validateTaskRefs(actor: Actor, planId: string, input: TaskInput) 
   if (input.goalId) await getGoalInPlan(planId, input.goalId);
   if (input.assigneeMemberId) {
     await assertWorkspaceMembers(actor.workspaceId, [input.assigneeMemberId]);
+  }
+  if (input.followerMemberId) {
+    await assertWorkspaceMembers(actor.workspaceId, [input.followerMemberId]);
   }
 }
 
@@ -562,6 +601,10 @@ export async function createTask(actor: Actor, planId: string, input: TaskInput)
       title: title.slice(0, 200),
       description: input.description?.trim().slice(0, 2000) || null,
       assigneeMemberId: input.assigneeMemberId || null,
+      followerMemberId: input.followerMemberId || null,
+      followerName: input.followerName?.trim().slice(0, 120) || null,
+      need: input.need?.trim().slice(0, 300) || null,
+      party: input.party?.trim().slice(0, 300) || null,
       dueDate: parseDate(input.dueDate) ?? null,
       priority: oneOf(TASK_PRIORITIES, input.priority, "medium"),
       status: sp.status ?? "todo",
@@ -608,6 +651,14 @@ export async function updateTask(actor: Actor, planId: string, taskId: string, i
       ...(input.assigneeMemberId !== undefined
         ? { assigneeMemberId: input.assigneeMemberId || null }
         : {}),
+      ...(input.followerMemberId !== undefined
+        ? { followerMemberId: input.followerMemberId || null }
+        : {}),
+      ...(input.followerName !== undefined
+        ? { followerName: input.followerName?.trim().slice(0, 120) || null }
+        : {}),
+      ...(input.need !== undefined ? { need: input.need?.trim().slice(0, 300) || null } : {}),
+      ...(input.party !== undefined ? { party: input.party?.trim().slice(0, 300) || null } : {}),
       ...(dueDate !== undefined ? { dueDate } : {}),
       ...(input.priority ? { priority: oneOf(TASK_PRIORITIES, input.priority, "medium") } : {}),
       ...sp,

@@ -25,6 +25,8 @@ interface WorkspaceContextType extends WorkspaceState {
   refresh: () => Promise<void>
   /** تحديث فوري بعد الإنشاء، فلا ينتظر المستخدم دورة شبكة أخرى */
   setWorkspace: (workspace: Workspace) => void
+  /** الانتقال إلى مساحة عمل أخرى */
+  switchWorkspace: (workspaceId: string) => Promise<void>
 }
 
 const initialState: WorkspaceState = {
@@ -64,8 +66,19 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({
       const { workspaces, current, hasWorkspace } =
         await workspaceService.getMyWorkspaces()
 
+      let active = current
+      if (typeof window !== "undefined") {
+        const savedId = localStorage.getItem("active_workspace_id")
+        if (savedId) {
+          const match = workspaces.find((w) => w.id === savedId)
+          if (match) active = match
+        } else if (active?.id) {
+          localStorage.setItem("active_workspace_id", active.id)
+        }
+      }
+
       setState({
-        workspace: current,
+        workspace: active,
         workspaces,
         hasWorkspace,
         isLoading: false,
@@ -86,6 +99,9 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [isAuthLoading, refresh, user?.email])
 
   const setWorkspace = useCallback((workspace: Workspace) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("active_workspace_id", workspace.id)
+    }
     setState((prev) => ({
       workspace,
       workspaces: prev.workspaces.some((w) => w.id === workspace.id)
@@ -96,8 +112,27 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({
     }))
   }, [])
 
+  const switchWorkspace = useCallback(
+    async (workspaceId: string) => {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("active_workspace_id", workspaceId)
+      }
+      setState((prev) => {
+        const target = prev.workspaces.find((w) => w.id === workspaceId)
+        return {
+          ...prev,
+          workspace: target || prev.workspace,
+        }
+      })
+      if (typeof window !== "undefined") {
+        window.location.href = "/dashboard/Overview"
+      }
+    },
+    []
+  )
+
   return (
-    <WorkspaceContext.Provider value={{ ...state, refresh, setWorkspace }}>
+    <WorkspaceContext.Provider value={{ ...state, refresh, setWorkspace, switchWorkspace }}>
       {children}
     </WorkspaceContext.Provider>
   )

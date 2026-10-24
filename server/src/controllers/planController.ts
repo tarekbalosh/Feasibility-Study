@@ -1,6 +1,44 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import * as planService from "../services/planService";
+import * as sheetService from "../services/sheetService";
+
+const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+const sheetFilters = (q: Request["query"]): sheetService.SheetFilters => ({
+  q: str(q.q),
+  departmentId: str(q.departmentId),
+  assignee: str(q.assignee),
+  status: str(q.status),
+  importance: str(q.importance),
+});
+
+// Sheet — الجدول الشامل للخطة (مفلتر بالصلاحيات في الخدمة)
+export const getWorkspaceSheet = asyncHandler(async (req: Request, res: Response) => {
+  const sheet = await sheetService.getWorkspaceSheet(req.actor!, sheetFilters(req.query));
+  res.status(200).json({ success: true, data: sheet });
+});
+
+export const exportWorkspaceSheet = asyncHandler(async (req: Request, res: Response) => {
+  const { buffer, filename } = await sheetService.exportPlanSheet(req.actor!, null, sheetFilters(req.query));
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.status(200).send(buffer);
+});
+export const getPlanSheet = asyncHandler(async (req: Request, res: Response) => {
+  const sheet = await sheetService.getPlanSheet(req.actor!, req.params.id as string, sheetFilters(req.query));
+  res.status(200).json({ success: true, data: sheet });
+});
+
+export const exportPlanSheet = asyncHandler(async (req: Request, res: Response) => {
+  const { buffer, filename } = await sheetService.exportPlanSheet(
+    req.actor!,
+    req.params.id as string,
+    sheetFilters(req.query)
+  );
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.status(200).send(buffer);
+});
 
 // Plans
 export const listPlans = asyncHandler(async (req: Request, res: Response) => {

@@ -5,14 +5,16 @@ import * as workspaceService from "../services/workspaceService";
 // ——— GET /api/workspaces ———
 export const getMine = asyncHandler(async (req: Request, res: Response) => {
   const workspaces = await workspaceService.getUserWorkspaces(req.user!.userId);
+  const preferredId = (req.headers["x-workspace-id"] as string) || undefined;
+  const current = (preferredId ? workspaces.find((w) => w.id === preferredId) : null) || workspaces[0] || null;
 
   res.status(200).json({
     success: true,
     count: workspaces.length,
     hasWorkspace: workspaces.length > 0,
     data: workspaces,
-    // الواجهة تعتمد هذا الحقل لتقرير وجهة زر «أنشئ مساحة عملك الخاصة»
-    current: workspaces[0] ?? null,
+    // الواجهة تعتمد هذا الحقل لتقرير مساحة العمل النشطة
+    current,
   });
 });
 

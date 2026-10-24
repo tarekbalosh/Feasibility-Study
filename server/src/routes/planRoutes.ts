@@ -13,6 +13,15 @@ router.use(authMiddleware);
 router.use(requireWorkspace);
 router.use(attachActor);
 
+// الجدول المجمّع لكل الخطط — يُعرّف قبل /:id حتى لا تُفسّر «sheet» معرّفاً
+const workspaceSheetQuery = [
+  query("departmentId").optional({ values: "falsy" }).isUUID(),
+  query("status").optional({ values: "falsy" }).isIn(["completed", "overdue", "in_progress", "not_started"]),
+  query("importance").optional({ values: "falsy" }).isIn(["normal", "medium", "high"]),
+];
+router.get("/sheet", validateRequest(workspaceSheetQuery), planController.getWorkspaceSheet);
+router.get("/sheet/export", validateRequest(workspaceSheetQuery), planController.exportWorkspaceSheet);
+
 // Plans
 router.get("/", planController.listPlans);
 
@@ -21,6 +30,16 @@ router.get(
   validateRequest([param("id").isUUID()]),
   planController.getPlan
 );
+
+// الجدول الشامل وتصديره — نفس الفلاتر ونفس الصلاحيات
+const sheetQuery = [
+  param("id").isUUID(),
+  query("departmentId").optional({ values: "falsy" }).isUUID(),
+  query("status").optional({ values: "falsy" }).isIn(["completed", "overdue", "in_progress", "not_started"]),
+  query("importance").optional({ values: "falsy" }).isIn(["normal", "medium", "high"]),
+];
+router.get("/:id/sheet", validateRequest(sheetQuery), planController.getPlanSheet);
+router.get("/:id/sheet/export", validateRequest(sheetQuery), planController.exportPlanSheet);
 
 router.post(
   "/",
@@ -75,6 +94,8 @@ router.post(
     body("dueDate").optional({ values: "falsy" }).isISO8601(),
     body("status").optional().isIn(GOAL_STATUSES),
     body("sourceRunId").optional({ values: "falsy" }).isUUID(),
+    body("referenceType").optional({ values: "falsy" }).isIn(["kpi", "swot", "need"]),
+    body("referenceDetail").optional({ values: "falsy" }).isLength({ max: 300 }),
   ]),
   planController.createGoal
 );
@@ -90,6 +111,8 @@ router.put(
     body("dueDate").optional({ values: "null" }).isISO8601(),
     body("status").optional().isIn(GOAL_STATUSES),
     body("order").optional().isNumeric(),
+    body("referenceType").optional({ values: "null" }).isIn(["kpi", "swot", "need"]),
+    body("referenceDetail").optional({ values: "null" }).isLength({ max: 300 }),
   ]),
   planController.updateGoal
 );
@@ -132,6 +155,9 @@ router.post(
     body("title").trim().isLength({ min: 1, max: 200 }),
     body("description").optional({ values: "falsy" }).isLength({ max: 2000 }),
     body("assigneeMemberId").optional({ values: "falsy" }).isUUID(),
+    body("followerMemberId").optional({ values: "falsy" }).isUUID(),
+    body("need").optional({ values: "falsy" }).isLength({ max: 300 }),
+    body("party").optional({ values: "falsy" }).isLength({ max: 300 }),
     body("dueDate").optional({ values: "falsy" }).isISO8601(),
     body("priority").optional().isIn(TASK_PRIORITIES),
     body("status").optional().isIn(TASK_STATUSES),
@@ -151,6 +177,9 @@ router.put(
     body("title").optional().trim().isLength({ min: 1, max: 200 }),
     body("description").optional({ values: "null" }).isLength({ max: 2000 }),
     body("assigneeMemberId").optional({ values: "null" }).isUUID(),
+    body("followerMemberId").optional({ values: "null" }).isUUID(),
+    body("need").optional({ values: "null" }).isLength({ max: 300 }),
+    body("party").optional({ values: "null" }).isLength({ max: 300 }),
     body("dueDate").optional({ values: "null" }).isISO8601(),
     body("priority").optional().isIn(TASK_PRIORITIES),
     body("status").optional().isIn(TASK_STATUSES),

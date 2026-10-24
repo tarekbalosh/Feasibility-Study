@@ -37,7 +37,8 @@ export const requireWorkspace = async (
       return;
     }
 
-    const workspace = await getPrimaryWorkspace(req.user.userId);
+    const preferredId = (req.headers["x-workspace-id"] as string) || undefined;
+    const workspace = await getPrimaryWorkspace(req.user.userId, preferredId);
 
     if (!workspace) {
       next(

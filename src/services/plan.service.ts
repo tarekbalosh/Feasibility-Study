@@ -10,6 +10,27 @@ export const getPlan = async (id: string) => {
   return data.data;
 };
 
+export interface SheetFilterParams {
+  q?: string;
+  departmentId?: string;
+  assignee?: string;
+  status?: string;
+  importance?: string;
+}
+
+/** الجدول الشامل — الصفوف مفلترة بالصلاحيات في الخادم */
+export const getPlanSheet = async (id: string | null, params?: SheetFilterParams) => {
+  const url = id ? `/plans/${id}/sheet` : `/plans/sheet`;
+  const { data } = await apiClient.get(url, { params });
+  return data.data;
+};
+
+export const exportPlanSheet = async (id: string | null, params?: SheetFilterParams): Promise<Blob> => {
+  const url = id ? `/plans/${id}/sheet/export` : `/plans/sheet/export`;
+  const { data } = await apiClient.get(url, { params, responseType: "blob" });
+  return data;
+};
+
 export const createPlan = async (payload: any) => {
   const { data } = await apiClient.post("/plans", payload);
   return data.data;

@@ -1,7 +1,9 @@
+import http from "http";
 import app from "./app";
 import { env } from "./config/env";
 import { prisma } from "./config/prisma";
 import { logger } from "./utils/logger";
+import { initSocketServer } from "./socket/chatSocket";
 
 async function main() {
   try {
@@ -9,9 +11,13 @@ async function main() {
     await prisma.$connect();
     logger.info("✅ Connected to PostgreSQL database");
 
+    // Create HTTP Server & initialize Socket.IO
+    const httpServer = http.createServer(app);
+    initSocketServer(httpServer);
+
     // Start server
-    app.listen(env.PORT, () => {
-      logger.info(`🚀 Server is running on port ${env.PORT}`);
+    httpServer.listen(env.PORT, () => {
+      logger.info(`🚀 Server with Socket.IO is running on port ${env.PORT}`);
       logger.info(`📌 Environment: ${env.NODE_ENV}`);
       logger.info(`🔗 CORS Origin: ${env.CORS_ORIGIN}`);
     });

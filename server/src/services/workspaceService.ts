@@ -84,8 +84,12 @@ export async function getUserWorkspaces(userId: string) {
  * مساحة العمل الافتراضية للمستخدم — أقدم عضوية فعّالة.
  * تُرجع null إن لم يكن عضواً في أي مساحة.
  */
-export async function getPrimaryWorkspace(userId: string) {
+export async function getPrimaryWorkspace(userId: string, preferredWorkspaceId?: string) {
   const workspaces = await getUserWorkspaces(userId);
+  if (preferredWorkspaceId) {
+    const matched = workspaces.find((w) => w.id === preferredWorkspaceId);
+    if (matched) return matched;
+  }
   return workspaces[0] ?? null;
 }
 
@@ -115,6 +119,7 @@ export async function getWorkspaceMembers(workspaceId: string, userId: string) {
   const unifiedList = [
     ...activeMembers.map((m) => ({
       id: m.id, // member ID
+      userId: m.userId,
       email: m.email,
       role: m.role,
       status: m.status,

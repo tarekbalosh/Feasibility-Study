@@ -59,8 +59,8 @@ export const SEGMENT_LABELS: Record<string, { label: string; href: string }> = {
   "business-plan": { label: "مولّد خطة العمل", href: "/tools/business-plan" },
 
   dashboard: { label: "لوحة التحكم", href: "/dashboard/Overview" },
-  Overview: { label: "نظرة عامة", href: "/dashboard/Overview" },
-  overview: { label: "نظرة عامة", href: "/dashboard/overview" },
+  Overview: { label: "الرئيسية", href: "/dashboard/Overview" },
+  overview: { label: "الرئيسية", href: "/dashboard/overview" },
   Departments: { label: "الأقسام", href: "/dashboard/Departments" },
   departments: { label: "الأقسام", href: "/dashboard/departments" },
   Plans: { label: "الخطط التشغيلية", href: "/dashboard/Plans" },

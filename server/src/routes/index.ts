@@ -16,6 +16,7 @@ import planRoutes from "./planRoutes";
 import orgRoutes from "./orgRoutes";
 import pestRoutes from "./pestRoutes";
 import porterRoutes from "./porterRoutes";
+import chatRoutes from "./chatRoutes";
 
 const router = Router();
 
@@ -39,6 +40,7 @@ router.use("/pest", pestRoutes);
 router.use("/tools/pest", pestRoutes);
 router.use("/porter", porterRoutes);
 router.use("/tools/porter", porterRoutes);
+router.use("/chat", chatRoutes);
 
 // Health check
 router.get("/health", (_req, res) => {

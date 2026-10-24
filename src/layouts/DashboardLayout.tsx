@@ -1,32 +1,36 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { FolderGit2, FileText, Settings, LogOut, Menu, X, User, Users } from 'lucide-react';
+import { FolderGit2, FileText, Settings, LogOut, Menu, X, User, Users, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useWorkspace } from '@/context/WorkspaceContext';
+import { useChat } from '@/context/ChatContext';
 import { Breadcrumb } from '@/components/Breadcrumb';
+import { UserProfileDropdown } from '@/components/dashboard/UserProfileDropdown';
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, logout } = useAuth();
   const { workspace } = useWorkspace();
+  const { totalUnreadCount } = useChat();
 
   const isAdminOrOwner = workspace?.role === 'owner' || workspace?.role === 'admin';
 
   let navigation = [
-    { name: 'نظرة عامة', href: '/dashboard/Overview', icon: require('lucide-react').LayoutDashboard },
+    { name: 'الرئيسية', href: '/dashboard/Overview', icon: require('lucide-react').LayoutDashboard },
     { name: 'الأقسام', href: '/dashboard/Departments', icon: require('lucide-react').Building2 },
     { name: 'الخطط التشغيلية', href: '/dashboard/Plans', icon: require('lucide-react').Briefcase },
     { name: 'مشاريعي', href: '/dashboard/Projects', icon: FolderGit2 },
     { name: 'فريق العمل', href: '/dashboard/Team', icon: Users },
+    { name: 'الدردشة', href: '/dashboard/Chat', icon: MessageSquare, badge: totalUnreadCount },
     { name: 'التقارير', href: '/dashboard/Reports', icon: FileText },
     { name: 'الإعدادات', href: '/dashboard/Settings', icon: Settings },
   ];
 
   if (!isAdminOrOwner) {
     navigation = navigation.filter(
-      (item) => item.name !== 'نظرة عامة' && item.name !== 'الأقسام'
+      (item) => item.name !== 'الرئيسية' && item.name !== 'الأقسام'
     );
   }
 
@@ -55,14 +59,21 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
               <Link
                 key={item.name}
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                className={`flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 ${
                   isActive 
                     ? 'bg-blue-50 text-blue-700 font-semibold' 
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
-                <item.icon size={20} className={isActive ? 'text-blue-600' : 'text-gray-400'} />
-                {item.name}
+                <div className="flex items-center gap-3">
+                  <item.icon size={20} className={isActive ? 'text-blue-600' : 'text-gray-400'} />
+                  {item.name}
+                </div>
+                {item.badge && item.badge > 0 ? (
+                  <span className="px-2 py-0.5 text-xs font-bold bg-blue-600 text-white rounded-full">
+                    {item.badge}
+                  </span>
+                ) : null}
               </Link>
             );
           })}
@@ -83,19 +94,26 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       <main className="flex-1 md:mr-64 pb-20 md:pb-0 min-h-screen flex flex-col">
         {/* Header */}
         <header className="bg-white border-b border-gray-200 sticky top-0 z-20 px-4 md:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="md:hidden flex items-center gap-2">
-            <span className="bg-blue-600 text-white p-1.5 rounded-lg">
-              <FolderGit2 size={20} />
-            </span>
-            <span className="flex flex-col min-w-0">
+          <div className="md:hidden flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-1.5 shrink-0">
+              <span className="bg-blue-600 text-white p-1.5 rounded-lg">
+                <FolderGit2 size={20} />
+              </span>
               <span className="font-bold text-lg text-blue-600 leading-tight">جدوى</span>
-              {workspace && (
-                <span className="text-[11px] text-gray-500 truncate max-w-[9rem] leading-tight">
+            </Link>
+            {workspace && (
+              <>
+                <span className="text-gray-300" aria-hidden="true">|</span>
+                <Link
+                  href="/dashboard/Overview"
+                  title={`الانتقال إلى لوحة تحكم ${workspace.name}`}
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline transition-colors truncate max-w-[9rem] leading-tight"
+                >
                   {workspace.name}
-                </span>
-              )}
-            </span>
-          </Link>
+                </Link>
+              </>
+            )}
+          </div>
 
           {/* هوية المنصة ومساحة العمل الحالية — "Feasibility Suite | اسم الشركة" */}
           <div className="flex-1 min-w-0 hidden md:flex items-center gap-2">
@@ -105,12 +123,13 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             {workspace && (
               <>
                 <span className="text-gray-300 shrink-0" aria-hidden="true">|</span>
-                <span
-                  title={workspace.name}
-                  className="text-sm font-semibold text-blue-600 truncate max-w-[16rem]"
+                <Link
+                  href="/dashboard/Overview"
+                  title={`الانتقال إلى لوحة تحكم ${workspace.name}`}
+                  className="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline transition-colors truncate max-w-[16rem]"
                 >
                   {workspace.name}
-                </span>
+                </Link>
               </>
             )}
           </div>
@@ -118,12 +137,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           <div className="flex-1 md:hidden"></div> {/* Spacer for mobile */}
 
           <div className="flex items-center gap-4 justify-end w-full md:w-auto">
-            <div className="flex items-center gap-3 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
-              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
-                <User size={18} />
-              </div>
-              <span className="font-medium text-sm text-gray-700 hidden sm:block">{user?.name || 'مستخدم'}</span>
-            </div>
+            <UserProfileDropdown />
             <button className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
               {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -147,11 +161,18 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
               <Link
                 key={item.name}
                 href={item.href}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${
+                className={`relative flex flex-col items-center justify-center w-full h-full space-y-1 ${
                   isActive ? 'text-blue-600' : 'text-gray-500'
                 }`}
               >
-                <item.icon size={20} className={isActive ? 'text-blue-600' : 'text-gray-400'} />
+                <div className="relative">
+                  <item.icon size={20} className={isActive ? 'text-blue-600' : 'text-gray-400'} />
+                  {item.badge && item.badge > 0 ? (
+                    <span className="absolute -top-1.5 -right-2 px-1 text-[9px] font-bold bg-blue-600 text-white rounded-full min-w-3.5 h-3.5 flex items-center justify-center">
+                      {item.badge}
+                    </span>
+                  ) : null}
+                </div>
                 <span className="text-[10px] font-medium">{item.name}</span>
               </Link>
             );

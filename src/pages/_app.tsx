@@ -21,6 +21,11 @@ const tajawal = Tajawal({
   display: 'swap',
 })
 
+import { ChatProvider } from "@/context/ChatContext"
+import { CallProvider } from "@/context/CallContext"
+import { FloatingCallWindow } from "@/components/chat/FloatingCallWindow"
+import { IncomingCallModal } from "@/components/chat/IncomingCallModal"
+
 export default function App({ Component, pageProps }: AppProps) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
@@ -41,7 +46,13 @@ export default function App({ Component, pageProps }: AppProps) {
         <AuthProvider>
         {/* حالة مساحة العمل تعتمد على الجلسة، فتُركَّب داخل AuthProvider */}
         <WorkspaceProvider>
-          <Component {...pageProps} />
+          <ChatProvider>
+            <CallProvider>
+              <Component {...pageProps} />
+              <FloatingCallWindow />
+              <IncomingCallModal />
+            </CallProvider>
+          </ChatProvider>
         </WorkspaceProvider>
         {/* التنبيهات المنبثقة — تستهلكها الخدمات والهوكس عبر toast.* */}
         <Toaster
