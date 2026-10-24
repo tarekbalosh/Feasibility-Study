@@ -98,8 +98,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         token,
         workspaceId: workspace.id,
       },
+      transports: ["websocket", "polling"],
       reconnection: true,
-      reconnectionAttempts: 10,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
     });
@@ -107,6 +108,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     s.on("connect", () => {
       setIsConnected(true);
       refreshConversations();
+      if (activeConvRef.current) {
+        s.emit("chat:join", { conversationId: activeConvRef.current });
+      }
+    });
+
+    s.on("connect_error", (err) => {
+      console.warn("🔌 خطأ في اتصال WebSocket:", err.message);
     });
 
     s.on("disconnect", () => {
@@ -259,6 +267,28 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     },
     [socket, activeConversationId, conversations]
   );
+
+  // شبكة أمان: في حال انقطاع السوكيت، تحديث الرسائل تلقائياً كل 4 ثوانٍ دون الحاجة لتحميل الصفحة
+  useEffect(() => {
+    if (isConnected || !activeConversationId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const fresh = await chatService.getConversationMessages(activeConversationId, 40);
+        setMessages((prev) => {
+          if (
+            fresh.length !== prev.length ||
+            (fresh.length > 0 && fresh[fresh.length - 1]?.id !== prev[prev.length - 1]?.id)
+          ) {
+            return fresh;
+          }
+          return prev;
+        });
+      } catch (e) {}
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [isConnected, activeConversationId]);
 
   // إرسال رسالة
   const sendMessage = useCallback(

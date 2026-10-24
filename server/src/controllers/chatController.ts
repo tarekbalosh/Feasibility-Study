@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import * as chatService from "../services/chatService";
 import { ApiError } from "../utils/ApiError";
+import { getIO } from "../socket/chatSocket";
+import { prisma } from "../config/prisma";
 
 export async function getConversations(
   req: Request,
@@ -131,6 +133,34 @@ export async function sendMessage(
       conversationId,
       content
     );
+
+    // بث الرسالة فورياً عبر WebSocket لجميع المتصلين في نفس اللحظة
+    try {
+      const io = getIO();
+      io.to(`conversation:${conversationId}`).emit("chat:message", {
+        conversationId,
+        message,
+      });
+
+      const conv = await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        include: { members: true },
+      });
+
+      if (conv) {
+        for (const member of conv.members) {
+          if (member.userId !== senderId) {
+            io.to(`user:${member.userId}`).emit("chat:notification", {
+              conversationId,
+              message,
+              senderName: message.sender.name,
+            });
+          }
+        }
+      }
+    } catch (socketErr) {
+      // لا نعطل الـ API في حال تعذر السوكيت
+    }
 
     res.json({
       success: true,
