@@ -25,8 +25,10 @@ import {
 } from "./porterConstants";
 import {
   callOpenAIForPorter,
+  suggestPorterImplications,
   type GenerateRequestInput,
   type GenerationContext,
+  type SuggestPorterImplicationsInput,
 } from "./porterGeneration";
 
 // ─────────────────────────────────────────────────────────────
@@ -55,13 +57,16 @@ function checkAiRateLimit(userId: string) {
 // JSON <-> typed forces
 // ─────────────────────────────────────────────────────────────
 
-/** يحوّل قيمة JSON الخام من قاعدة البيانات إلى قوة بثلاثة حقول نصية سليمة */
+/** يحوّل قيمة JSON الخام من قاعدة البيانات إلى قوة بثلاثة حقول نصية سليمة مع قائمة البنود المهيكلة */
 export function normalizeForce(raw: unknown): PorterForceContent {
   const source = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
   const result = emptyForce();
   for (const field of PORTER_FIELDS) {
     const value = source[field];
     result[field] = typeof value === "string" ? value : "";
+  }
+  if (Array.isArray(source.items)) {
+    result.items = source.items as any;
   }
   return result;
 }
@@ -117,6 +122,9 @@ function mergeForces(current: PorterForces, incoming: PartialForces): PorterForc
         ]);
       }
       next[key][field] = value;
+    }
+    if (patch.items !== undefined && Array.isArray(patch.items)) {
+      next[key].items = patch.items;
     }
   }
   return next;
@@ -418,6 +426,14 @@ export async function generatePorterAI(actor: Actor, input: GenerateRequestInput
     usedFallback: model === "heuristic-fallback",
     message: "تم توليد تحليل قوى بورتر بالذكاء الاصطناعي بنجاح.",
   };
+}
+
+export async function suggestImplications(
+  actor: Actor,
+  input: SuggestPorterImplicationsInput
+) {
+  checkAiRateLimit(actor.userId);
+  return suggestPorterImplications(input);
 }
 
 // ─────────────────────────────────────────────────────────────

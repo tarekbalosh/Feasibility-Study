@@ -11,6 +11,8 @@ import {
   type PorterForces,
   type PorterForceKey,
   type PorterFieldKey,
+  type PorterForceContent,
+  type PorterFactorItem,
 } from "./porterConstants";
 import { logger } from "../../utils/logger";
 
@@ -117,8 +119,10 @@ ${forcesDesc}
 ولكل قوة ثلاثة حقول نصية:
 ${fieldsDesc}
 
-قواعد صارمة لكل حقل:
-- قيمة الحقل نص واحد (string) تفصل بين نقاطه بسطر جديد (\\n).
+قواعد صارمة ومحكمة للترابط:
+- في كل قوة، ولّد تماماً 4 نقاط في كل حقل (4 أسطر في trends، و4 أسطر في positiveImpacts، و4 أسطر في negativeImpacts).
+- قاعدة الترابط المتناظر: النقطة i في الانعكاس الإيجابي والنقطة i في الانعكاس السلبي تنبثقان مباشرة وتفسران الأثر المترتب على بند التوجه i.
+- قيمة كل حقل نص واحد (string) تفصل بين نقاطه بسطر جديد (\\n).
 - لا تستخدم ترقيماً ولا رموز تعداد (- أو • أو 1.) في بداية النقاط.
 - لا تترك أي حقل فارغاً.
 
@@ -138,104 +142,166 @@ ${fieldsDesc}
 // Heuristic fallback — يُستخدم عند غياب مفتاح OpenAI أو فشل الاستدعاء
 // ─────────────────────────────────────────────────────────────
 
+function buildLinkedForce(
+  forceKey: PorterForceKey,
+  trends: string[],
+  positives: string[],
+  negatives: string[]
+): PorterForceContent {
+  const items: PorterFactorItem[] = [];
+  trends.forEach((t, idx) => {
+    const parentId = `heuristic-${forceKey}-t-${idx + 1}`;
+    items.push({
+      id: parentId,
+      force: forceKey,
+      field: "trends",
+      content: t,
+      source: "ai",
+      sortOrder: idx + 1,
+    });
+    if (positives[idx]) {
+      items.push({
+        id: `heuristic-${forceKey}-p-${idx + 1}`,
+        force: forceKey,
+        field: "positiveImpacts",
+        content: positives[idx],
+        parentFactorId: parentId,
+        source: "ai",
+        sortOrder: idx + 1,
+      });
+    }
+    if (negatives[idx]) {
+      items.push({
+        id: `heuristic-${forceKey}-n-${idx + 1}`,
+        force: forceKey,
+        field: "negativeImpacts",
+        content: negatives[idx],
+        parentFactorId: parentId,
+        source: "ai",
+        sortOrder: idx + 1,
+      });
+    }
+  });
+
+  return {
+    trends: trends.join("\n"),
+    positiveImpacts: positives.join("\n"),
+    negativeImpacts: negatives.join("\n"),
+    items,
+  };
+}
+
 export function generateHeuristicPorterForces(ctx: GenerationContext): PorterForces {
   const project = ctx.projectName?.trim() || "المشروع";
   const industry = ctx.industry?.trim() || "هذا القطاع";
   const country = ctx.countryRegion?.trim() || "المملكة العربية السعودية";
 
-  const lines = (...items: string[]) => items.join("\n");
-
   return {
-    newEntrants: {
-      trends: lines(
+    newEntrants: buildLinkedForce(
+      "newEntrants",
+      [
         `تنامي اهتمام رواد الأعمال بدخول قطاع ${industry} في ${country} مع تسهيل إجراءات التأسيس والتراخيص.`,
         "توفر حاضنات ومسرّعات أعمال ومبادرات تمويل تخفض كلفة الدخول للشركات الناشئة.",
         "انتشار الحلول الرقمية الجاهزة التي تتيح إطلاق نشاط مماثل بسرعة ورأس مال أقل.",
-        "اهتمام المستثمرين بالقطاعات الواعدة يجذب منافسين جدداً من خارج السوق المحلي."
-      ),
-      positiveImpacts: lines(
+        "اهتمام المستثمرين بالقطاعات الواعدة يجذب منافسين جدداً من خارج السوق المحلي.",
+      ],
+      [
         `وجود عوائق دخول مثل الحاجة للخبرة والتراخيص والعلامة الموثوقة يحمي موقع «${project}» بعد تأسيسه.`,
         "الاستفادة المبكرة من الحصة السوقية وبناء قاعدة عملاء قبل ازدحام السوق.",
-        "إمكانية بناء مزايا تنافسية يصعب تقليدها سريعاً كجودة الخدمة وعلاقات الموردين."
-      ),
-      negativeImpacts: lines(
+        "إمكانية بناء مزايا تنافسية يصعب تقليدها سريعاً كجودة الخدمة وعلاقات الموردين.",
+        "تزايد اهتمام المستثمرين يفتح آفاق شراكات تمويلية واستثمارية استراتيجية للمشروع.",
+      ],
+      [
         "انخفاض عوائق الدخول نسبياً يهدد بظهور منافسين جدد بأسعار أو عروض مغرية.",
         "احتمال دخول شركات كبرى بموارد مالية وتسويقية أضخم تضغط على الهوامش.",
-        "الحاجة لاستثمار مستمر في التسويق والتطوير للحفاظ على التميز أمام الداخلين الجدد."
-      ),
-    },
-    buyers: {
-      trends: lines(
+        "الحاجة لاستثمار مستمر في التسويق والتطوير للحفاظ على التميز أمام الداخلين الجدد.",
+        "احتدام المنافسة على استقطاب الكفاءات والكوادر المتخصصة مع دخول وافدين جدد.",
+      ]
+    ),
+    buyers: buildLinkedForce(
+      "buyers",
+      [
         `ارتفاع وعي العملاء في ${country} بالجودة والأسعار وسهولة المقارنة بين مقدمي ${industry}.`,
         "تزايد الاعتماد على التقييمات والمراجعات الرقمية في قرار الشراء.",
         "ميل العملاء إلى العروض المرنة والتجربة السلسة وسرعة الاستجابة.",
-        "تنوع شرائح العملاء بين أفراد وشركات واختلاف حساسيتهم السعرية."
-      ),
-      positiveImpacts: lines(
+        "تنوع شرائح العملاء بين أفراد وشركات واختلاف حساسيتهم السعرية.",
+      ],
+      [
         `وجود شريحة واسعة من العملاء المحتملين تمنح «${project}» فرصة نمو في الطلب.`,
         "العملاء الراضون يتحولون إلى سفراء للعلامة ويخفضون كلفة اكتساب العملاء.",
-        "إمكانية بناء برامج ولاء وعقود طويلة الأمد تثبّت الإيرادات."
-      ),
-      negativeImpacts: lines(
+        "إمكانية بناء برامج ولاء وعقود طويلة الأمد تثبّت الإيرادات.",
+        "استهداف الشرائح الأقل حساسية للسعر يمنح هوامش ربحية ممتازة وقيمة مضافة.",
+      ],
+      [
         "سهولة انتقال العملاء إلى المنافسين تقوّي قدرتهم على التفاوض على الأسعار.",
         "الحساسية العالية للسعر قد تفرض خصومات تضغط على الربحية.",
-        "ارتفاع التوقعات يتطلب جودة ثابتة ويضاعف أثر أي تجربة سلبية على السمعة."
-      ),
-    },
-    suppliers: {
-      trends: lines(
+        "ارتفاع التوقعات يتطلب جودة ثابتة ويضاعف أثر أي تجربة سلبية على السمعة.",
+        "تشتت الموارد في تلبية متطلبات متباينة لشرائح العملاء المختلفة.",
+      ]
+    ),
+    suppliers: buildLinkedForce(
+      "suppliers",
+      [
         `تقلب أسعار المواد والخدمات المغذية لقطاع ${industry} بفعل التضخم وسلاسل الإمداد العالمية.`,
         "اتجاه الموردين إلى عقود أطول وشروط دفع أكثر صرامة مع المشاريع الجديدة.",
         "جهود التوطين في السوق المحلي تزيد من عدد الموردين المحليين المتاحين.",
-        "تركّز بعض الموردين الرئيسيين في عدد محدود من الشركات."
-      ),
-      positiveImpacts: lines(
+        "تركّز بعض الموردين الرئيسيين في عدد محدود من الشركات.",
+      ],
+      [
         `تعدد الموردين المحليين والإقليميين يتيح لـ«${project}» مقارنة العروض والتفاوض على الشروط.`,
         "إمكانية بناء شراكات استراتيجية مع موردين موثوقين لضمان الجودة والاستمرارية.",
-        "فرصة خفض التكاليف عبر الشراء بالجملة أو التعاقد المباشر مع المصدر."
-      ),
-      negativeImpacts: lines(
+        "فرصة خفض التكاليف عبر الشراء بالجملة أو التعاقد المباشر مع المصدر.",
+        "الاستفادة من الموردين المحليين لتقليص فترات التسليم وتفادي مخاطر الشحن الدولي.",
+      ],
+      [
         "الاعتماد على عدد محدود من الموردين يعرّض التشغيل لمخاطر التأخير أو رفع الأسعار.",
         "ارتفاع تكاليف المدخلات قد يضغط على هوامش الربح إن تعذّر تمريره للعملاء.",
-        "شروط الدفع الصارمة تزيد من احتياج المشروع للسيولة في مراحله الأولى."
-      ),
-    },
-    substitutes: {
-      trends: lines(
+        "شروط الدفع الصارمة تزيد من احتياج المشروع للسيولة في مراحله الأولى.",
+        "مخاطر انقطاع الإمداد في حال تعثر أحد الموردين الرئيسيين غير القابلين للاستبدال السريع.",
+      ]
+    ),
+    substitutes: buildLinkedForce(
+      "substitutes",
+      [
         `ظهور حلول وخدمات بديلة تلبي حاجة عملاء ${industry} بطرق مختلفة وبكلفة أقل أحياناً.`,
         "تسارع التحول الرقمي الذي يتيح بدائل إلكترونية أو ذاتية الخدمة.",
         "تغير أنماط الاستهلاك نحو خيارات أكثر مرونة وراحة.",
-        "مقارنة العملاء المستمرة بين الحل التقليدي والبدائل الحديثة."
-      ),
-      positiveImpacts: lines(
+        "مقارنة العملاء المستمرة بين الحل التقليدي والبدائل الحديثة.",
+      ],
+      [
         `تميّز «${project}» بقيمة مضافة يصعب على البدائل تقديمها يحد من التحول عنه.`,
         "إمكانية دمج بعض البدائل ضمن العرض (شراكات أو تكامل) لتوسيع الفائدة للعملاء.",
-        "الابتكار المستمر في المنتج والخدمة يجعل البدائل أقل جاذبية."
-      ),
-      negativeImpacts: lines(
+        "الابتكار المستمر في المنتج والخدمة يجعل البدائل أقل جاذبية.",
+        "تثقيف العملاء بالفارق الجوهري في الاعتمادية والخدمة يثبت مكانة المشروع كخيار أول.",
+      ],
+      [
         "وجود بدائل أرخص أو أسهل يحدّ من قدرة المشروع على رفع الأسعار.",
         "ظهور تقنية بديلة جديدة قد يضعف الطلب على الخدمة بسرعة.",
-        "انخفاض تكلفة التحول للعميل يسهّل انتقاله إلى البديل."
-      ),
-    },
-    rivalry: {
-      trends: lines(
+        "انخفاض تكلفة التحول للعميل يسهّل انتقاله إلى البديل.",
+        "ضغط التسعير الدائم لمجاراة الحلول البديلة المنخفضة التكلفة.",
+      ]
+    ),
+    rivalry: buildLinkedForce(
+      "rivalry",
+      [
         `تعدد المنافسين الحاليين في قطاع ${industry} في ${country} وتفاوت أحجامهم وقدراتهم.`,
         "اعتماد المنافسين على الخصومات والعروض الترويجية لكسب العملاء.",
         "تنافس متزايد على القنوات الرقمية والتسويق عبر وسائل التواصل الاجتماعي.",
-        "اتجاه الشركات القائمة إلى التوسع الجغرافي وتطوير العروض."
-      ),
-      positiveImpacts: lines(
+        "اتجاه الشركات القائمة إلى التوسع الجغرافي وتطوير العروض.",
+      ],
+      [
         "نمو حجم السوق يسمح بوجود أكثر من لاعب رابح وتوسع الطلب الإجمالي.",
         `فرصة تمايز «${project}» بجودة أعلى أو خدمة متخصصة أو تجربة عملاء أفضل.`,
-        "التعلّم من ممارسات المنافسين ونقاط ضعفهم لتحسين العرض."
-      ),
-      negativeImpacts: lines(
+        "التعلّم من ممارسات المنافسين ونقاط ضعفهم لتحسين العرض.",
+        "إمكانية الاستحواذ على حصص من المنافسين التقليديين عبر تجربة رقمية متفوقة.",
+      ],
+      [
         "المنافسة السعرية الحادة قد تضغط على الأسعار وهوامش الربح.",
         "ارتفاع كلفة التسويق للتميز وسط المنافسين القائمين.",
-        "قدرة الشركات الكبرى على تحمل خسائر مؤقتة لإبعاد الداخلين الجدد."
-      ),
-    },
+        "قدرة الشركات الكبرى على تحمل خسائر مؤقتة لإبعاد الداخلين الجدد.",
+        "سرعة تقليد المنافسين لأي مزايا أو خدمات جديدة يطلقها المشروع.",
+      ]
+    ),
   };
 }
 
@@ -316,3 +382,113 @@ export async function callOpenAIForPorter(ctx: GenerationContext): Promise<Gener
     model,
   };
 }
+
+// ─────────────────────────────────────────────────────────────
+// Single Trend Implication Suggester
+// ─────────────────────────────────────────────────────────────
+
+export interface SuggestPorterImplicationsInput {
+  force: PorterForceKey;
+  content: string;
+  projectName?: string | null;
+  projectDescription?: string | null;
+  industry?: string | null;
+  countryRegion?: string | null;
+}
+
+export async function suggestPorterImplications(
+  input: SuggestPorterImplicationsInput
+): Promise<{ positiveImplication: string; negativeImplication: string; model: string }> {
+  const forceLabel = FORCE_LABELS[input.force] || input.force;
+  const project = input.projectName?.trim() || "المشروع";
+  const industry = input.industry?.trim() || "القطاع";
+  const trend = input.content.trim();
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  const isKeyValid = Boolean(apiKey && apiKey.startsWith("sk-") && apiKey.length > 20);
+
+  if (isKeyValid) {
+    const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+    const openai = new OpenAI({ apiKey, timeout: 30000 });
+
+    const system = `أنت مستشار استراتيجي متخصص في تحليل قوى بورتر الخمس (Porter's Five Forces).
+المطلوب استنتاج انعكاسين مباشرين ومحددين لبند توجه تنافسي:
+1. انعكاس إيجابي وفرصة استراتيجية للمشروع.
+2. انعكاس سلبي ومخاطر أو ضغوط تنافسية تستوجب التحوط.
+أجب فقط بصيغة JSON:
+{"positiveImplication": "...", "negativeImplication": "..."}`;
+
+    const user = `بيانات المشروع:
+- اسم المشروع: ${project}
+- القطاع: ${industry}
+- القوة التنافسية: ${forceLabel} (${input.force})
+- نص بند التوجه أو المؤشر: "${trend}"
+
+المطلوب:
+ولّد بدقة انعكاساً إيجابياً (فرصة) وانعكاساً سلبياً (مخاطر) مرتبطين ارتباطاً وثيقاً بهذا البند حصراً.
+اكتب بالعربية الفصحى في سطر واحد لكل انعكاس دون ترقيم أو رموز تعداد.`;
+
+    try {
+      const completion = await openai.chat.completions.create({
+        model,
+        temperature: 0.4,
+        max_tokens: 600,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+      });
+
+      const raw = completion.choices?.[0]?.message?.content;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const pos = typeof parsed.positiveImplication === "string" ? parsed.positiveImplication.trim() : "";
+        const neg = typeof parsed.negativeImplication === "string" ? parsed.negativeImplication.trim() : "";
+        if (pos && neg) {
+          return {
+            positiveImplication: normalizePoints(pos),
+            negativeImplication: normalizePoints(neg),
+            model,
+          };
+        }
+      }
+    } catch (err: any) {
+      logger.warn("Porter single suggest OpenAI call failed, falling back to heuristic", {
+        error: err?.message,
+      });
+    }
+  }
+
+  // Fallback heuristic based on force type
+  const fallbackByForce: Record<PorterForceKey, { pos: string; neg: string }> = {
+    newEntrants: {
+      pos: `فرصة استباقية لـ«${project}» لتثبيت علامته وتأمين موقعه في السوق قبل تزايد المنافسة.`,
+      neg: "احتمال دخول منافسين جدد بأسعار منافسة يفرض ضغوطاً تسعيرية ويزيد تكاليف استقطاب العملاء.",
+    },
+    buyers: {
+      pos: `استثمار هذا التوجه لتصميم عروض مخصصة وقيمة مضافة تعزز ولاء العملاء وتزيد الإيرادات.`,
+      neg: "ارتفاع قدرة العملاء على المقارنة والتبديل قد يضغط على هوامش الربحية ويتطلب جودة خدمة أعلى.",
+    },
+    suppliers: {
+      pos: `بناء شراكات وعقود طويلة الأجل مع موردين معتمدين للحصول على أسعار تفضيلية وضمان استمرارية التوريد.`,
+      neg: "مخاطر تذبذب التكاليف أو تأخر التوريد مما يرفع التكاليف التشغيلية ويؤثر على التسليم.",
+    },
+    substitutes: {
+      pos: `تطوير مزايا فريدة وحصرية يصعب على البدائل مجاراتها، مع إمكانية تبني وتضمين أفضل ما تقدمه الحلول البديلة.`,
+      neg: "جاذبية البدائل من حيث السعر أو سهولة الوصول قد تستقطع جزءاً من الحصة السوقية المتوقعة.",
+    },
+    rivalry: {
+      pos: `التركيز على نقاط ضعف المنافسين وتقديم تجربة عملاء استثنائية لكسب حصة سوقية أكبر.`,
+      neg: "اشتداد المنافسة قد يشعل حرب أسعار تضغط على الهامش وتزيد متطلبات الإنفاق التسويقي.",
+    },
+  };
+
+  const selected = fallbackByForce[input.force] || fallbackByForce.newEntrants;
+  return {
+    positiveImplication: selected.pos,
+    negativeImplication: selected.neg,
+    model: "heuristic-fallback",
+  };
+}
+

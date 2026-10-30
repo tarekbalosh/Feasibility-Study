@@ -84,6 +84,21 @@ export const porterService = {
     });
     return data;
   },
+
+  /** اقتراح الانعكاسين الإيجابي والسلبي لبند توجه محدد */
+  async suggestImplications(payload: {
+    force: string;
+    content: string;
+    projectName?: string;
+    projectDescription?: string;
+    industry?: string;
+    countryRegion?: string;
+  }): Promise<{ positiveImplication: string; negativeImplication: string; model: string }> {
+    const { data } = await apiClient.post("/porter/suggest-implications", payload, {
+      skipToast: true,
+    });
+    return data.data;
+  },
 };
 
 export default porterService;

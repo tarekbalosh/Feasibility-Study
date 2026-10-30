@@ -22,8 +22,38 @@ export interface PestFactor {
   sortOrder: number
   source: PestFactorSource
   createdById?: string | null
+  parentFactorId?: string | null
   createdAt: string
   updatedAt: string
+}
+
+export interface CreateLinkedFactorPayload {
+  dimension: PestDimension
+  content: string
+  positiveImplication: string
+  negativeImplication: string
+  aiSuggested?: {
+    positive?: string
+    negative?: string
+  } | null
+}
+
+export interface CreateLinkedFactorResponse {
+  trend: PestFactor
+  positive: PestFactor
+  negative: PestFactor
+  creationMode: PestCreationMode
+}
+
+export interface SuggestImplicationsPayload {
+  dimension: PestDimension
+  content: string
+}
+
+export interface SuggestImplicationsResponse {
+  positiveImplication: string
+  negativeImplication: string
+  model?: string
 }
 
 export interface PestAnalysisSummary {

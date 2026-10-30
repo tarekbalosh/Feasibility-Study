@@ -6,9 +6,11 @@ export const getOrgContext = async () => {
 };
 
 export const getOrgOverview = async () => {
-  const { data } = await apiClient.get("/org/overview");
+  const { data } = await apiClient.get("/org/home");
   return data.data;
 };
+
+export const getOrgHome = getOrgOverview;
 
 export const listOrgMembers = async () => {
   const { data } = await apiClient.get("/org/members");

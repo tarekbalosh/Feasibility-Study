@@ -1,14 +1,22 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import axios from '@/lib/axios';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
-import { FileText, Trash2, AlertCircle, Calendar, Eye, Download, BarChart3, Clock, Sparkles, ChevronDown, Check, Filter } from 'lucide-react';
+import { 
+  FileText, Trash2, AlertCircle, Calendar, Eye, Download, BarChart3, 
+  Clock, Sparkles, Filter, Building2, User, RotateCcw 
+} from 'lucide-react';
 import { useToolRuns, useDeleteToolRun } from '@/hooks/useToolRuns';
-import { getToolBySlug, getToolStartPath } from "@/config/tools.registry";
+import { useDepartments } from '@/hooks/useDepartments';
+import { useOrgMembers } from '@/hooks/useOrg';
+import { getToolBySlug, getToolStartPath, getAvailableTools } from "@/config/tools.registry";
 import { useAuth } from '@/context/AuthContext';
+import { FilterBar } from '@/components/ui/filters';
+import type { FilterItemConfig, FilterValues, DateRangeValue } from '@/components/ui/filters/types';
 
 /** Types matching the Prisma Report model */
 interface LegacyReport {
@@ -177,6 +185,16 @@ const UnifiedReportCard = ({
                خطة: {item.planName}
              </span>
           )}
+          {item.departmentName && (
+             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-50 text-slate-600 border border-slate-200">
+               {item.departmentName}
+             </span>
+          )}
+          {item.userName && (
+             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-indigo-50 text-indigo-600 border border-indigo-100">
+               {item.userName}
+             </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
@@ -293,11 +311,55 @@ interface UnifiedReportItem {
   projectName?: string;
   toolSlug?: string;
   planName?: string;
+  departmentId?: string;
+  departmentName?: string;
+  userId?: string;
+  userName?: string;
   createdAt: string;
   activityType?: string;
   status?: string;
   pdfPath?: string | null;
 }
+
+  const router = useRouter();
+  const { data: departments } = useDepartments();
+  const { data: membersList } = useOrgMembers();
+
+  // URL Query / Filter States
+  const [search, setSearch] = useState<string>((router.query.q as string) || (router.query.search as string) || '');
+  const [toolSlugFilter, setToolSlugFilter] = useState<string>((router.query.toolSlug as string) || '');
+  const [deptFilter, setDeptFilter] = useState<string>((router.query.departmentId as string) || '');
+  const [assigneeFilter, setAssigneeFilter] = useState<string>((router.query.assignee as string) || '');
+  const [dateRange, setDateRange] = useState<DateRangeValue>({
+    from: (router.query.startDate as string) || undefined,
+    to: (router.query.endDate as string) || undefined,
+  });
+
+  // URL sync handler
+  const syncToUrl = useCallback((updates: Record<string, any>) => {
+    const nextQuery = { ...router.query, ...updates };
+    Object.keys(nextQuery).forEach(k => {
+      if (nextQuery[k] === '' || nextQuery[k] === undefined || nextQuery[k] === null) {
+        delete nextQuery[k];
+      }
+    });
+    router.push({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true });
+  }, [router]);
+
+  useEffect(() => {
+    if (router.isReady) {
+      if (router.query.q !== undefined) setSearch(String(router.query.q));
+      if (router.query.toolSlug !== undefined) setToolSlugFilter(String(router.query.toolSlug));
+      if (router.query.departmentId !== undefined) setDeptFilter(String(router.query.departmentId));
+      if (router.query.assignee !== undefined) setAssigneeFilter(String(router.query.assignee));
+      if (router.query.startDate !== undefined || router.query.endDate !== undefined) {
+        setDateRange({
+          from: router.query.startDate ? String(router.query.startDate) : undefined,
+          to: router.query.endDate ? String(router.query.endDate) : undefined,
+        });
+      }
+    }
+  }, [router.isReady, router.query]);
 
   // Combine data
   const combinedReports = useMemo(() => {
@@ -312,7 +374,11 @@ interface UnifiedReportItem {
         projectName: run.title,
         toolSlug: run.toolSlug,
         planName: run.plan?.name,
-        createdAt: run.updatedAt,
+        departmentId: run.department?.id || (run as any).departmentId,
+        departmentName: run.department?.name,
+        userId: run.user?.id,
+        userName: run.user?.name,
+        createdAt: run.createdAt || run.updatedAt,
       }));
       list.push(...formattedRuns);
     }
@@ -321,7 +387,14 @@ interface UnifiedReportItem {
     if (legacyData?.reports) {
       const formattedLegacy = legacyData.reports.map(rep => ({
         type: 'legacy' as const,
-        ...rep
+        id: rep.id,
+        projectId: rep.projectId,
+        projectName: rep.projectName,
+        activityType: rep.activityType,
+        createdAt: rep.createdAt,
+        status: rep.status,
+        pdfPath: rep.pdfPath,
+        toolSlug: 'feasibility-study',
       }));
       list.push(...formattedLegacy);
     }
@@ -332,42 +405,134 @@ interface UnifiedReportItem {
     return list;
   }, [toolRuns, legacyData]);
 
-  // Filters State
-  const [filterType, setFilterType] = useState<'all' | 'tool'>('all');
-  const [filterToolSlug, setFilterToolSlug] = useState<string>('all');
-  const [filterPlan, setFilterPlan] = useState<string>('all');
-  const [isToolDropdownOpen, setIsToolDropdownOpen] = useState(false);
-
   const availableTools = useMemo(() => {
-    return require('@/config/tools.registry').getAvailableTools();
+    return getAvailableTools();
   }, []);
 
-  const uniquePlans = useMemo(() => {
-    const plans = new Set<string>();
-    combinedReports.forEach(report => {
-      if (report.planName) plans.add(report.planName);
-    });
-    return Array.from(plans);
-  }, [combinedReports]);
+  const filterConfigs: FilterItemConfig[] = useMemo(() => [
+    {
+      key: 'toolSlug',
+      label: 'الأداة / النوع',
+      type: 'select',
+      icon: BarChart3,
+      isAllOptionLabel: 'كل الأدوات',
+      options: [
+        { value: 'feasibility-study', label: 'دراسة الجدوى (مشاريع)' },
+        ...availableTools.map((t: any) => ({
+          value: t.slug,
+          label: t.name,
+        })),
+      ],
+      searchThreshold: 5,
+    },
+    {
+      key: 'departmentId',
+      label: 'القسم',
+      type: 'select',
+      icon: Building2,
+      isAllOptionLabel: 'كل الأقسام',
+      options: (departments || []).map((d: any) => ({
+        value: d.id,
+        label: d.name,
+        dotColor: d.color || '#6366F1',
+      })),
+      searchThreshold: 5,
+    },
+    {
+      key: 'assignee',
+      label: 'المسؤول',
+      type: 'select',
+      icon: User,
+      isAllOptionLabel: 'كل المسؤولين',
+      options: (membersList || []).map((m: any) => ({
+        value: m.id || m.userId,
+        label: m.name || m.user?.name,
+        initials: (m.name || m.user?.name || '').slice(0, 2),
+      })),
+      searchThreshold: 5,
+    },
+    {
+      key: 'dateRange',
+      label: 'نطاق التاريخ',
+      type: 'date-range',
+      icon: Calendar,
+    },
+  ], [departments, membersList, availableTools]);
+
+  const currentFilterValues: FilterValues = useMemo(() => ({
+    toolSlug: toolSlugFilter,
+    departmentId: deptFilter,
+    assignee: assigneeFilter,
+    dateRange,
+  }), [toolSlugFilter, deptFilter, assigneeFilter, dateRange]);
+
+  const handleFilterChange = (key: string, val: any) => {
+    if (key === 'toolSlug') {
+      const v = val || '';
+      setToolSlugFilter(v);
+      syncToUrl({ toolSlug: v });
+    } else if (key === 'departmentId') {
+      const v = val || '';
+      setDeptFilter(v);
+      syncToUrl({ departmentId: v });
+    } else if (key === 'assignee') {
+      const v = val || '';
+      setAssigneeFilter(v);
+      syncToUrl({ assignee: v });
+    } else if (key === 'dateRange') {
+      const range = (val as DateRangeValue) || {};
+      setDateRange(range);
+      syncToUrl({ startDate: range.from || '', endDate: range.to || '' });
+    }
+  };
+
+  const handleSearchChange = (q: string) => {
+    setSearch(q);
+    syncToUrl({ q });
+  };
+
+  const handleClearAll = () => {
+    setSearch('');
+    setToolSlugFilter('');
+    setDeptFilter('');
+    setAssigneeFilter('');
+    setDateRange({});
+    syncToUrl({ q: '', toolSlug: '', departmentId: '', assignee: '', startDate: '', endDate: '' });
+  };
 
   const filteredReports = useMemo(() => {
     return combinedReports.filter(report => {
-      if (filterType === 'tool' && filterToolSlug !== 'all') {
-        if (report.toolSlug !== filterToolSlug) return false;
+      if (toolSlugFilter && report.toolSlug !== toolSlugFilter) {
+        return false;
       }
-      if (filterPlan !== 'all') {
-        if (report.planName !== filterPlan) return false;
+      if (deptFilter && report.departmentId !== deptFilter) {
+        return false;
+      }
+      if (assigneeFilter && report.userId !== assigneeFilter) {
+        return false;
+      }
+      if (dateRange.from || dateRange.to) {
+        const itemDate = new Date(report.createdAt);
+        if (dateRange.from && itemDate < new Date(dateRange.from)) return false;
+        if (dateRange.to && itemDate > new Date(dateRange.to + 'T23:59:59')) return false;
+      }
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const matchesName = report.projectName?.toLowerCase().includes(q);
+        const matchesActivity = report.activityType?.toLowerCase().includes(q);
+        const matchesPlan = report.planName?.toLowerCase().includes(q);
+        const matchesDept = report.departmentName?.toLowerCase().includes(q);
+        const matchesUser = report.userName?.toLowerCase().includes(q);
+        if (!matchesName && !matchesActivity && !matchesPlan && !matchesDept && !matchesUser) {
+          return false;
+        }
       }
       return true;
     });
-  }, [combinedReports, filterType, filterToolSlug, filterPlan]);
+  }, [combinedReports, toolSlugFilter, deptFilter, assigneeFilter, dateRange, search]);
 
   const isLoading = isLoadingLegacy || isLoadingRuns;
   const isError = isErrorLegacy || isErrorRuns;
-  
-  // Note: Pagination currently only applies to legacy reports from backend. 
-  // ToolRuns are fetched all at once. For simplicity, we just show them all in this view.
-  // In a real prod environment, both should be paginated identically from a unified backend.
 
   return (
     <DashboardLayout>
@@ -398,88 +563,18 @@ interface UnifiedReportItem {
 
       {/* ── Filters Bar ────────────────────────────────── */}
       {!isLoading && combinedReports.length > 0 && (
-        <div className="relative z-20 flex flex-wrap items-center gap-2 bg-white/50 p-1.5 rounded-2xl border border-gray-100 mb-6 backdrop-blur-xl">
-          <button
-            onClick={() => { setFilterType('all'); setFilterPlan('all'); setFilterToolSlug('all'); }}
-            className={`px-5 py-2.5 text-sm font-bold rounded-xl whitespace-nowrap transition-all ${
-              filterType === 'all' && filterPlan === 'all'
-                ? 'bg-white text-blue-600 shadow-sm border border-gray-200/50'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50'
-            }`}
-          >
-            الكل
-          </button>
-          
-          {/* Tools Dropdown */}
-          <div className="relative shrink-0">
-            <button
-              onClick={() => setIsToolDropdownOpen(!isToolDropdownOpen)}
-              className={`px-5 py-2.5 text-sm font-bold rounded-xl whitespace-nowrap transition-all flex items-center gap-2 ${
-                filterType === 'tool'
-                  ? 'bg-white text-blue-600 shadow-sm border border-gray-200/50'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50'
-              }`}
-            >
-              <BarChart3 size={16} className={filterType === 'tool' ? "text-blue-500" : ""} />
-              {filterType === 'tool' && filterToolSlug !== 'all' 
-                ? availableTools.find((t: any) => t.slug === filterToolSlug)?.name || 'الأدوات'
-                : 'الأدوات'}
-              <ChevronDown size={14} className={`transition-transform ${isToolDropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
-            
-            {isToolDropdownOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setIsToolDropdownOpen(false)} />
-                <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-100 shadow-xl shadow-gray-200/50 rounded-xl overflow-hidden z-50 animate-in slide-in-from-top-2 duration-200 py-1">
-                  <button
-                    onClick={() => { setFilterType('tool'); setFilterToolSlug('all'); setIsToolDropdownOpen(false); }}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors ${filterToolSlug === 'all' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700 hover:bg-gray-50'}`}
-                  >
-                    <span>جميع الأدوات</span>
-                    {filterToolSlug === 'all' && <Check size={16} />}
-                  </button>
-                  {availableTools.map((tool: any) => {
-                    const ToolIcon = tool.icon;
-                    return (
-                      <button
-                        key={tool.slug}
-                        onClick={() => { setFilterType('tool'); setFilterToolSlug(tool.slug); setIsToolDropdownOpen(false); }}
-                        className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors ${filterToolSlug === tool.slug ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700 hover:bg-gray-50'}`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <ToolIcon size={14} className="text-gray-400" />
-                          <span>{tool.name}</span>
-                        </div>
-                        {filterToolSlug === tool.slug && <Check size={16} />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Plan filters */}
-          {uniquePlans.length > 0 && (
-            <>
-              <div className="w-px h-6 bg-gray-200 mx-2 shrink-0" />
-              {uniquePlans.map(plan => (
-                <button
-                  key={plan}
-                  onClick={() => { setFilterType('tool'); setFilterPlan(plan); }}
-                  className={`px-4 py-2.5 text-sm font-bold rounded-xl whitespace-nowrap transition-all flex items-center gap-2 ${
-                    filterPlan === plan
-                      ? 'bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-100'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50'
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
-                  خطة: {plan}
-                </button>
-              ))}
-            </>
-          )}
-        </div>
+        <FilterBar
+          filters={filterConfigs}
+          values={currentFilterValues}
+          onChange={handleFilterChange}
+          onClearAll={handleClearAll}
+          searchValue={search}
+          onSearchChange={handleSearchChange}
+          searchPlaceholder="ابحث في التقارير والمخرجات..."
+          totalResults={filteredReports.length}
+          resultsLabel="تقرير ومخرج"
+          isLoading={isLoading}
+        />
       )}
 
       {isLoading ? (
@@ -516,10 +611,12 @@ interface UnifiedReportItem {
           <h3 className="text-lg font-bold text-gray-900 mb-1">لا توجد نتائج مطابقة</h3>
           <p className="text-gray-500 text-sm">جرب إزالة بعض الفلاتر لرؤية المزيد من النتائج</p>
           <button 
-            onClick={() => { setFilterType('all'); setFilterPlan('all'); setFilterToolSlug('all'); }}
-            className="mt-4 text-blue-600 text-sm font-semibold hover:underline"
+            type="button"
+            onClick={handleClearAll}
+            className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors"
           >
-            مسح الفلاتر
+            <RotateCcw size={13} />
+            <span>مسح الفلاتر</span>
           </button>
         </div>
       ) : (

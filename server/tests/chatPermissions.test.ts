@@ -6,6 +6,7 @@ import {
   getConversationMessages,
   sendMessage,
   generateLiveKitToken,
+  getOrCreateDirectConversation,
 } from "../src/services/chatService";
 import { prisma } from "../src/config/prisma";
 import { ApiError } from "../src/utils/ApiError";
@@ -49,6 +50,7 @@ describe("Chat & Calls Security & Permissions Tests", () => {
   const workspaceB = "ws-beta";
   const userA = "user-in-workspace-a";
   const userB = "user-in-workspace-b";
+  const userC = "user-c-in-workspace-a";
   const convInWsA = "conv-100";
 
   beforeEach(() => {
@@ -161,6 +163,143 @@ describe("Chat & Calls Security & Permissions Tests", () => {
       await expect(
         generateLiveKitToken(workspaceB, userB, callInWsA)
       ).rejects.toThrow("المكالمة غير موجودة.");
+    });
+  });
+
+  describe("6. Direct Conversation Permissions & Idempotency", () => {
+    it("يرفض بدء محادثة المستخدم مع نفسه (400 Bad Request)", async () => {
+      await expect(
+        getOrCreateDirectConversation(workspaceA, userA, userA)
+      ).rejects.toThrow("لا يمكنك بدء محادثة مع نفسك.");
+    });
+
+    it("يرفض بدء محادثة مع مستخدم خارج مساحة العمل (403 Forbidden)", async () => {
+      // الفاعل عضو نشط
+      vi.mocked(prisma.workspaceMember.findFirst)
+        .mockResolvedValueOnce({
+          id: "mem-1",
+          workspaceId: workspaceA,
+          userId: userA,
+          role: "member",
+          status: "active",
+          email: "userA@test.com",
+          invitedAt: new Date(),
+          joinedAt: new Date(),
+        })
+        // الطرف الآخر ليس عضواً في مساحة العمل
+        .mockResolvedValueOnce(null);
+
+      await expect(
+        getOrCreateDirectConversation(workspaceA, userA, "user-outside")
+      ).rejects.toThrow("ليس لديك صلاحية الوصول إلى مساحة العمل هذه.");
+    });
+
+    it("يرفض بدء محادثة مع مستخدم دعوته معلّقة وغير نشطة (403 Forbidden)", async () => {
+      // الفاعل عضو نشط
+      vi.mocked(prisma.workspaceMember.findFirst)
+        .mockResolvedValueOnce({
+          id: "mem-1",
+          workspaceId: workspaceA,
+          userId: userA,
+          role: "member",
+          status: "active",
+          email: "userA@test.com",
+          invitedAt: new Date(),
+          joinedAt: new Date(),
+        })
+        // الطرف الآخر معلّق (null لأن شرط البحث status: active)
+        .mockResolvedValueOnce(null);
+
+      await expect(
+        getOrCreateDirectConversation(workspaceA, userA, "user-pending")
+      ).rejects.toThrow("ليس لديك صلاحية الوصول إلى مساحة العمل هذه.");
+    });
+
+    it("يفتح المحادثة الموجودة مسبقاً بأمان دون إنشاء نسخة مكررة (Idempotent)", async () => {
+      // كلا العضوين نشطين في مساحة العمل
+      vi.mocked(prisma.workspaceMember.findFirst)
+        .mockResolvedValueOnce({
+          id: "mem-1",
+          workspaceId: workspaceA,
+          userId: userA,
+          role: "member",
+          status: "active",
+          email: "userA@test.com",
+          invitedAt: new Date(),
+          joinedAt: new Date(),
+        })
+        .mockResolvedValueOnce({
+          id: "mem-2",
+          workspaceId: workspaceA,
+          userId: userC,
+          role: "member",
+          status: "active",
+          email: "userC@test.com",
+          invitedAt: new Date(),
+          joinedAt: new Date(),
+        });
+
+      const existingConv = {
+        id: "conv-existing-123",
+        workspaceId: workspaceA,
+        type: "direct",
+        createdById: userA,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        members: [],
+        messages: [],
+      } as any;
+
+      vi.mocked(prisma.conversation.findFirst).mockResolvedValueOnce(existingConv);
+
+      const result = await getOrCreateDirectConversation(workspaceA, userA, userC);
+
+      expect(result.id).toBe("conv-existing-123");
+      expect(prisma.conversation.create).not.toHaveBeenCalled();
+    });
+
+    it("ينشئ محادثة جديدة إذا لم تكن موجودة مسبقاً دون إرسال رسائل", async () => {
+      // كلا العضوين نشطين
+      vi.mocked(prisma.workspaceMember.findFirst)
+        .mockResolvedValueOnce({
+          id: "mem-1",
+          workspaceId: workspaceA,
+          userId: userA,
+          role: "member",
+          status: "active",
+          email: "userA@test.com",
+          invitedAt: new Date(),
+          joinedAt: new Date(),
+        })
+        .mockResolvedValueOnce({
+          id: "mem-2",
+          workspaceId: workspaceA,
+          userId: userC,
+          role: "member",
+          status: "active",
+          email: "userC@test.com",
+          invitedAt: new Date(),
+          joinedAt: new Date(),
+        });
+
+      // لا توجد محادثة مسبقة
+      vi.mocked(prisma.conversation.findFirst).mockResolvedValueOnce(null);
+
+      const createdConv = {
+        id: "conv-new-456",
+        workspaceId: workspaceA,
+        type: "direct",
+        createdById: userA,
+        members: [],
+        messages: [],
+      } as any;
+
+      vi.mocked(prisma.conversation.create).mockResolvedValueOnce(createdConv);
+
+      const result = await getOrCreateDirectConversation(workspaceA, userA, userC);
+
+      expect(result.id).toBe("conv-new-456");
+      expect(prisma.conversation.create).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -14,12 +14,20 @@ interface PorterColumnProps {
   field: PorterFieldKey;
   factors: PorterFactorItem[];
   isGenerating?: boolean;
+  readOnly?: boolean;
+  highlightedParentId?: string | null;
+  parentTrendMap?: Map<string, { id: string; content: string; index: number }>;
+  missingImplicationsMap?: Map<string, ("positiveImpacts" | "negativeImpacts")[]>;
+  availableParentTrends?: Array<{ id: string; content: string; index: number }>;
   onAddFactor: () => void;
-  onUpdateFactor: (factorId: string, content: string) => void;
+  onUpdateFactor: (factorId: string, content: string, parentFactorId?: string | null) => void;
   onDeleteFactor: (factorId: string) => void;
   onMoveFactor: (factorId: string, direction: "up" | "down") => void;
   onReorder: (newOrder: PorterFactorItem[]) => void;
   onGenerateCategory: (strategy: "replace" | "append") => void;
+  onHighlightParent?: (parentId: string | null) => void;
+  onAddMissingImplication?: (trendId: string, field: "positiveImpacts" | "negativeImpacts") => void;
+  onResuggestImplications?: (trendId: string) => void;
   fullWidth?: boolean;
 }
 
@@ -28,12 +36,20 @@ export const PorterColumn: React.FC<PorterColumnProps> = ({
   field,
   factors,
   isGenerating = false,
+  readOnly = false,
+  highlightedParentId = null,
+  parentTrendMap = new Map(),
+  missingImplicationsMap = new Map(),
+  availableParentTrends = [],
   onAddFactor,
   onUpdateFactor,
   onDeleteFactor,
   onMoveFactor,
   onReorder,
   onGenerateCategory,
+  onHighlightParent,
+  onAddMissingImplication,
+  onResuggestImplications,
   fullWidth = false,
 }) => {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -41,18 +57,19 @@ export const PorterColumn: React.FC<PorterColumnProps> = ({
   const Icon = theme.icon;
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
+    if (readOnly) return;
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = "move";
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
-    if (draggedIndex === null || draggedIndex === index) return;
+    if (draggedIndex === null || draggedIndex === index || readOnly) return;
   };
 
   const handleDrop = (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
-    if (draggedIndex === null || draggedIndex === targetIndex) return;
+    if (draggedIndex === null || draggedIndex === targetIndex || readOnly) return;
 
     const updated = [...factors];
     const [moved] = updated.splice(draggedIndex, 1);
@@ -91,14 +108,16 @@ export const PorterColumn: React.FC<PorterColumnProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 print:hidden">
-          <GenerateMenu
-            label="توليد العمود"
-            isLoading={isGenerating}
-            onGenerate={onGenerateCategory}
-            compact
-          />
-        </div>
+        {!readOnly && (
+          <div className="flex items-center gap-1.5 print:hidden">
+            <GenerateMenu
+              label="توليد العمود"
+              isLoading={isGenerating}
+              onGenerate={onGenerateCategory}
+              compact
+            />
+          </div>
+        )}
       </div>
 
       {/* Factors List */}
@@ -107,36 +126,59 @@ export const PorterColumn: React.FC<PorterColumnProps> = ({
           <div className="py-7 flex flex-col items-center justify-center text-center text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-200/80 my-1">
             <Icon className="w-6 h-6 text-slate-300 mb-1.5 opacity-60" />
             <p className="text-xs font-medium text-slate-500">{theme.emptyText}</p>
-            <button
-              type="button"
-              onClick={onAddFactor}
-              className="mt-2.5 text-xs font-bold text-teal-600 hover:text-teal-800 inline-flex items-center gap-1 px-3 py-1 bg-teal-50/70 hover:bg-teal-100/70 rounded-lg transition-colors print:hidden"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>إضافة بند يدوياً</span>
-            </button>
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={onAddFactor}
+                className="mt-2.5 text-xs font-bold text-teal-600 hover:text-teal-800 inline-flex items-center gap-1 px-3 py-1 bg-teal-50/70 hover:bg-teal-100/70 rounded-lg transition-colors print:hidden"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>إضافة بند جديد</span>
+              </button>
+            )}
           </div>
         ) : (
-          factors.map((factor, idx) => (
-            <PorterFactorRow
-              key={factor.id}
-              factor={factor}
-              index={idx}
-              totalCount={factors.length}
-              onUpdate={(content) => onUpdateFactor(factor.id, content)}
-              onDelete={() => onDeleteFactor(factor.id)}
-              onMoveUp={() => onMoveFactor(factor.id, "up")}
-              onMoveDown={() => onMoveFactor(factor.id, "down")}
-              onDragStart={(e) => handleDragStart(e, idx)}
-              onDragOver={(e) => handleDragOver(e, idx)}
-              onDrop={(e) => handleDrop(e, idx)}
-              isDragging={draggedIndex === idx}
-            />
-          ))
+          factors.map((factor, idx) => {
+            const isTrend = field === "trends";
+            const isHighlighted = isTrend
+              ? highlightedParentId === factor.id
+              : Boolean(factor.parentFactorId && highlightedParentId === factor.parentFactorId);
+
+            const parentInfo = factor.parentFactorId
+              ? parentTrendMap.get(factor.parentFactorId)
+              : null;
+
+            const missing = isTrend ? missingImplicationsMap.get(factor.id) || [] : [];
+
+            return (
+              <PorterFactorRow
+                key={factor.id}
+                factor={factor}
+                index={idx}
+                totalCount={factors.length}
+                readOnly={readOnly}
+                isHighlighted={Boolean(isHighlighted)}
+                parentIndex={parentInfo?.index ?? null}
+                missingImplications={missing}
+                availableParentTrends={availableParentTrends}
+                onUpdate={(content, parentId) => onUpdateFactor(factor.id, content, parentId)}
+                onDelete={() => onDeleteFactor(factor.id)}
+                onMoveUp={() => onMoveFactor(factor.id, "up")}
+                onMoveDown={() => onMoveFactor(factor.id, "down")}
+                onDragStart={(e) => handleDragStart(e, idx)}
+                onDragOver={(e) => handleDragOver(e, idx)}
+                onDrop={(e) => handleDrop(e, idx)}
+                isDragging={draggedIndex === idx}
+                onHighlight={onHighlightParent}
+                onAddMissingImplication={(impField) => onAddMissingImplication?.(factor.id, impField)}
+                onResuggestImplications={() => onResuggestImplications?.(factor.id)}
+              />
+            );
+          })
         )}
 
         {/* Add Factor Button at bottom */}
-        {factors.length > 0 && (
+        {factors.length > 0 && !readOnly && (
           <button
             type="button"
             onClick={onAddFactor}

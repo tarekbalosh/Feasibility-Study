@@ -15,6 +15,7 @@ export interface PorterForceContent {
   trends: string;
   positiveImpacts: string;
   negativeImpacts: string;
+  items?: PorterFactorItem[];
 }
 
 export type PorterForces = Record<PorterForceKey, PorterForceContent>;
@@ -28,6 +29,34 @@ export interface PorterFactorItem {
   content: string;
   source: PorterFactorSource;
   sortOrder?: number;
+  parentFactorId?: string | null;
+}
+
+export interface CreateLinkedPorterFactorPayload {
+  force: PorterForceKey;
+  content: string;
+  positiveImplication: string;
+  negativeImplication: string;
+  positiveSource?: PorterFactorSource;
+  negativeSource?: PorterFactorSource;
+}
+
+export interface SuggestPorterImplicationsPayload {
+  force: PorterForceKey;
+  content: string;
+  projectName?: string;
+  projectDescription?: string;
+  industry?: string;
+  countryRegion?: string;
+}
+
+export interface SuggestPorterImplicationsResponse {
+  success: boolean;
+  data: {
+    positiveImplication: string;
+    negativeImplication: string;
+    model: string;
+  };
 }
 
 export type PorterFactorsMap = Record<
@@ -273,21 +302,39 @@ export function forcesToFactorsMap(
 ): PorterFactorsMap {
   const result: any = {};
   for (const f of FORCES_ORDER) {
-    result[f] = {
-      trends: textToFactorItems(forces[f]?.trends || "", f, "trends", defaultSource),
-      positiveImpacts: textToFactorItems(
-        forces[f]?.positiveImpacts || "",
+    const rawForce = forces[f];
+    const items = rawForce?.items;
+
+    if (Array.isArray(items) && items.length > 0) {
+      result[f] = {
+        trends: items.filter((it) => it.field === "trends"),
+        positiveImpacts: items.filter((it) => it.field === "positiveImpacts"),
+        negativeImpacts: items.filter((it) => it.field === "negativeImpacts"),
+      };
+    } else {
+      // Legacy fallback: convert lines to items and pair index i
+      const trends = textToFactorItems(rawForce?.trends || "", f, "trends", defaultSource);
+      const positiveImpacts = textToFactorItems(
+        rawForce?.positiveImpacts || "",
         f,
         "positiveImpacts",
         defaultSource
-      ),
-      negativeImpacts: textToFactorItems(
-        forces[f]?.negativeImpacts || "",
+      ).map((it, idx) => ({
+        ...it,
+        parentFactorId: trends[idx]?.id || null,
+      }));
+      const negativeImpacts = textToFactorItems(
+        rawForce?.negativeImpacts || "",
         f,
         "negativeImpacts",
         defaultSource
-      ),
-    };
+      ).map((it, idx) => ({
+        ...it,
+        parentFactorId: trends[idx]?.id || null,
+      }));
+
+      result[f] = { trends, positiveImpacts, negativeImpacts };
+    }
   }
   return result as PorterFactorsMap;
 }
@@ -295,10 +342,16 @@ export function forcesToFactorsMap(
 export function factorsMapToForces(map: PorterFactorsMap): PorterForces {
   const result: any = {};
   for (const f of FORCES_ORDER) {
+    const trends = map[f]?.trends || [];
+    const positiveImpacts = map[f]?.positiveImpacts || [];
+    const negativeImpacts = map[f]?.negativeImpacts || [];
+    const items = [...trends, ...positiveImpacts, ...negativeImpacts];
+
     result[f] = {
-      trends: factorItemsToText(map[f]?.trends || []),
-      positiveImpacts: factorItemsToText(map[f]?.positiveImpacts || []),
-      negativeImpacts: factorItemsToText(map[f]?.negativeImpacts || []),
+      trends: factorItemsToText(trends),
+      positiveImpacts: factorItemsToText(positiveImpacts),
+      negativeImpacts: factorItemsToText(negativeImpacts),
+      items,
     };
   }
   return result as PorterForces;

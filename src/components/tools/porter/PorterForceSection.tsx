@@ -1,10 +1,13 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { PorterColumn } from "./PorterColumn";
 import { GenerateMenu } from "./GenerateMenu";
+import { AddPorterTrendModal } from "./AddPorterTrendModal";
+import { QuickAddPorterImplicationModal } from "./QuickAddPorterImplicationModal";
 import type {
   PorterForceKey,
   PorterFieldKey,
   PorterFactorItem,
+  CreateLinkedPorterFactorPayload,
 } from "@/types/porter";
 import { PORTER_FORCE_THEMES } from "@/config/porterTheme";
 
@@ -12,13 +15,29 @@ interface PorterForceSectionProps {
   force: PorterForceKey;
   factors: Record<PorterFieldKey, PorterFactorItem[]>;
   generatingScopes: Set<string>;
+  readOnly?: boolean;
+  highlightedParentId?: string | null;
+  onHighlight?: (parentId: string | null) => void;
+  onAddLinkedFactor: (payload: CreateLinkedPorterFactorPayload) => Promise<any>;
+  onSuggestImplications: (
+    force: PorterForceKey,
+    content: string
+  ) => Promise<{ positiveImplication: string; negativeImplication: string }>;
+  onAddMissingImplication: (
+    force: PorterForceKey,
+    parentFactorId: string,
+    field: "positiveImpacts" | "negativeImpacts",
+    content: string,
+    aiSuggested?: string
+  ) => Promise<any>;
   onAddFactor: (field: PorterFieldKey) => void;
   onUpdateFactor: (
     field: PorterFieldKey,
     factorId: string,
-    content: string
+    content: string,
+    parentFactorId?: string | null
   ) => void;
-  onDeleteFactor: (field: PorterFieldKey, factorId: string) => void;
+  onDeleteFactor: (factor: PorterFactorItem) => void;
   onMoveFactor: (
     field: PorterFieldKey,
     factorId: string,
@@ -36,6 +55,12 @@ export const PorterForceSection: React.FC<PorterForceSectionProps> = ({
   force,
   factors,
   generatingScopes,
+  readOnly = false,
+  highlightedParentId = null,
+  onHighlight,
+  onAddLinkedFactor,
+  onSuggestImplications,
+  onAddMissingImplication,
   onAddFactor,
   onUpdateFactor,
   onDeleteFactor,
@@ -53,6 +78,87 @@ export const PorterForceSection: React.FC<PorterForceSectionProps> = ({
     (factors.trends?.length || 0) +
     (factors.positiveImpacts?.length || 0) +
     (factors.negativeImpacts?.length || 0);
+
+  // حالة نموذج إضافة بند جديد
+  const [isAddTrendOpen, setIsAddTrendOpen] = useState(false);
+  const [modalInitial, setModalInitial] = useState<{
+    content?: string;
+    positive?: string;
+    negative?: string;
+  }>({});
+
+  // حالة نموذج إضافة انعكاس سريع
+  const [quickAddTarget, setQuickAddTarget] = useState<{
+    trend: PorterFactorItem;
+    field: "positiveImpacts" | "negativeImpacts";
+  } | null>(null);
+
+  // خريطة فهارس التوجهات للأبناء
+  const parentTrendMap = useMemo(() => {
+    const map = new Map<string, { id: string; content: string; index: number }>();
+    (factors.trends || []).forEach((t, idx) => {
+      map.set(t.id, { id: t.id, content: t.content, index: idx + 1 });
+    });
+    return map;
+  }, [factors.trends]);
+
+  // قائمة التوجهات المتاحة للربط
+  const availableParentTrends = useMemo(() => {
+    return (factors.trends || []).map((t, idx) => ({
+      id: t.id,
+      content: t.content,
+      index: idx + 1,
+    }));
+  }, [factors.trends]);
+
+  // خريطة الانعكاسات الناقصة لكل بند توجه
+  const missingImplicationsMap = useMemo(() => {
+    const map = new Map<string, ("positiveImpacts" | "negativeImpacts")[]>();
+    const posParentIds = new Set(
+      (factors.positiveImpacts || []).filter((f) => f.parentFactorId).map((f) => f.parentFactorId!)
+    );
+    const negParentIds = new Set(
+      (factors.negativeImpacts || []).filter((f) => f.parentFactorId).map((f) => f.parentFactorId!)
+    );
+
+    (factors.trends || []).forEach((t) => {
+      const missing: ("positiveImpacts" | "negativeImpacts")[] = [];
+      if (!posParentIds.has(t.id)) missing.push("positiveImpacts");
+      if (!negParentIds.has(t.id)) missing.push("negativeImpacts");
+      if (missing.length > 0) map.set(t.id, missing);
+    });
+    return map;
+  }, [factors.trends, factors.positiveImpacts, factors.negativeImpacts]);
+
+  // فتح نافذة الإضافة الموحدة للتوجه وانعكاسيه
+  const handleOpenAddTrendModal = () => {
+    setModalInitial({});
+    setIsAddTrendOpen(true);
+  };
+
+  // فتح نافذة الإضافة لإعادة اقتراح الانعكاسين لبند قائم
+  const handleResuggestForTrend = (trendId: string) => {
+    const trend = (factors.trends || []).find((t) => t.id === trendId);
+    if (!trend) return;
+    const pos = (factors.positiveImpacts || []).find((p) => p.parentFactorId === trendId);
+    const neg = (factors.negativeImpacts || []).find((n) => n.parentFactorId === trendId);
+    setModalInitial({
+      content: trend.content,
+      positive: pos?.content || "",
+      negative: neg?.content || "",
+    });
+    setIsAddTrendOpen(true);
+  };
+
+  // إضافة انعكاس ناقص لبند توجه
+  const handleOpenQuickAdd = (
+    trendId: string,
+    field: "positiveImpacts" | "negativeImpacts"
+  ) => {
+    const trend = (factors.trends || []).find((t) => t.id === trendId);
+    if (!trend) return;
+    setQuickAddTarget({ trend, field });
+  };
 
   return (
     <section
@@ -95,13 +201,15 @@ export const PorterForceSection: React.FC<PorterForceSectionProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 print:hidden relative z-10">
-          <GenerateMenu
-            label="توليد القوة"
-            isLoading={isForceGenerating}
-            onGenerate={onGenerateForce}
-          />
-        </div>
+        {!readOnly && (
+          <div className="flex items-center gap-2 print:hidden relative z-10">
+            <GenerateMenu
+              label="توليد القوة"
+              isLoading={isForceGenerating}
+              onGenerate={onGenerateForce}
+            />
+          </div>
+        )}
       </div>
 
       {/* Three Columns Grid matching Pest: Trends full-width, then 2 side-by-side columns */}
@@ -114,14 +222,23 @@ export const PorterForceSection: React.FC<PorterForceSectionProps> = ({
           isGenerating={
             generatingScopes.has(`field:${force}:trends`) || isForceGenerating
           }
-          onAddFactor={() => onAddFactor("trends")}
-          onUpdateFactor={(id, content) =>
-            onUpdateFactor("trends", id, content)
+          readOnly={readOnly}
+          highlightedParentId={highlightedParentId}
+          missingImplicationsMap={missingImplicationsMap}
+          onAddFactor={handleOpenAddTrendModal}
+          onUpdateFactor={(id, content, parentId) =>
+            onUpdateFactor("trends", id, content, parentId)
           }
-          onDeleteFactor={(id) => onDeleteFactor("trends", id)}
+          onDeleteFactor={(id) => {
+            const factor = (factors.trends || []).find((f) => f.id === id);
+            if (factor) onDeleteFactor(factor);
+          }}
           onMoveFactor={(id, dir) => onMoveFactor("trends", id, dir)}
           onReorder={(list) => onReorder("trends", list)}
           onGenerateCategory={(strat) => onGenerateField("trends", strat)}
+          onHighlightParent={onHighlight}
+          onAddMissingImplication={handleOpenQuickAdd}
+          onResuggestImplications={handleResuggestForTrend}
           fullWidth
         />
 
@@ -135,11 +252,24 @@ export const PorterForceSection: React.FC<PorterForceSectionProps> = ({
               generatingScopes.has(`field:${force}:positiveImpacts`) ||
               isForceGenerating
             }
-            onAddFactor={() => onAddFactor("positiveImpacts")}
-            onUpdateFactor={(id, content) =>
-              onUpdateFactor("positiveImpacts", id, content)
+            readOnly={readOnly}
+            highlightedParentId={highlightedParentId}
+            parentTrendMap={parentTrendMap}
+            availableParentTrends={availableParentTrends}
+            onAddFactor={() => {
+              if (availableParentTrends.length > 0) {
+                handleOpenQuickAdd(availableParentTrends[0].id, "positiveImpacts");
+              } else {
+                handleOpenAddTrendModal();
+              }
+            }}
+            onUpdateFactor={(id, content, parentId) =>
+              onUpdateFactor("positiveImpacts", id, content, parentId)
             }
-            onDeleteFactor={(id) => onDeleteFactor("positiveImpacts", id)}
+            onDeleteFactor={(id) => {
+              const factor = (factors.positiveImpacts || []).find((f) => f.id === id);
+              if (factor) onDeleteFactor(factor);
+            }}
             onMoveFactor={(id, dir) =>
               onMoveFactor("positiveImpacts", id, dir)
             }
@@ -147,6 +277,7 @@ export const PorterForceSection: React.FC<PorterForceSectionProps> = ({
             onGenerateCategory={(strat) =>
               onGenerateField("positiveImpacts", strat)
             }
+            onHighlightParent={onHighlight}
           />
 
           <PorterColumn
@@ -157,11 +288,24 @@ export const PorterForceSection: React.FC<PorterForceSectionProps> = ({
               generatingScopes.has(`field:${force}:negativeImpacts`) ||
               isForceGenerating
             }
-            onAddFactor={() => onAddFactor("negativeImpacts")}
-            onUpdateFactor={(id, content) =>
-              onUpdateFactor("negativeImpacts", id, content)
+            readOnly={readOnly}
+            highlightedParentId={highlightedParentId}
+            parentTrendMap={parentTrendMap}
+            availableParentTrends={availableParentTrends}
+            onAddFactor={() => {
+              if (availableParentTrends.length > 0) {
+                handleOpenQuickAdd(availableParentTrends[0].id, "negativeImpacts");
+              } else {
+                handleOpenAddTrendModal();
+              }
+            }}
+            onUpdateFactor={(id, content, parentId) =>
+              onUpdateFactor("negativeImpacts", id, content, parentId)
             }
-            onDeleteFactor={(id) => onDeleteFactor("negativeImpacts", id)}
+            onDeleteFactor={(id) => {
+              const factor = (factors.negativeImpacts || []).find((f) => f.id === id);
+              if (factor) onDeleteFactor(factor);
+            }}
             onMoveFactor={(id, dir) =>
               onMoveFactor("negativeImpacts", id, dir)
             }
@@ -169,9 +313,52 @@ export const PorterForceSection: React.FC<PorterForceSectionProps> = ({
             onGenerateCategory={(strat) =>
               onGenerateField("negativeImpacts", strat)
             }
+            onHighlightParent={onHighlight}
           />
         </div>
       </div>
+
+      {/* نموذج إضافة بند توجه جديد مع انعكاسيه */}
+      <AddPorterTrendModal
+        isOpen={isAddTrendOpen}
+        force={force}
+        initialContent={modalInitial.content}
+        initialPositive={modalInitial.positive}
+        initialNegative={modalInitial.negative}
+        onClose={() => setIsAddTrendOpen(false)}
+        onSubmit={async (data) => {
+          await onAddLinkedFactor({
+            force,
+            content: data.content,
+            positiveImplication: data.positiveImplication,
+            negativeImplication: data.negativeImplication,
+            positiveSource: data.aiSuggested?.positive ? "ai" : "manual",
+            negativeSource: data.aiSuggested?.negative ? "ai" : "manual",
+          });
+        }}
+        onSuggest={(content) => onSuggestImplications(force, content)}
+      />
+
+      {/* نموذج إضافة انعكاس ناقص */}
+      {quickAddTarget && (
+        <QuickAddPorterImplicationModal
+          isOpen={Boolean(quickAddTarget)}
+          force={force}
+          parentFactor={quickAddTarget.trend}
+          field={quickAddTarget.field}
+          onClose={() => setQuickAddTarget(null)}
+          onSubmit={async (content, aiSuggested) => {
+            await onAddMissingImplication(
+              force,
+              quickAddTarget.trend.id,
+              quickAddTarget.field,
+              content,
+              aiSuggested
+            );
+          }}
+          onSuggest={(content) => onSuggestImplications(force, content)}
+        />
+      )}
     </section>
   );
 };

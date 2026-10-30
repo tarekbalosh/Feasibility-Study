@@ -7,9 +7,15 @@ import {
   DollarSign,
   Filter,
   X,
+  User,
+  Eye,
+  CheckCircle2,
+  AlertOctagon,
+  Calendar,
 } from "lucide-react";
 import clsx from "clsx";
 import type { Task } from "./TasksAccordion";
+import { FilterSelect, DateRangeFilter, ClearFilters } from "@/components/ui/filters";
 
 interface TasksDashboardProps {
   tasks: Task[];
@@ -123,14 +129,7 @@ export const TasksDashboard: React.FC<TasksDashboardProps> = ({
         </button>
 
         {hasActiveFilters && (
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="text-xs text-slate-500 hover:text-red-600 flex items-center gap-1 transition-colors"
-          >
-            <X className="w-3 h-3" />
-            مسح الفلاتر
-          </button>
+          <ClearFilters hasActiveFilters={hasActiveFilters} onClear={clearFilters} />
         )}
       </div>
 
@@ -141,99 +140,105 @@ export const TasksDashboard: React.FC<TasksDashboardProps> = ({
             {/* هدف */}
             <div>
               <label className="block text-[11px] font-bold text-slate-500 mb-1">الهدف</label>
-              <select
-                value={filters.goalIndex || ""}
-                onChange={(e) => onFiltersChange({ ...filters, goalIndex: e.target.value ? Number(e.target.value) : undefined })}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-              >
-                <option value="">جميع الأهداف</option>
-                {goalIndices.map((i) => (
-                  <option key={i} value={i}>الهدف {ar(i)}</option>
-                ))}
-              </select>
+              <FilterSelect
+                label="الهدف"
+                icon={Target}
+                isAllOptionLabel="جميع الأهداف"
+                value={filters.goalIndex !== undefined ? String(filters.goalIndex) : ""}
+                onChange={(val) => onFiltersChange({ ...filters, goalIndex: val ? Number(val) : undefined })}
+                options={goalIndices.map((i) => ({
+                  value: String(i),
+                  label: `الهدف ${ar(i)}`,
+                }))}
+              />
             </div>
 
             {/* المسؤول */}
             <div>
               <label className="block text-[11px] font-bold text-slate-500 mb-1">المسؤول</label>
-              <select
+              <FilterSelect
+                label="المسؤول"
+                icon={User}
+                isAllOptionLabel="كل المسؤولين"
                 value={filters.assignee || ""}
-                onChange={(e) => onFiltersChange({ ...filters, assignee: e.target.value || undefined })}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-              >
-                <option value="">الكل</option>
-                {members.map((m) => (
-                  <option key={m.id} value={m.name}>{m.name}</option>
-                ))}
-              </select>
+                onChange={(val) => onFiltersChange({ ...filters, assignee: val ? String(val) : undefined })}
+                options={members.map((m) => ({
+                  value: m.name,
+                  label: m.name,
+                  initials: m.name.slice(0, 2),
+                }))}
+                searchThreshold={5}
+              />
             </div>
 
             {/* المعني بالمتابعة */}
             <div>
               <label className="block text-[11px] font-bold text-slate-500 mb-1">المعني بالمتابعة</label>
-              <select
+              <FilterSelect
+                label="المعني بالمتابعة"
+                icon={Eye}
+                isAllOptionLabel="كل المتابعين"
                 value={filters.follower || ""}
-                onChange={(e) => onFiltersChange({ ...filters, follower: e.target.value || undefined })}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-              >
-                <option value="">الكل</option>
-                {members.map((m) => (
-                  <option key={m.id} value={m.name}>{m.name}</option>
-                ))}
-              </select>
+                onChange={(val) => onFiltersChange({ ...filters, follower: val ? String(val) : undefined })}
+                options={members.map((m) => ({
+                  value: m.name,
+                  label: m.name,
+                  initials: m.name.slice(0, 2),
+                }))}
+                searchThreshold={5}
+              />
             </div>
 
             {/* الحالة */}
             <div>
               <label className="block text-[11px] font-bold text-slate-500 mb-1">الحالة</label>
-              <select
+              <FilterSelect
+                label="الحالة"
+                icon={CheckCircle2}
+                isAllOptionLabel="كل الحالات"
                 value={filters.status || ""}
-                onChange={(e) => onFiltersChange({ ...filters, status: e.target.value || undefined })}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-              >
-                <option value="">الكل</option>
-                <option value="not_started">لم تبدأ</option>
-                <option value="in_progress">قيد الإنجاز</option>
-                <option value="overdue">متأخرة</option>
-                <option value="completed">أُنجزت</option>
-              </select>
+                onChange={(val) => onFiltersChange({ ...filters, status: val ? String(val) : undefined })}
+                options={[
+                  { value: "not_started", label: "لم تبدأ", dotColor: "#94A3B8" },
+                  { value: "in_progress", label: "قيد الإنجاز", dotColor: "#3B82F6" },
+                  { value: "overdue", label: "متأخرة", dotColor: "#EF4444" },
+                  { value: "completed", label: "أُنجزت", dotColor: "#10B981" },
+                ]}
+              />
             </div>
 
             {/* الأهمية */}
             <div>
               <label className="block text-[11px] font-bold text-slate-500 mb-1">الأهمية</label>
-              <select
+              <FilterSelect
+                label="الأهمية"
+                icon={AlertOctagon}
+                isAllOptionLabel="كل الأولويات"
                 value={filters.priority || ""}
-                onChange={(e) => onFiltersChange({ ...filters, priority: e.target.value || undefined })}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-              >
-                <option value="">الكل</option>
-                <option value="high">عالية</option>
-                <option value="medium">متوسطة</option>
-                <option value="normal">عادية</option>
-              </select>
+                onChange={(val) => onFiltersChange({ ...filters, priority: val ? String(val) : undefined })}
+                options={[
+                  { value: "high", label: "عالية", dotColor: "#EF4444" },
+                  { value: "medium", label: "متوسطة", dotColor: "#F59E0B" },
+                  { value: "normal", label: "عادية", dotColor: "#6B7280" },
+                ]}
+              />
             </div>
 
             {/* نطاق التاريخ */}
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <label className="block text-[11px] font-bold text-slate-500 mb-1">من تاريخ</label>
-                <input
-                  type="date"
-                  value={filters.dueDateFrom || ""}
-                  onChange={(e) => onFiltersChange({ ...filters, dueDateFrom: e.target.value || undefined })}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="block text-[11px] font-bold text-slate-500 mb-1">إلى تاريخ</label>
-                <input
-                  type="date"
-                  value={filters.dueDateTo || ""}
-                  onChange={(e) => onFiltersChange({ ...filters, dueDateTo: e.target.value || undefined })}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-                />
-              </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">تاريخ الاستحقاق</label>
+              <DateRangeFilter
+                label="تاريخ الاستحقاق"
+                value={{
+                  from: filters.dueDateFrom,
+                  to: filters.dueDateTo,
+                }}
+                onChange={(range) => onFiltersChange({
+                  ...filters,
+                  dueDateFrom: range?.from,
+                  dueDateTo: range?.to,
+                })}
+              />
             </div>
           </div>
         </div>

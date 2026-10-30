@@ -52,6 +52,12 @@ export const DEFAULT_COUNTS: Record<PestCategoryKey, number> = {
 /** عدد الاقتراحات لكل عمود في وضع append */
 export const APPEND_COUNT_PER_CELL = 3;
 
+/** عدد بنود التوجهات المولّدة (لكل بند انعكاس إيجابي وسلبي مرتبطان به) */
+export const LINKED_TRENDS_COUNT = {
+  full: 4,
+  dimension: 5,
+} as const;
+
 /** حدود الحماية */
 export const MAX_FACTOR_CHARS = 600;
 export const MAX_FACTORS_PER_ANALYSIS = 400;

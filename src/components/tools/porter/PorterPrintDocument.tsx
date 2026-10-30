@@ -4,6 +4,8 @@ import {
   PORTER_FORCE_CONFIG,
   FIELD_LABELS,
   type PorterForces,
+  type PorterFactorsMap,
+  type PorterFactorItem,
 } from "@/types/porter";
 
 interface PorterPrintDocumentProps {
@@ -14,6 +16,7 @@ interface PorterPrintDocumentProps {
   creationMode?: string;
   updatedAt?: string;
   forces: PorterForces;
+  factors?: PorterFactorsMap;
 }
 
 export const PorterPrintDocument: React.FC<PorterPrintDocumentProps> = ({
@@ -24,6 +27,7 @@ export const PorterPrintDocument: React.FC<PorterPrintDocumentProps> = ({
   creationMode = "manual",
   updatedAt,
   forces,
+  factors,
 }) => {
   const formattedDate = new Date(updatedAt || Date.now()).toLocaleDateString("ar-SA", {
     year: "numeric",
@@ -31,8 +35,33 @@ export const PorterPrintDocument: React.FC<PorterPrintDocumentProps> = ({
     day: "numeric",
   });
 
-  const renderContentLines = (text: string) => {
-    const lines = (text || "")
+  const renderItems = (items: PorterFactorItem[] | undefined, fallbackText: string, trendIndexMap?: Map<string, number>) => {
+    if (items && items.length > 0) {
+      return (
+        <ul className="flex flex-col gap-1.5 my-1 text-xs text-slate-800 leading-relaxed list-none">
+          {items.map((item, idx) => {
+            const parentIdx = item.parentFactorId && trendIndexMap ? trendIndexMap.get(item.parentFactorId) : null;
+            return (
+              <li key={item.id} className="flex items-start gap-2">
+                <span className="font-bold text-slate-400 shrink-0 select-none">
+                  {idx + 1}.
+                </span>
+                <span className="flex-1">
+                  {item.content}
+                  {parentIdx !== null && parentIdx !== undefined && (
+                    <span className="text-[10px] text-slate-500 font-bold mr-1.5">
+                      (من البند {parentIdx})
+                    </span>
+                  )}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      );
+    }
+
+    const lines = (fallbackText || "")
       .split(/\r?\n/)
       .map((l) => l.trim())
       .filter(Boolean);
@@ -109,6 +138,9 @@ export const PorterPrintDocument: React.FC<PorterPrintDocumentProps> = ({
             positiveImpacts: "",
             negativeImpacts: "",
           };
+          const forceFactors = factors?.[forceKey];
+          const trendIndexMap = new Map<string, number>();
+          (forceFactors?.trends || []).forEach((t, i) => trendIndexMap.set(t.id, i + 1));
 
           return (
             <div
@@ -133,7 +165,7 @@ export const PorterPrintDocument: React.FC<PorterPrintDocumentProps> = ({
                 <div className="text-xs font-black text-slate-800 mb-1 pb-1 border-b border-slate-200">
                   {FIELD_LABELS.trends}
                 </div>
-                {renderContentLines(forceData.trends)}
+                {renderItems(forceFactors?.trends, forceData.trends)}
               </div>
 
               {/* Impacts (2 Equal Columns: Positive on right, Negative on left in RTL) */}
@@ -143,7 +175,7 @@ export const PorterPrintDocument: React.FC<PorterPrintDocumentProps> = ({
                   <div className="text-xs font-black text-emerald-800 mb-1 pb-1 border-b border-emerald-200 bg-emerald-50/60 -mx-3 -mt-3 p-2 rounded-t-none">
                     {FIELD_LABELS.positiveImpacts}
                   </div>
-                  {renderContentLines(forceData.positiveImpacts)}
+                  {renderItems(forceFactors?.positiveImpacts, forceData.positiveImpacts, trendIndexMap)}
                 </div>
 
                 {/* Negative Impacts (Left in RTL) */}
@@ -151,7 +183,7 @@ export const PorterPrintDocument: React.FC<PorterPrintDocumentProps> = ({
                   <div className="text-xs font-black text-rose-800 mb-1 pb-1 border-b border-rose-200 bg-rose-50/60 -mx-3 -mt-3 p-2 rounded-t-none">
                     {FIELD_LABELS.negativeImpacts}
                   </div>
-                  {renderContentLines(forceData.negativeImpacts)}
+                  {renderItems(forceFactors?.negativeImpacts, forceData.negativeImpacts, trendIndexMap)}
                 </div>
               </div>
             </div>

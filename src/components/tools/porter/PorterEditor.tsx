@@ -54,6 +54,7 @@ export const PorterEditor: React.FC<PorterEditorProps> = ({
     generatingScopes,
     pendingSuggestions,
     canUndo,
+    canEdit,
     confirmDialog,
     closeConfirmDialog,
     factors,
@@ -63,10 +64,16 @@ export const PorterEditor: React.FC<PorterEditorProps> = ({
     projectDescription,
     industry,
     countryRegion,
+    highlightedParentId,
+    setHighlightedParentId,
     updateMetadata,
+    addLinkedFactor,
+    suggestImplications,
+    addMissingImplication,
     addFactor,
     updateFactor,
     deleteFactor,
+    requestDeleteFactor,
     moveFactor,
     reorderFactors,
     triggerGenerate,
@@ -191,14 +198,16 @@ export const PorterEditor: React.FC<PorterEditorProps> = ({
                 <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight truncate">
                   {title || analysis?.title || "تحليل قوى بورتر"}
                 </h1>
-                <button
-                  type="button"
-                  onClick={openMetaModal}
-                  className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition-all"
-                  title="تعديل بيانات المشروع والتحليل"
-                >
-                  <Edit3 className="w-4 h-4" />
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={openMetaModal}
+                    className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition-all"
+                    title="تعديل بيانات المشروع والتحليل"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
 
               {/* Metadata Badges */}
@@ -248,7 +257,7 @@ export const PorterEditor: React.FC<PorterEditorProps> = ({
             )}
 
             {/* Undo button */}
-            {canUndo && (
+            {canUndo && canEdit && (
               <button
                 type="button"
                 onClick={undoLastGeneration}
@@ -261,12 +270,14 @@ export const PorterEditor: React.FC<PorterEditorProps> = ({
             )}
 
             {/* Full Analysis AI Generation */}
-            <GenerateMenu
-              label="توليد التحليل كاملاً"
-              isLoading={isFullGenerating}
-              onGenerate={(strat) => triggerGenerate("full", undefined, undefined, strat)}
-              variant="primary"
-            />
+            {canEdit && (
+              <GenerateMenu
+                label="توليد التحليل كاملاً"
+                isLoading={isFullGenerating}
+                onGenerate={(strat) => triggerGenerate("full", undefined, undefined, strat)}
+                variant="primary"
+              />
+            )}
 
             {/* Export PDF / Print */}
             <button
@@ -445,9 +456,17 @@ export const PorterEditor: React.FC<PorterEditorProps> = ({
             force={fKey}
             factors={factors[fKey] || { trends: [], positiveImpacts: [], negativeImpacts: [] }}
             generatingScopes={generatingScopes}
+            readOnly={!canEdit}
+            highlightedParentId={highlightedParentId}
+            onHighlight={setHighlightedParentId}
+            onAddLinkedFactor={addLinkedFactor}
+            onSuggestImplications={suggestImplications}
+            onAddMissingImplication={addMissingImplication}
             onAddFactor={(field) => addFactor(fKey, field)}
-            onUpdateFactor={(field, id, content) => updateFactor(fKey, field, id, content)}
-            onDeleteFactor={(field, id) => deleteFactor(fKey, field, id)}
+            onUpdateFactor={(field, id, content, parentId) =>
+              updateFactor(fKey, field, id, content, parentId)
+            }
+            onDeleteFactor={(factor) => requestDeleteFactor(factor)}
             onMoveFactor={(field, id, dir) => moveFactor(fKey, field, id, dir)}
             onReorder={(field, list) => reorderFactors(fKey, field, list)}
             onGenerateForce={(strat) => triggerGenerate("force", fKey, undefined, strat)}
@@ -465,6 +484,7 @@ export const PorterEditor: React.FC<PorterEditorProps> = ({
         creationMode={analysis?.creationMode ?? "manual"}
         updatedAt={analysis?.updatedAt}
         forces={forces}
+        factors={factors}
       />
 
       {/* ── 8. Edit Metadata Modal matching PEST ── */}

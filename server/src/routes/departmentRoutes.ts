@@ -28,6 +28,7 @@ router.post(
     body("description").optional({ values: "falsy" }).isLength({ max: 500 }),
     body("color").optional({ values: "falsy" }).isIn(DEPARTMENT_COLORS),
     body("icon").optional({ values: "falsy" }).isIn(DEPARTMENT_ICONS),
+    body("managerId").optional({ values: "null" }).isString(),
     body("members").optional().isArray(),
     body("members.*.memberId").optional().isString(),
     body("members.*.role").optional().isIn(["head", "member"]),
@@ -43,6 +44,7 @@ router.put(
     body("description").optional({ values: "null" }).isLength({ max: 500 }),
     body("color").optional({ values: "falsy" }).isIn(DEPARTMENT_COLORS),
     body("icon").optional({ values: "falsy" }).isIn(DEPARTMENT_ICONS),
+    body("managerId").optional({ values: "null" }).custom((val) => val === null || typeof val === "string"),
     body("members").optional().isArray(),
   ]),
   departmentController.update

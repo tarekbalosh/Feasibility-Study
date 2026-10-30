@@ -6,13 +6,13 @@ import {
   PestDimensionKey,
   PestCategoryKey,
   PestFactorSourceKey,
-  DEFAULT_COUNTS,
   APPEND_COUNT_PER_CELL,
   DIMENSION_LABELS,
   CATEGORY_LABELS,
   MAX_FACTOR_CHARS,
+  LINKED_TRENDS_COUNT,
 } from "./pestConstants";
-import { ApiError } from "../../utils/ApiError";
+import { ImplicationCategory, isImplicationCategory } from "./pestLinks";
 import { logger } from "../../utils/logger";
 
 // ─────────────────────────────────────────────────────────────
@@ -39,29 +39,63 @@ export const generateRequestSchema = z.object({
 
 export type GenerateRequestInput = z.infer<typeof generateRequestSchema>;
 
-const generatedFactorSchema = z.string().trim().min(3).max(MAX_FACTOR_CHARS);
+const generatedTextSchema = z.string().trim().min(3).max(MAX_FACTOR_CHARS);
 
-const categoryFactorsSchema = z.array(generatedFactorSchema);
+/** بند توجه مولّد مع انعكاسيه — البنية الإلزامية لمخرجات النموذج */
+export const aiLinkedItemSchema = z.object({
+  content: generatedTextSchema,
+  positiveImplication: generatedTextSchema,
+  negativeImplication: generatedTextSchema,
+});
+export type AiLinkedItem = z.infer<typeof aiLinkedItemSchema>;
 
-const dimensionContentSchema = z.object({
-  trend: categoryFactorsSchema.optional().default([]),
-  positive_impact: categoryFactorsSchema.optional().default([]),
-  negative_impact: categoryFactorsSchema.optional().default([]),
+/** انعكاس مولّد لبند موجود (توليد عمود الإيجابيات أو السلبيات) */
+export const aiImplicationRefSchema = z.object({
+  ref: z.string().trim().min(1),
+  implication: generatedTextSchema,
 });
 
-export const aiFullOutputSchema = z.object({
-  political: dimensionContentSchema,
-  economic: dimensionContentSchema,
-  social: dimensionContentSchema,
-  technological: dimensionContentSchema,
-  legal: dimensionContentSchema,
+/** اقتراح انعكاسين لبند واحد (زر «اقتراح بالذكاء الاصطناعي» في النموذج) */
+export const aiSingleSuggestionSchema = z.object({
+  positiveImplication: generatedTextSchema,
+  negativeImplication: generatedTextSchema,
 });
 
-export const aiDimensionOutputSchema = dimensionContentSchema;
+/**
+ * يستخرج البنود الصالحة فقط من { items: [...] }. أي عنصر ينقصه أحد الحقول الثلاثة يُستبعد،
+ * فلا يمكن أن يُحفظ توجه بلا انعكاسين أو انعكاس بلا بند أب.
+ */
+export function parseLinkedItems(raw: unknown): AiLinkedItem[] {
+  const items = (raw as any)?.items;
+  if (!Array.isArray(items)) return [];
+  const valid: AiLinkedItem[] = [];
+  for (const it of items) {
+    const res = aiLinkedItemSchema.safeParse(it);
+    if (res.success) valid.push(res.data);
+  }
+  return valid;
+}
 
-export const aiCategoryOutputSchema = z.object({
-  items: categoryFactorsSchema,
-});
+export function parseFullLinkedOutput(raw: unknown): Record<PestDimensionKey, AiLinkedItem[]> {
+  const out = {} as Record<PestDimensionKey, AiLinkedItem[]>;
+  for (const dim of PEST_DIMENSIONS) {
+    out[dim] = parseLinkedItems((raw as any)?.[dim]);
+  }
+  return out;
+}
+
+export function parseImplicationRefs(raw: unknown, validRefs: Set<string>): Map<string, string> {
+  const items = (raw as any)?.items;
+  const result = new Map<string, string>();
+  if (!Array.isArray(items)) return result;
+  for (const it of items) {
+    const res = aiImplicationRefSchema.safeParse(it);
+    if (res.success && validRefs.has(res.data.ref) && !result.has(res.data.ref)) {
+      result.set(res.data.ref, res.data.implication);
+    }
+  }
+  return result;
+}
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -74,13 +108,38 @@ export interface ExistingFactor {
   content: string;
   sortOrder: number;
   source: PestFactorSourceKey;
+  parentFactorId?: string | null;
 }
 
+/** صيغة قديمة لبند مقترح منفرد (محفوظة للتوافق مع الاختبارات القائمة) */
 export interface ProposedFactor {
   dimension: PestDimensionKey;
   category: PestCategoryKey;
   content: string;
   source: PestFactorSourceKey;
+}
+
+/** بند توجه مقترح مع انعكاسيه */
+export interface ProposedTriple {
+  dimension: PestDimensionKey;
+  content: string;
+  positiveImplication: string;
+  negativeImplication: string;
+  source: PestFactorSourceKey;
+}
+
+/** انعكاس مقترح لبند توجه قائم */
+export interface ProposedImplication {
+  dimension: PestDimensionKey;
+  category: ImplicationCategory;
+  parentFactorId: string;
+  content: string;
+  source: PestFactorSourceKey;
+}
+
+export interface ProposedGeneration {
+  triples: ProposedTriple[];
+  implications: ProposedImplication[];
 }
 
 export interface GenerationContext {
@@ -91,36 +150,57 @@ export interface GenerationContext {
   existingFactors: ExistingFactor[];
 }
 
-export interface MergeResult {
+export interface MergeResult<T = ProposedFactor[]> {
   hasProtectedManualConflict: boolean;
   protectedManualCount: number;
-  factorsToCreate: ProposedFactor[];
+  factorsToCreate: T;
   factorsToDeleteIds: string[];
 }
+
+type Tokens = { prompt: number; completion: number; total: number };
+const ZERO_TOKENS: Tokens = { prompt: 0, completion: 0, total: 0 };
 
 // ─────────────────────────────────────────────────────────────
 // Pure Strategy / Merge Logic (Easily Testable)
 // ─────────────────────────────────────────────────────────────
 
-/**
- * دالة نقية تحدد ما الذي سيُحذف وما الذي سيُنشأ بناء على الاستراتيجية، النطاق، وحماية البنود اليدوية.
- */
-export function computeMergePlan(
+/** البنود الواقعة في النطاق المستهدف (مع انعكاسات التوجهات المستهدفة لأنها تُحذف معها) */
+export function factorsInScope(
   scope: "full" | "dimension" | "category",
-  strategy: "replace" | "append",
   targetDimension: PestDimensionKey | undefined,
   targetCategory: PestCategoryKey | undefined,
-  existingFactors: ExistingFactor[],
-  newItems: ProposedFactor[],
-  confirmOverwrite: boolean
-): MergeResult {
-  // تصفية البنود الواقعة في النطاق المستهدف
-  const inScopeExisting = existingFactors.filter((f) => {
+  existingFactors: ExistingFactor[]
+): ExistingFactor[] {
+  const direct = existingFactors.filter((f) => {
     if (scope === "full") return true;
     if (scope === "dimension") return f.dimension === targetDimension;
     if (scope === "category") return f.dimension === targetDimension && f.category === targetCategory;
     return false;
   });
+
+  if (scope === "category" && targetCategory === "trend") {
+    const trendIds = new Set(direct.map((f) => f.id));
+    const children = existingFactors.filter(
+      (f) => f.parentFactorId && trendIds.has(f.parentFactorId)
+    );
+    return [...direct, ...children];
+  }
+  return direct;
+}
+
+/**
+ * دالة نقية تحدد ما الذي سيُحذف وما الذي سيُنشأ بناء على الاستراتيجية، النطاق، وحماية البنود اليدوية.
+ */
+export function computeMergePlan<T>(
+  scope: "full" | "dimension" | "category",
+  strategy: "replace" | "append",
+  targetDimension: PestDimensionKey | undefined,
+  targetCategory: PestCategoryKey | undefined,
+  existingFactors: ExistingFactor[],
+  newItems: T,
+  confirmOverwrite: boolean
+): MergeResult<T> {
+  const empty = (Array.isArray(newItems) ? [] : newItems) as T;
 
   if (strategy === "append") {
     return {
@@ -131,8 +211,9 @@ export function computeMergePlan(
     };
   }
 
-  // وضع replace:
-  // فحص البنود اليدوية والمعدلة
+  const inScopeExisting = factorsInScope(scope, targetDimension, targetCategory, existingFactors);
+
+  // وضع replace: فحص البنود اليدوية والمعدلة
   const protectedItems = inScopeExisting.filter(
     (f) => f.source === "manual" || f.source === "ai_edited"
   );
@@ -141,124 +222,164 @@ export function computeMergePlan(
     return {
       hasProtectedManualConflict: true,
       protectedManualCount: protectedItems.length,
-      factorsToCreate: [],
+      factorsToCreate: empty,
       factorsToDeleteIds: [],
     };
   }
-
-  // إذا تم التأكيد أو لم تكن هناك بنود يدوية:
-  // نحذف جميع البنود التي في النطاق المستهدف
-  const factorsToDeleteIds = inScopeExisting.map((f) => f.id);
 
   return {
     hasProtectedManualConflict: false,
     protectedManualCount: protectedItems.length,
     factorsToCreate: newItems,
-    factorsToDeleteIds,
+    factorsToDeleteIds: inScopeExisting.map((f) => f.id),
   };
 }
 
+/**
+ * التوجهات المستهدفة عند توليد عمود الانعكاسات:
+ *  - replace: كل توجهات البُعد (يُعاد توليد انعكاسها).
+ *  - append: التوجهات التي ينقصها هذا النوع من الانعكاس فقط.
+ */
+export function selectImplicationTargets(
+  existingFactors: ExistingFactor[],
+  dimension: PestDimensionKey,
+  category: ImplicationCategory,
+  strategy: "replace" | "append"
+): ExistingFactor[] {
+  const trends = existingFactors
+    .filter((f) => f.dimension === dimension && f.category === "trend")
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  if (strategy === "replace") return trends;
+  const linked = new Set(
+    existingFactors
+      .filter((f) => f.category === category && f.parentFactorId)
+      .map((f) => f.parentFactorId as string)
+  );
+  return trends.filter((t) => !linked.has(t.id));
+}
+
+/** هل الطلب يولّد انعكاسات لتوجهات قائمة (عمود الإيجابيات أو السلبيات)؟ */
+export function isImplicationScope(
+  scope: "full" | "dimension" | "category",
+  category?: PestCategoryKey
+): category is ImplicationCategory {
+  return scope === "category" && isImplicationCategory(category);
+}
+
 // ─────────────────────────────────────────────────────────────
-// OpenAI Prompt Builder & Execution
+// OpenAI Prompt Builders
 // ─────────────────────────────────────────────────────────────
 
-function buildPrompt(
-  ctx: GenerationContext,
-  scope: "full" | "dimension" | "category",
-  strategy: "replace" | "append",
-  targetDimension?: PestDimensionKey,
-  targetCategory?: PestCategoryKey
-): { system: string; user: string } {
-  const system = `أنت خبير استراتيجي واقتصادي متخصص في دراسات الجدوى وتحليل البيئة الكلية والبيئة الخارجية للشركات (PEST Analysis).
+const SYSTEM_PROMPT = `أنت خبير استراتيجي واقتصادي متخصص في دراسات الجدوى وتحليل البيئة الكلية والبيئة الخارجية للشركات (PEST Analysis).
 مهمتك توليد بنود دقيقة، واقعية، ذات صلة ومحددة تماماً للمشروع المحدد، الدولة/المنطقة، والقطاع.
+كل بند توجه أو مؤشر يجب أن يرافقه انعكاس إيجابي (فرصة) وانعكاس سلبي (مخاطرة) ناتجان عنه مباشرة وخاصّان به، وليسا عامّين.
 تجنب العموميات والعبارات البديهية، وركز على التحديات والفرص التشريعية، الاقتصادية، الاجتماعية، والتقنية المؤثرة فعلياً على هذا النشاط.
 أجب فقط بصيغة JSON صالحة دون أي نصوص تمهيدية أو Markdown خارج صيغة JSON.`;
 
-  let existingContextDesc = "";
-  if (ctx.existingFactors.length > 0) {
-    const list = ctx.existingFactors
-      .map(
-        (f) =>
-          `- [${DIMENSION_LABELS[f.dimension]} / ${CATEGORY_LABELS[f.category]}] (${f.source}): ${f.content}`
-      )
-      .join("\n");
-    existingContextDesc = `
+const LINKED_ITEM_JSON = `{ "content": "نص التوجه أو المؤشر", "positiveImplication": "الانعكاس الإيجابي والفرصة الناتجة عن هذا التوجه", "negativeImplication": "الانعكاس السلبي والمخاطر الناتجة عن هذا التوجه" }`;
+
+function projectBlock(ctx: GenerationContext): string {
+  return `بيانات المشروع:
+- اسم المشروع: ${ctx.projectName}
+- وصف المشروع: ${ctx.projectDescription || "غير محدد"}
+- القطاع: ${ctx.industry || "عام"}
+- الدولة / المنطقة الجغرافية: ${ctx.countryRegion || "المملكة العربية السعودية / الشرق الأوسط"}`;
+}
+
+function existingBlock(ctx: GenerationContext): string {
+  if (ctx.existingFactors.length === 0) return "";
+  const list = ctx.existingFactors
+    .map((f) => `- [${DIMENSION_LABELS[f.dimension]} / ${CATEGORY_LABELS[f.category]}] (${f.source}): ${f.content}`)
+    .join("\n");
+  return `
 البنود الموجودة مسبقاً لدى المستخدم في هذا التحليل (يجب مراعاتها، عدم تكرارها أو نسخها حرفياً، بل البناء عليها واقتراح بنود إضافية تكاملية):
 ${list}
 `;
-  }
+}
 
+export function buildLinkedPrompt(
+  ctx: GenerationContext,
+  scope: "full" | "dimension" | "category",
+  strategy: "replace" | "append",
+  targetDimension?: PestDimensionKey
+): { system: string; user: string } {
   let instructions = "";
   let jsonFormat = "";
 
   if (scope === "full") {
-    instructions = `المطلوب توليد تحليل PEST متكامل لجميع الأبعاد الخمسة:
-لكل بُعد (${PEST_DIMENSIONS.map((d) => DIMENSION_LABELS[d]).join("، ")}):
-- ${DEFAULT_COUNTS.trend} بنود في "أبرز التوجهات والمؤشرات" (trend)
-- ${DEFAULT_COUNTS.positive_impact} بنود في "الانعكاسات الإيجابية المحتملة" (positive_impact)
-- ${DEFAULT_COUNTS.negative_impact} بنود في "الانعكاسات السلبية المحتملة" (negative_impact)`;
-
+    const n = strategy === "append" ? APPEND_COUNT_PER_CELL : LINKED_TRENDS_COUNT.full;
+    instructions = `المطلوب توليد تحليل PEST متكامل لجميع الأبعاد الخمسة (${PEST_DIMENSIONS.map((d) => DIMENSION_LABELS[d]).join("، ")}).
+لكل بُعد ${n} بنود في "أبرز التوجهات والمؤشرات"، ولكل بند انعكاس إيجابي واحد وانعكاس سلبي واحد مرتبطان به.`;
     jsonFormat = `{
-  "political": { "trend": ["..."], "positive_impact": ["..."], "negative_impact": ["..."] },
-  "economic": { "trend": ["..."], "positive_impact": ["..."], "negative_impact": ["..."] },
-  "social": { "trend": ["..."], "positive_impact": ["..."], "negative_impact": ["..."] },
-  "technological": { "trend": ["..."], "positive_impact": ["..."], "negative_impact": ["..."] },
-  "legal": { "trend": ["..."], "positive_impact": ["..."], "negative_impact": ["..."] }
+${PEST_DIMENSIONS.map((d) => `  "${d}": { "items": [ ${LINKED_ITEM_JSON} ] }`).join(",\n")}
 }`;
-  } else if (scope === "dimension" && targetDimension) {
-    const countTrend = strategy === "append" ? APPEND_COUNT_PER_CELL : DEFAULT_COUNTS.trend;
-    const countPos = strategy === "append" ? APPEND_COUNT_PER_CELL : DEFAULT_COUNTS.positive_impact;
-    const countNeg = strategy === "append" ? APPEND_COUNT_PER_CELL : DEFAULT_COUNTS.negative_impact;
-
-    instructions = `المطلوب توليد محتوى البُعد [${DIMENSION_LABELS[targetDimension]}] فقط:
-- ${countTrend} بنود لـ trend
-- ${countPos} بنود لـ positive_impact
-- ${countNeg} بنود لـ negative_impact`;
-
-    jsonFormat = `{
-  "trend": ["..."],
-  "positive_impact": ["..."],
-  "negative_impact": ["..."]
-}`;
-  } else if (scope === "category" && targetDimension && targetCategory) {
-    const count = strategy === "append" ? APPEND_COUNT_PER_CELL : DEFAULT_COUNTS[targetCategory];
-
-    instructions = `المطلوب توليد بنود محددة لـ [${DIMENSION_LABELS[targetDimension]} - ${CATEGORY_LABELS[targetCategory]}]:
-عدد البنود المطلوبة: ${count} بنود نوعية جديدة ومختلفة عن البنود الموجودة.`;
-
-    jsonFormat = `{
-  "items": ["..."]
-}`;
+  } else if (targetDimension) {
+    const n = strategy === "append" ? APPEND_COUNT_PER_CELL : LINKED_TRENDS_COUNT.dimension;
+    instructions = `المطلوب توليد ${n} بنود جديدة في "أبرز التوجهات والمؤشرات" للبُعد [${DIMENSION_LABELS[targetDimension]}] فقط،
+ولكل بند انعكاس إيجابي واحد وانعكاس سلبي واحد مرتبطان به.`;
+    jsonFormat = `{ "items": [ ${LINKED_ITEM_JSON} ] }`;
   }
 
-  const user = `بيانات المشروع:
-- اسم المشروع: ${ctx.projectName}
-- وصف المشروع: ${ctx.projectDescription || "غير محدد"}
-- القطاع: ${ctx.industry || "عام"}
-- الدولة / المنطقة الجغرافية: ${ctx.countryRegion || "المملكة العربية السعودية / الشرق الأوسط"}
-${existingContextDesc}
+  const user = `${projectBlock(ctx)}
+${existingBlock(ctx)}
 ${instructions}
 
-يجب أن تكون مخرجاتك JSON تماماً بالهيكل التالي:
+يجب أن تكون مخرجاتك JSON تماماً بالهيكل التالي (الحقول الثلاثة إلزامية لكل بند):
 ${jsonFormat}`;
 
-  return { system, user };
+  return { system: SYSTEM_PROMPT, user };
 }
 
-export function generateHeuristicPestFactors(
+export function buildImplicationsPrompt(
   ctx: GenerationContext,
-  scope: "full" | "dimension" | "category",
-  strategy: "replace" | "append",
-  targetDimension?: PestDimensionKey,
-  targetCategory?: PestCategoryKey
-): ProposedFactor[] {
+  dimension: PestDimensionKey,
+  category: ImplicationCategory,
+  targets: Array<{ ref: string; content: string }>
+): { system: string; user: string } {
+  const kind =
+    category === "positive_impact"
+      ? "انعكاساً إيجابياً واحداً (فرصة) ناتجاً عنه مباشرة"
+      : "انعكاساً سلبياً واحداً (مخاطرة) ناتجاً عنه مباشرة";
+  const list = targets.map((t) => `- [${t.ref}] ${t.content}`).join("\n");
+  const user = `${projectBlock(ctx)}
+
+البُعد: ${DIMENSION_LABELS[dimension]}
+اكتب لكل بند من بنود التوجهات التالية ${kind}، خاصاً بهذا المشروع:
+${list}
+
+يجب أن تكون مخرجاتك JSON تماماً بالهيكل التالي، مع إعادة نفس المعرّف ref لكل بند:
+{ "items": [ { "ref": "t1", "implication": "..." } ] }`;
+  return { system: SYSTEM_PROMPT, user };
+}
+
+export function buildSingleSuggestionPrompt(
+  ctx: GenerationContext,
+  dimension: PestDimensionKey,
+  content: string
+): { system: string; user: string } {
+  const user = `${projectBlock(ctx)}
+
+البُعد: ${DIMENSION_LABELS[dimension]}
+بند التوجه أو المؤشر: «${content}»
+
+اقترح انعكاساً إيجابياً واحداً (فرصة) وانعكاساً سلبياً واحداً (مخاطرة) ناتجين مباشرة عن هذا البند وخاصّين بهذا المشروع.
+يجب أن تكون مخرجاتك JSON تماماً بالهيكل التالي:
+{ "positiveImplication": "...", "negativeImplication": "..." }`;
+  return { system: SYSTEM_PROMPT, user };
+}
+
+// ─────────────────────────────────────────────────────────────
+// Heuristic fallback (بدون مفتاح OpenAI أو عند فشل الاستدعاء)
+// ─────────────────────────────────────────────────────────────
+
+function buildHeuristicPool(ctx: GenerationContext): Record<PestDimensionKey, Record<PestCategoryKey, string[]>> {
   const project = ctx.projectName || "المشروع";
   const industry = ctx.industry?.trim() || "القطاع العام";
   const country = ctx.countryRegion?.trim() || "المملكة العربية السعودية";
 
   const isFood = /أكل|طعام|مطعم|أغذية|وجبات|كافيه|مقهى|food|beverage/i.test(industry);
 
-  const pool: Record<PestDimensionKey, Record<PestCategoryKey, string[]>> = {
+  return {
     political: {
       trend: [
         `مبادرات التمكين الحكومي وتشجيع المنشآت الصغيرة والمتوسطة في ${country}.`,
@@ -268,13 +389,15 @@ export function generateHeuristicPestFactors(
       ],
       positive_impact: [
         `فرص الاستفادة من مبادرات التمويل التنموي وحاضنات الأعمال الداعمة لمشروع «${project}».`,
-        `استقرار السياسات الاقتصادية والبيئة الاستثمارية الداعمة لنمو المشروع وتوسعه.`,
         `أولوية المناقصات والفرص المحلية للشركات الناشئة المسجلة نظامياً في ${country}.`,
+        `استقرار السياسات الاقتصادية والبيئة الاستثمارية الداعمة لنمو المشروع وتوسعه.`,
+        `تسريع إجراءات التأسيس والحصول على الحوافز المخصصة لرواد الأعمال.`,
       ],
       negative_impact: [
         `الالتزامات التنظيمية والرسوم المرتبطة بمتطلبات التوطين وتراخيص العمل.`,
-        `احتمالية تعديل تسعيرة الخدمات والمرافق الحكومية وارتفاع تكاليف التشغيل الأولية.`,
         `التقلبات المحتملة في السياسات الجمركية أو قيود استيراد المواد الخام.`,
+        `احتمالية تعديل تسعيرة الخدمات والمرافق الحكومية وارتفاع تكاليف التشغيل الأولية.`,
+        `اشتداد المنافسة من مشاريع جديدة تستفيد من نفس الحوافز الحكومية.`,
       ],
     },
     economic: {
@@ -287,14 +410,16 @@ export function generateHeuristicPestFactors(
         `تغير أنماط الإنفاق الأسري مع التركيز على الأساسيات والخدمات الأكثر كفاءة.`,
       ],
       positive_impact: [
-        `نمو حجم سوق ${industry} مع زيادة الكثافة السكانية ومعدلات الإنفاق في ${country}.`,
-        `إمكانية تحقيق هوامش ربحية ممتازة لمشروع «${project}» عبر ضبط الهدر وإدارة التكاليف بذكاء.`,
         `فرصة الاستحواذ على حصة سوقية عبر تقديم خيارات تسعيرية مرنة ومدروسة.`,
+        `إمكانية تحقيق هوامش ربحية ممتازة لمشروع «${project}» عبر ضبط الهدر وإدارة التكاليف بذكاء.`,
+        `نمو حجم سوق ${industry} مع زيادة الكثافة السكانية ومعدلات الإنفاق في ${country}.`,
+        `جذب شريحة العملاء الباحثين عن القيمة مقابل السعر بعروض مركّزة.`,
       ],
       negative_impact: [
-        `المنافسة السعرية الحادة من المنافسين الكبار والبدائل المتوفرة في السوق.`,
         `حساسية العملاء تجاه تغير الأسعار في ظل الضغوط التضخمية.`,
         `ارتفاع تكاليف الإيجارات والمرافق في المواقع التجارية الحيوية.`,
+        `المنافسة السعرية الحادة من المنافسين الكبار والبدائل المتوفرة في السوق.`,
+        `تراجع الإنفاق على المنتجات غير الأساسية في فترات التباطؤ.`,
       ],
     },
     social: {
@@ -310,11 +435,13 @@ export function generateHeuristicPestFactors(
         `بناء قاعدة عملاء وفية لمشروع «${project}» بالتركيز على جودة التجربة والخدمة المتميزة.`,
         `استثمار قنوات التواصل الاجتماعي للتسويق المباشر وصناعة محتوى مؤثر بتكلفة منخفضة.`,
         `استجابة المشروع السريعة لتطلعات المجتمع مقارنة بالشركات التقليدية البطيئة.`,
+        `تمييز العلامة بممارسات صحية ومستدامة تعزز الثقة والسمعة.`,
       ],
       negative_impact: [
-        `سرعة تحول أذواق المستهلكين وصعوبة المحافظة على ولائهم دون تجديد وابتكار مستمر.`,
-        `التأثر السريع بانطباعات العملاء وتقييماتهم الرقمية عبر منصات التواصل والتقييم.`,
         `صعوبة تلبية التوقعات المرتفعة للعملاء في مراحل التأسيس الأولى.`,
+        `التأثر السريع بانطباعات العملاء وتقييماتهم الرقمية عبر منصات التواصل والتقييم.`,
+        `سرعة تحول أذواق المستهلكين وصعوبة المحافظة على ولائهم دون تجديد وابتكار مستمر.`,
+        `تكاليف إضافية للالتزام بمعايير السلامة والاستدامة المتصاعدة.`,
       ],
     },
     technological: {
@@ -328,13 +455,15 @@ export function generateHeuristicPestFactors(
       ],
       positive_impact: [
         `أتمتة العمليات اليومية لمشروع «${project}» مما يخفض التكاليف التشغيلية ويسرع الإنجاز.`,
-        `استخدام قنوات البيع الرقمية لتوسيع نطاق الوصول الجغرافي دون الحاجة لفروع كثيرة.`,
         `القدرة على تحليل بيانات العملاء لتحسين المنتجات وتطوير العروض الموجهة بدقة.`,
+        `خفض الهدر وتحسين جودة الخدمة عبر مؤشرات تشغيل لحظية.`,
+        `استخدام قنوات البيع الرقمية لتوسيع نطاق الوصول الجغرافي دون الحاجة لفروع كثيرة.`,
       ],
       negative_impact: [
-        `تكاليف الاستثمار والتطوير المستمر في البنية التقنية والبرمجيات المتخصصة.`,
         `مخاطر الأعطال التقنية في بوابات الدفع أو المنصات الرقمية وتأثيرها على سير العمل.`,
         `رسوم وعمولات منصات التوصيل والتسويق الرقمي التي تقتطع من هامش الربح.`,
+        `تكاليف الاستثمار والتطوير المستمر في البنية التقنية والبرمجيات المتخصصة.`,
+        `الحاجة إلى كوادر مؤهلة تقنياً لتشغيل الأنظمة وصيانتها.`,
       ],
     },
     legal: {
@@ -347,198 +476,246 @@ export function generateHeuristicPestFactors(
         `الرقابة المشددة على جودة المنتجات وحماية الملكية الفكرية والعلامات التجارية.`,
       ],
       positive_impact: [
-        `الحماية النظامية وحفظ حقوق مشروع «${project}» في بيئة تنافسية عادلة ومحمية بالقانون.`,
         `الموثوقية العالية التي يكتسبها المشروع أمام العملاء والجهات التمويلية نتيجة الامتثال الكامل.`,
+        `الحماية النظامية وحفظ حقوق مشروع «${project}» في بيئة تنافسية عادلة ومحمية بالقانون.`,
         `تقليل النزاعات العمالية والتعاقدية عبر تبني النماذج والعقود المعتمدة رسمياً.`,
+        `حماية العلامة التجارية والمنتجات من التقليد وتعزيز قيمتها السوقية.`,
       ],
       negative_impact: [
         `التعرض لمخاطر الغرامات المالية عند حدوث أي تقصير في استيفاء الاشتراطات البلدية أو النظامية.`,
         `الكلفة الإدارية والمالية المستمرة لتجديد التراخيص ومواكبة التعديلات القانونية المتسارعة.`,
         `تعقيد الإجراءات البيروقراطية في بعض التراخيص النوعية وتأثيرها على سرعة التوسع.`,
+        `تكاليف تسجيل الملكية الفكرية ومتابعة حالات التعدي قانونياً.`,
       ],
     },
   };
+}
 
-  const existingSet = new Set(ctx.existingFactors.map((f) => f.content.trim()));
-  const countNeeded = strategy === "append" ? APPEND_COUNT_PER_CELL : 2;
+function pickFrom(pool: string[], index: number, used: Set<string>): string {
+  const unused = pool.filter((t) => !used.has(t.trim()));
+  const source = unused.length > 0 ? unused : pool;
+  const chosen = source[index % source.length];
+  used.add(chosen.trim());
+  return chosen;
+}
 
-  const result: ProposedFactor[] = [];
+/** توليد احتياطي: توجهات مع انعكاسيها مقترنة بالفهرس */
+export function generateHeuristicLinked(
+  ctx: GenerationContext,
+  dims: readonly PestDimensionKey[],
+  count: number
+): ProposedTriple[] {
+  const pool = buildHeuristicPool(ctx);
+  const used = new Set(ctx.existingFactors.map((f) => f.content.trim()));
+  const result: ProposedTriple[] = [];
 
-  const dimsToProcess = scope === "full" ? PEST_DIMENSIONS : targetDimension ? [targetDimension] : [];
-
-  for (const dim of dimsToProcess) {
-    const catsToProcess = scope === "category" && targetCategory ? [targetCategory] : PEST_CATEGORIES;
-    for (const cat of catsToProcess) {
-      const candidates = pool[dim]?.[cat] || [];
-      const unused = candidates.filter((text) => !existingSet.has(text.trim()));
-      const selected = (unused.length >= countNeeded ? unused : candidates).slice(0, countNeeded);
-
-      for (const item of selected) {
-        result.push({
-          dimension: dim,
-          category: cat,
-          content: item,
-          source: "ai",
-        });
-      }
+  for (const dim of dims) {
+    const trends = pool[dim].trend;
+    const unusedIdx = trends.map((t, i) => i).filter((i) => !used.has(trends[i].trim()));
+    const order = (unusedIdx.length >= count ? unusedIdx : trends.map((_, i) => i)).slice(0, count);
+    for (const i of order) {
+      used.add(trends[i].trim());
+      result.push({
+        dimension: dim,
+        content: trends[i],
+        positiveImplication: pool[dim].positive_impact[i % pool[dim].positive_impact.length],
+        negativeImplication: pool[dim].negative_impact[i % pool[dim].negative_impact.length],
+        source: "ai",
+      });
     }
   }
-
   return result;
 }
 
+/** توليد احتياطي لانعكاس بنود قائمة */
+export function generateHeuristicImplications(
+  ctx: GenerationContext,
+  dimension: PestDimensionKey,
+  category: ImplicationCategory,
+  targets: ExistingFactor[]
+): ProposedImplication[] {
+  const pool = buildHeuristicPool(ctx);
+  const used = new Set(ctx.existingFactors.map((f) => f.content.trim()));
+  return targets.map((t) => {
+    const pairedIdx = pool[dimension].trend.findIndex((x) => x.trim() === t.content.trim());
+    const list = pool[dimension][category];
+    const content =
+      pairedIdx >= 0 && !used.has(list[pairedIdx % list.length].trim())
+        ? list[pairedIdx % list.length]
+        : pickFrom(list, 0, used);
+    used.add(content.trim());
+    return { dimension, category, parentFactorId: t.id, content, source: "ai" as const };
+  });
+}
+
+export function generateHeuristicSuggestion(
+  ctx: GenerationContext,
+  dimension: PestDimensionKey,
+  content: string
+): { positiveImplication: string; negativeImplication: string } {
+  const pool = buildHeuristicPool(ctx);
+  const used = new Set(ctx.existingFactors.map((f) => f.content.trim()));
+  const pairedIdx = pool[dimension].trend.findIndex((x) => x.trim() === content.trim());
+  const seed = pairedIdx >= 0 ? pairedIdx : [...content].reduce((s, ch) => s + ch.charCodeAt(0), 0);
+  return {
+    positiveImplication: pickFrom(pool[dimension].positive_impact, seed, used),
+    negativeImplication: pickFrom(pool[dimension].negative_impact, seed, used),
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// OpenAI execution
+// ─────────────────────────────────────────────────────────────
+
+async function requestJson(
+  prompt: { system: string; user: string },
+  maxTokens: number
+): Promise<{ json: unknown; tokens: Tokens; model: string } | null> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  const isKeyValid = Boolean(apiKey && apiKey.startsWith("sk-") && apiKey.length > 20);
+  if (!isKeyValid) {
+    logger.warn("OpenAI API key missing or invalid (must start with sk-) — using smart heuristic fallback generator for PEST");
+    return null;
+  }
+
+  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+  const openai = new OpenAI({ apiKey, timeout: 60000 });
+  try {
+    const completion = await openai.chat.completions.create({
+      model,
+      temperature: 0.4,
+      max_tokens: maxTokens,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: prompt.system },
+        { role: "user", content: prompt.user },
+      ],
+    });
+    const content = completion.choices?.[0]?.message?.content;
+    if (!content) return null;
+    return {
+      json: JSON.parse(content),
+      tokens: {
+        prompt: completion.usage?.prompt_tokens ?? 0,
+        completion: completion.usage?.completion_tokens ?? 0,
+        total: completion.usage?.total_tokens ?? 0,
+      },
+      model,
+    };
+  } catch (err: any) {
+    logger.warn("OpenAI call failed for PEST generation — falling back to smart heuristic generator", {
+      error: err?.message || err,
+    });
+    return null;
+  }
+}
+
+/**
+ * نقطة التوليد الموحّدة: تُرجع دائماً توجهات مع انعكاسيها، أو انعكاسات لتوجهات قائمة.
+ * لا تُرجع أبداً انعكاساً بلا بند أب.
+ */
 export async function callOpenAIForPest(
   ctx: GenerationContext,
   scope: "full" | "dimension" | "category",
   strategy: "replace" | "append",
   targetDimension?: PestDimensionKey,
-  targetCategory?: PestCategoryKey
-): Promise<{ proposedFactors: ProposedFactor[]; tokens: { prompt: number; completion: number; total: number }; model: string }> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  const isKeyValid = Boolean(apiKey && apiKey.startsWith("sk-") && apiKey.length > 20);
-
-  if (!isKeyValid) {
-    logger.warn("OpenAI API key missing or invalid (must start with sk-) — using smart heuristic fallback generator for PEST");
-    const proposedFactors = generateHeuristicPestFactors(ctx, scope, strategy, targetDimension, targetCategory);
-    return {
-      proposedFactors,
-      tokens: { prompt: 0, completion: 0, total: 0 },
-      model: "heuristic-fallback",
-    };
-  }
-
-  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
-  const openai = new OpenAI({ apiKey, timeout: 60000 });
-
-  const { system, user } = buildPrompt(ctx, scope, strategy, targetDimension, targetCategory);
-
-  let completion;
-  try {
-    completion = await openai.chat.completions.create({
-      model,
-      temperature: 0.4,
-      max_tokens: 3500,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    });
-  } catch (err: any) {
-    logger.warn("OpenAI call failed for PEST generation — falling back to smart heuristic generator", { error: err?.message || err });
-    const proposedFactors = generateHeuristicPestFactors(ctx, scope, strategy, targetDimension, targetCategory);
-    return {
-      proposedFactors,
-      tokens: { prompt: 0, completion: 0, total: 0 },
-      model: "heuristic-fallback",
-    };
-  }
-
-  const content = completion.choices?.[0]?.message?.content;
-  if (!content) {
-    const proposedFactors = generateHeuristicPestFactors(ctx, scope, strategy, targetDimension, targetCategory);
-    return {
-      proposedFactors,
-      tokens: { prompt: 0, completion: 0, total: 0 },
-      model: "heuristic-fallback",
-    };
-  }
-
-  let parsedJson: any;
-  try {
-    parsedJson = JSON.parse(content);
-  } catch (err) {
-    const proposedFactors = generateHeuristicPestFactors(ctx, scope, strategy, targetDimension, targetCategory);
-    return {
-      proposedFactors,
-      tokens: { prompt: 0, completion: 0, total: 0 },
-      model: "heuristic-fallback",
-    };
-  }
-
-  const proposedFactors: ProposedFactor[] = [];
-
-  if (scope === "full") {
-    const parseRes = aiFullOutputSchema.safeParse(parsedJson);
-    if (!parseRes.success) {
-      logger.warn("PEST full generation schema mismatch — using heuristic fallback", { errors: parseRes.error.flatten() });
-      const fallbackFactors = generateHeuristicPestFactors(ctx, scope, strategy, targetDimension, targetCategory);
-      return {
-        proposedFactors: fallbackFactors,
-        tokens: { prompt: 0, completion: 0, total: 0 },
-        model: "heuristic-fallback",
-      };
+  targetCategory?: PestCategoryKey,
+  implicationTargets: ExistingFactor[] = []
+): Promise<{ proposal: ProposedGeneration; tokens: Tokens; model: string }> {
+  // ── توليد عمود الانعكاسات لتوجهات قائمة ──
+  if (isImplicationScope(scope, targetCategory) && targetDimension) {
+    if (implicationTargets.length === 0) {
+      return { proposal: { triples: [], implications: [] }, tokens: ZERO_TOKENS, model: "none" };
     }
-    const data = parseRes.data;
-    for (const dim of PEST_DIMENSIONS) {
-      const dimData = data[dim];
-      for (const cat of PEST_CATEGORIES) {
-        const items = dimData[cat] || [];
-        for (const item of items) {
-          proposedFactors.push({
-            dimension: dim,
-            category: cat,
-            content: item.trim(),
+    const refs = implicationTargets.map((t, i) => ({ ref: `t${i + 1}`, content: t.content, factor: t }));
+    const res = await requestJson(
+      buildImplicationsPrompt(ctx, targetDimension, targetCategory, refs),
+      Math.min(4000, 400 + refs.length * 160)
+    );
+    const parsed = res ? parseImplicationRefs(res.json, new Set(refs.map((r) => r.ref))) : new Map<string, string>();
+    const missing = refs.filter((r) => !parsed.has(r.ref)).map((r) => r.factor);
+    const fallback = new Map(
+      generateHeuristicImplications(ctx, targetDimension, targetCategory, missing).map((p) => [p.parentFactorId, p])
+    );
+    const implications: ProposedImplication[] = refs.map((r) =>
+      parsed.has(r.ref)
+        ? {
+            dimension: targetDimension,
+            category: targetCategory,
+            parentFactorId: r.factor.id,
+            content: parsed.get(r.ref)!,
             source: "ai",
-          });
-        }
-      }
+          }
+        : fallback.get(r.factor.id)!
+    );
+    if (res && missing.length > 0) {
+      logger.warn("PEST implications output missing refs — filled with heuristic", { missing: missing.length });
     }
-  } else if (scope === "dimension" && targetDimension) {
-    const parseRes = aiDimensionOutputSchema.safeParse(parsedJson);
-    if (!parseRes.success) {
-      logger.warn("PEST dimension generation schema mismatch — using heuristic fallback", { errors: parseRes.error.flatten() });
-      const fallbackFactors = generateHeuristicPestFactors(ctx, scope, strategy, targetDimension, targetCategory);
-      return {
-        proposedFactors: fallbackFactors,
-        tokens: { prompt: 0, completion: 0, total: 0 },
-        model: "heuristic-fallback",
-      };
+    return {
+      proposal: { triples: [], implications },
+      tokens: res && missing.length < refs.length ? res.tokens : ZERO_TOKENS,
+      model: res && missing.length < refs.length ? res.model : "heuristic-fallback",
+    };
+  }
+
+  // ── توليد توجهات مع انعكاسيها ──
+  const dims: PestDimensionKey[] =
+    scope === "full" ? [...PEST_DIMENSIONS] : targetDimension ? [targetDimension] : [];
+  const heuristicCount = strategy === "append" ? APPEND_COUNT_PER_CELL : 3;
+
+  const res = await requestJson(
+    buildLinkedPrompt(ctx, scope, strategy, targetDimension),
+    scope === "full" ? 7000 : 2500
+  );
+
+  if (!res) {
+    return {
+      proposal: { triples: generateHeuristicLinked(ctx, dims, heuristicCount), implications: [] },
+      tokens: ZERO_TOKENS,
+      model: "heuristic-fallback",
+    };
+  }
+
+  const triples: ProposedTriple[] = [];
+  let fallbackDims = 0;
+  const byDim: Record<string, AiLinkedItem[]> =
+    scope === "full" ? parseFullLinkedOutput(res.json) : { [dims[0]]: parseLinkedItems(res.json) };
+
+  for (const dim of dims) {
+    const items = byDim[dim] || [];
+    if (items.length === 0) {
+      fallbackDims++;
+      triples.push(...generateHeuristicLinked(ctx, [dim], heuristicCount));
+      continue;
     }
-    const data = parseRes.data;
-    for (const cat of PEST_CATEGORIES) {
-      const items = data[cat] || [];
-      for (const item of items) {
-        proposedFactors.push({
-          dimension: targetDimension,
-          category: cat,
-          content: item.trim(),
-          source: "ai",
-        });
-      }
-    }
-  } else if (scope === "category" && targetDimension && targetCategory) {
-    const parseRes = aiCategoryOutputSchema.safeParse(parsedJson);
-    if (!parseRes.success) {
-      logger.warn("PEST category generation schema mismatch — using heuristic fallback", { errors: parseRes.error.flatten() });
-      const fallbackFactors = generateHeuristicPestFactors(ctx, scope, strategy, targetDimension, targetCategory);
-      return {
-        proposedFactors: fallbackFactors,
-        tokens: { prompt: 0, completion: 0, total: 0 },
-        model: "heuristic-fallback",
-      };
-    }
-    for (const item of parseRes.data.items) {
-      proposedFactors.push({
-        dimension: targetDimension,
-        category: targetCategory,
-        content: item.trim(),
-        source: "ai",
-      });
+    for (const it of items) {
+      triples.push({ dimension: dim, ...it, source: "ai" });
     }
   }
 
-  const promptTokens = completion.usage?.prompt_tokens ?? 0;
-  const completionTokens = completion.usage?.completion_tokens ?? 0;
-  const totalTokens = completion.usage?.total_tokens ?? 0;
+  if (fallbackDims > 0) {
+    logger.warn("PEST linked generation schema mismatch for some dimensions — heuristic used", { fallbackDims });
+  }
 
+  const allFallback = fallbackDims === dims.length;
   return {
-    proposedFactors,
-    tokens: {
-      prompt: promptTokens,
-      completion: completionTokens,
-      total: totalTokens,
-    },
-    model,
+    proposal: { triples, implications: [] },
+    tokens: allFallback ? ZERO_TOKENS : res.tokens,
+    model: allFallback ? "heuristic-fallback" : res.model,
   };
+}
+
+/** اقتراح انعكاسين لبند واحد — لا يحفظ شيئاً */
+export async function suggestImplicationsForTrend(
+  ctx: GenerationContext,
+  dimension: PestDimensionKey,
+  content: string
+): Promise<{ positiveImplication: string; negativeImplication: string; model: string }> {
+  const res = await requestJson(buildSingleSuggestionPrompt(ctx, dimension, content), 600);
+  if (res) {
+    const parsed = aiSingleSuggestionSchema.safeParse(res.json);
+    if (parsed.success) return { ...parsed.data, model: res.model };
+    logger.warn("PEST single suggestion schema mismatch — heuristic used");
+  }
+  return { ...generateHeuristicSuggestion(ctx, dimension, content), model: "heuristic-fallback" };
 }

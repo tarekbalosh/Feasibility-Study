@@ -12,6 +12,7 @@ import type {
   PorterCreationMode,
   PorterFactorItem,
   PorterFactorsMap,
+  CreateLinkedPorterFactorPayload,
 } from "@/types/porter";
 import {
   FORCES_ORDER,
@@ -43,6 +44,9 @@ export function usePorterEditor(initialId?: string) {
   const [pendingSuggestions, setPendingSuggestions] = useState<PendingPorterSuggestion[]>([]);
   const [undoSnapshot, setUndoSnapshot] = useState<PorterFactorsMap | null>(null);
 
+  // حالة الإبراز المتبادل بين بند التوجه وانعكاسيه
+  const [highlightedParentId, setHighlightedParentId] = useState<string | null>(null);
+
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -55,6 +59,10 @@ export function usePorterEditor(initialId?: string) {
     message: "",
     onConfirm: () => {},
   });
+
+  const closeConfirmDialog = useCallback(() => {
+    setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+  }, []);
 
   // Factor map state
   const [factors, setFactors] = useState<PorterFactorsMap>(() =>
@@ -70,6 +78,12 @@ export function usePorterEditor(initialId?: string) {
 
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const autoSaveDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // صلاحية التعديل
+  const canEdit = useMemo(() => {
+    if (!analysis) return true;
+    return analysis.accessLevel !== "view";
+  }, [analysis]);
 
   // Derived forces object for print or export
   const forces = useMemo(() => factorsMapToForces(factors), [factors]);
@@ -181,7 +195,7 @@ export function usePorterEditor(initialId?: string) {
       if (autoSaveDebounceRef.current) clearTimeout(autoSaveDebounceRef.current);
       autoSaveDebounceRef.current = setTimeout(() => {
         executeSave(newFactors);
-      }, 1000);
+      }, 800);
     },
     [executeSave]
   );
@@ -207,7 +221,117 @@ export function usePorterEditor(initialId?: string) {
     [factors, executeSave]
   );
 
-  // ── Add Factor ──
+  // ── Add Linked Factor (Atomic Triple) ──
+  const addLinkedFactor = useCallback(
+    async (payload: CreateLinkedPorterFactorPayload) => {
+      const force = payload.force;
+      const trendId = `${force}-trend-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const sortOrder = factors[force]?.trends?.length || 0;
+
+      const trendItem: PorterFactorItem = {
+        id: trendId,
+        force,
+        field: "trends",
+        content: payload.content,
+        source: "manual",
+        sortOrder,
+        parentFactorId: null,
+      };
+
+      const posItem: PorterFactorItem = {
+        id: `${force}-pos-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        force,
+        field: "positiveImpacts",
+        content: payload.positiveImplication,
+        source: payload.positiveSource ?? "manual",
+        sortOrder,
+        parentFactorId: trendId,
+      };
+
+      const negItem: PorterFactorItem = {
+        id: `${force}-neg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        force,
+        field: "negativeImpacts",
+        content: payload.negativeImplication,
+        source: payload.negativeSource ?? "manual",
+        sortOrder,
+        parentFactorId: trendId,
+      };
+
+      const nextFactors: PorterFactorsMap = {
+        ...factors,
+        [force]: {
+          trends: [...(factors[force]?.trends || []), trendItem],
+          positiveImpacts: [...(factors[force]?.positiveImpacts || []), posItem],
+          negativeImpacts: [...(factors[force]?.negativeImpacts || []), negItem],
+        },
+      };
+
+      setFactors(nextFactors);
+      triggerAutoSave(nextFactors);
+      toast.success("تمت إضافة بند التوجه وانعكاسيه بنجاح.");
+      return { trend: trendItem, positive: posItem, negative: negItem };
+    },
+    [factors, triggerAutoSave]
+  );
+
+  // ── Suggest Implications via AI ──
+  const suggestImplications = useCallback(
+    async (force: PorterForceKey, content: string) => {
+      return porterService.suggestImplications({
+        force,
+        content,
+        projectName,
+        projectDescription,
+        industry,
+        countryRegion,
+      });
+    },
+    [projectName, projectDescription, industry, countryRegion]
+  );
+
+  // ── Add Missing Implication ──
+  const addMissingImplication = useCallback(
+    async (
+      force: PorterForceKey,
+      parentFactorId: string,
+      field: "positiveImpacts" | "negativeImpacts",
+      content: string,
+      aiSuggested?: string
+    ) => {
+      const parentTrend = (factors[force]?.trends || []).find((t) => t.id === parentFactorId);
+      const sortOrder = parentTrend?.sortOrder ?? (factors[force]?.[field]?.length || 0);
+
+      const newItem: PorterFactorItem = {
+        id: `${force}-${field}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        force,
+        field,
+        content,
+        source: aiSuggested ? "ai" : "manual",
+        sortOrder,
+        parentFactorId,
+      };
+
+      const currentList = factors[force]?.[field] || [];
+      const updatedList = [...currentList, newItem];
+
+      const nextFactors: PorterFactorsMap = {
+        ...factors,
+        [force]: {
+          ...factors[force],
+          [field]: updatedList,
+        },
+      };
+
+      setFactors(nextFactors);
+      triggerAutoSave(nextFactors);
+      toast.success("تمت إضافة الانعكاس وربطه بالبند بنجاح.");
+      return newItem;
+    },
+    [factors, triggerAutoSave]
+  );
+
+  // ── Add Single Factor (Generic Fallback) ──
   const addFactor = useCallback(
     (force: PorterForceKey, field: PorterFieldKey, initialContent: string = "") => {
       const newItem: PorterFactorItem = {
@@ -216,7 +340,7 @@ export function usePorterEditor(initialId?: string) {
         field,
         content: initialContent || "بند جديد...",
         source: "manual",
-        sortOrder: (factors[force]?.[field]?.length || 0),
+        sortOrder: factors[force]?.[field]?.length || 0,
       };
 
       setFactors((prev) => {
@@ -242,7 +366,8 @@ export function usePorterEditor(initialId?: string) {
       force: PorterForceKey,
       field: PorterFieldKey,
       factorId: string,
-      newContent: string
+      newContent: string,
+      parentFactorId?: string | null
     ) => {
       const clean = newContent.trim();
       setFactors((prev) => {
@@ -253,6 +378,7 @@ export function usePorterEditor(initialId?: string) {
               ...item,
               content: clean,
               source: item.source === "ai" ? "ai_edited" : item.source,
+              ...(parentFactorId !== undefined ? { parentFactorId } : {}),
             };
           }
           return item;
@@ -272,7 +398,7 @@ export function usePorterEditor(initialId?: string) {
     [triggerAutoSave]
   );
 
-  // ── Delete Factor ──
+  // ── Delete Factor (Simple) ──
   const deleteFactor = useCallback(
     (force: PorterForceKey, field: PorterFieldKey, factorId: string) => {
       setFactors((prev) => {
@@ -293,7 +419,64 @@ export function usePorterEditor(initialId?: string) {
     [triggerAutoSave]
   );
 
-  // ── Reorder Factors ──
+  // ── Request Delete Factor with Cascade Confirmation for Trends ──
+  const requestDeleteFactor = useCallback(
+    (factor: PorterFactorItem) => {
+      const force = factor.force;
+      if (factor.field === "trends") {
+        const posChildren = (factors[force]?.positiveImpacts || []).filter(
+          (p) => p.parentFactorId === factor.id
+        );
+        const negChildren = (factors[force]?.negativeImpacts || []).filter(
+          (n) => n.parentFactorId === factor.id
+        );
+        const childCount = posChildren.length + negChildren.length;
+
+        const message =
+          childCount > 0
+            ? `حذف بند التوجه هذا سيحذف معه الانعكاسين المرتبطين به (${childCount} انعكاس) تلقائياً. هل أنت متأكد من الحذف؟`
+            : "هل أنت متأكد من حذف هذا البند؟";
+
+        setConfirmDialog({
+          isOpen: true,
+          title: "تأكيد حذف بند التوجه",
+          message,
+          confirmText: childCount > 0 ? "حذف التوجه وانعكاسيه" : "حذف البند",
+          onConfirm: () => {
+            closeConfirmDialog();
+            setFactors((prev) => {
+              const nextTrends = (prev[force]?.trends || []).filter((t) => t.id !== factor.id);
+              const nextPos = (prev[force]?.positiveImpacts || []).filter(
+                (p) => p.parentFactorId !== factor.id
+              );
+              const nextNeg = (prev[force]?.negativeImpacts || []).filter(
+                (n) => n.parentFactorId !== factor.id
+              );
+
+              const next = {
+                ...prev,
+                [force]: {
+                  trends: nextTrends,
+                  positiveImpacts: nextPos,
+                  negativeImpacts: nextNeg,
+                },
+              };
+              triggerAutoSave(next);
+              toast.success("تم حذف البند وانعكاسيه بنجاح.");
+              return next;
+            });
+          },
+        });
+      } else {
+        // حذف انعكاس منفرد
+        deleteFactor(force, factor.field, factor.id);
+        toast.success("تم حذف الانعكاس بنجاح.");
+      }
+    },
+    [factors, deleteFactor, triggerAutoSave, closeConfirmDialog]
+  );
+
+  // ── Reorder Factors (Synchronizes Child Implications when Trends reorder) ──
   const reorderFactors = useCallback(
     (
       force: PorterForceKey,
@@ -301,11 +484,36 @@ export function usePorterEditor(initialId?: string) {
       newOrder: PorterFactorItem[]
     ) => {
       setFactors((prev) => {
+        let nextPos = prev[force]?.positiveImpacts || [];
+        let nextNeg = prev[force]?.negativeImpacts || [];
+
+        // إذا تم تغيير ترتيب التوجهات، أعد ترتيب الانعكاسات لتطابق الترتيب الجديد
+        if (field === "trends") {
+          const trendOrderMap = new Map<string, number>();
+          newOrder.forEach((t, i) => trendOrderMap.set(t.id, i));
+
+          const sortImplications = (list: PorterFactorItem[]) => {
+            return [...list].sort((a, b) => {
+              const orderA = a.parentFactorId ? trendOrderMap.get(a.parentFactorId) : undefined;
+              const orderB = b.parentFactorId ? trendOrderMap.get(b.parentFactorId) : undefined;
+              if (orderA !== undefined && orderB !== undefined) return orderA - orderB;
+              if (orderA !== undefined) return -1;
+              if (orderB !== undefined) return 1;
+              return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+            });
+          };
+
+          nextPos = sortImplications(nextPos);
+          nextNeg = sortImplications(nextNeg);
+        }
+
         const next = {
           ...prev,
           [force]: {
             ...prev[force],
             [field]: newOrder,
+            positiveImpacts: nextPos,
+            negativeImpacts: nextNeg,
           },
         };
         triggerAutoSave(next);
@@ -337,6 +545,104 @@ export function usePorterEditor(initialId?: string) {
       reorderFactors(force, field, currentList);
     },
     [factors, reorderFactors]
+  );
+
+  // ── Helper: Map generated forces text lines into linked items ──
+  const mapGeneratedToLinkedItems = useCallback(
+    (generatedForces: PorterForces): PorterFactorsMap => {
+      const result: any = {};
+      for (const f of FORCES_ORDER) {
+        const rawTrends = (generatedForces[f]?.trends || "")
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter(Boolean);
+        const rawPos = (generatedForces[f]?.positiveImpacts || "")
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter(Boolean);
+        const rawNeg = (generatedForces[f]?.negativeImpacts || "")
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter(Boolean);
+
+        const trendItems: PorterFactorItem[] = [];
+        const posItems: PorterFactorItem[] = [];
+        const negItems: PorterFactorItem[] = [];
+
+        rawTrends.forEach((tLine, i) => {
+          const tId = `${f}-ai-trend-${Date.now()}-${i}`;
+          trendItems.push({
+            id: tId,
+            force: f,
+            field: "trends",
+            content: tLine,
+            source: "ai",
+            sortOrder: i,
+            parentFactorId: null,
+          });
+
+          if (rawPos[i]) {
+            posItems.push({
+              id: `${f}-ai-pos-${Date.now()}-${i}`,
+              force: f,
+              field: "positiveImpacts",
+              content: rawPos[i],
+              source: "ai",
+              sortOrder: i,
+              parentFactorId: tId,
+            });
+          }
+
+          if (rawNeg[i]) {
+            negItems.push({
+              id: `${f}-ai-neg-${Date.now()}-${i}`,
+              force: f,
+              field: "negativeImpacts",
+              content: rawNeg[i],
+              source: "ai",
+              sortOrder: i,
+              parentFactorId: tId,
+            });
+          }
+        });
+
+        // Add any remaining pos/neg as unlinked if length differed
+        if (rawPos.length > rawTrends.length) {
+          for (let i = rawTrends.length; i < rawPos.length; i++) {
+            posItems.push({
+              id: `${f}-ai-pos-${Date.now()}-${i}`,
+              force: f,
+              field: "positiveImpacts",
+              content: rawPos[i],
+              source: "ai",
+              sortOrder: i,
+              parentFactorId: null,
+            });
+          }
+        }
+        if (rawNeg.length > rawTrends.length) {
+          for (let i = rawTrends.length; i < rawNeg.length; i++) {
+            negItems.push({
+              id: `${f}-ai-neg-${Date.now()}-${i}`,
+              force: f,
+              field: "negativeImpacts",
+              content: rawNeg[i],
+              source: "ai",
+              sortOrder: i,
+              parentFactorId: null,
+            });
+          }
+        }
+
+        result[f] = {
+          trends: trendItems,
+          positiveImpacts: posItems,
+          negativeImpacts: negItems,
+        };
+      }
+      return result as PorterFactorsMap;
+    },
+    []
   );
 
   // ── AI Generation Trigger ──
@@ -374,38 +680,20 @@ export function usePorterEditor(initialId?: string) {
 
         const res = await porterService.generate(payload);
         const generatedForces = res.forces;
+        const linkedGenerated = mapGeneratedToLinkedItems(generatedForces);
 
         if (strategy === "replace") {
           let updatedFactors: PorterFactorsMap = { ...factors };
 
           if (scope === "full") {
-            updatedFactors = forcesToFactorsMap(generatedForces, "ai");
+            updatedFactors = linkedGenerated;
             setFactors(updatedFactors);
             await executeSave(updatedFactors, { creationMode: "ai" });
             toast.success("تم توليد التحليل بالكامل بالذكاء الاصطناعي بنجاح!");
           } else if (scope === "force" && targetForce) {
             updatedFactors = {
               ...factors,
-              [targetForce]: {
-                trends: textToFactorItems(
-                  generatedForces[targetForce]?.trends || "",
-                  targetForce,
-                  "trends",
-                  "ai"
-                ),
-                positiveImpacts: textToFactorItems(
-                  generatedForces[targetForce]?.positiveImpacts || "",
-                  targetForce,
-                  "positiveImpacts",
-                  "ai"
-                ),
-                negativeImpacts: textToFactorItems(
-                  generatedForces[targetForce]?.negativeImpacts || "",
-                  targetForce,
-                  "negativeImpacts",
-                  "ai"
-                ),
-              },
+              [targetForce]: linkedGenerated[targetForce],
             };
             setFactors(updatedFactors);
             await executeSave(updatedFactors, { creationMode: "hybrid" });
@@ -449,32 +737,23 @@ export function usePorterEditor(initialId?: string) {
 
           if (scope === "full") {
             for (const f of FORCES_ORDER) {
-              extractItems(f, "trends");
-              extractItems(f, "positiveImpacts");
-              extractItems(f, "negativeImpacts");
+              for (const fld of ["trends", "positiveImpacts", "negativeImpacts"] as const) {
+                extractItems(f, fld);
+              }
             }
           } else if (scope === "force" && targetForce) {
-            extractItems(targetForce, "trends");
-            extractItems(targetForce, "positiveImpacts");
-            extractItems(targetForce, "negativeImpacts");
+            for (const fld of ["trends", "positiveImpacts", "negativeImpacts"] as const) {
+              extractItems(targetForce, fld);
+            }
           } else if (scope === "field" && targetForce && targetField) {
             extractItems(targetForce, targetField);
           }
 
-          if (newSuggestions.length > 0) {
-            setPendingSuggestions((prev) => [...prev, ...newSuggestions]);
-            toast.success(
-              `تم اقتراح ${newSuggestions.length} بنود جديدة. يمكنك مراجعتها وقبولها أو تجاهلها.`
-            );
-          } else {
-            toast("لم يتم العثور على مقترحات جديدة.");
-          }
+          setPendingSuggestions(newSuggestions);
+          toast.success(`تم استلام ${newSuggestions.length} اقتراحاً! راجعها بالأسفل للموافقة أو الرفض.`);
         }
       } catch (err: any) {
-        toast.error(
-          err?.response?.data?.error?.message ||
-            "تعذّر إكمال التوليد بالذكاء الاصطناعي."
-        );
+        toast.error(err?.response?.data?.error?.message || "فشل توليد البيانات بالذكاء الاصطناعي.");
       } finally {
         setGeneratingScopes((prev) => {
           const next = new Set(prev);
@@ -483,63 +762,73 @@ export function usePorterEditor(initialId?: string) {
         });
       }
     },
-    [
-      factors,
-      projectName,
-      projectDescription,
-      industry,
-      countryRegion,
-      executeSave,
-    ]
+    [factors, projectName, projectDescription, industry, countryRegion, executeSave, mapGeneratedToLinkedItems]
   );
 
   // ── Suggestions Management ──
   const acceptSuggestion = useCallback(
-    (id: string) => {
-      const sug = pendingSuggestions.find((s) => s.id === id);
-      if (!sug) return;
+    (suggestionId: string) => {
+      const item = pendingSuggestions.find((s) => s.id === suggestionId);
+      if (!item) return;
 
-      addFactor(sug.force, sug.field, sug.content);
-      setPendingSuggestions((prev) => prev.filter((s) => s.id !== id));
-      toast.success("تمت إضافة البند بنجاح.");
+      const newItem: PorterFactorItem = {
+        id: `${item.force}-${item.field}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        force: item.force,
+        field: item.field,
+        content: item.content,
+        source: "ai",
+        sortOrder: factors[item.force]?.[item.field]?.length || 0,
+      };
+
+      setFactors((prev) => {
+        const next = {
+          ...prev,
+          [item.force]: {
+            ...prev[item.force],
+            [item.field]: [...(prev[item.force]?.[item.field] || []), newItem],
+          },
+        };
+        triggerAutoSave(next);
+        return next;
+      });
+
+      setPendingSuggestions((prev) => prev.filter((s) => s.id !== suggestionId));
+      toast.success("تمت إضافة المقترح للتحليل.");
     },
-    [pendingSuggestions, addFactor]
+    [pendingSuggestions, factors, triggerAutoSave]
   );
 
-  const rejectSuggestion = useCallback((id: string) => {
-    setPendingSuggestions((prev) => prev.filter((s) => s.id !== id));
+  const rejectSuggestion = useCallback((suggestionId: string) => {
+    setPendingSuggestions((prev) => prev.filter((s) => s.id !== suggestionId));
   }, []);
 
   const acceptAllSuggestions = useCallback(() => {
     if (pendingSuggestions.length === 0) return;
 
     setFactors((prev) => {
-      const next = JSON.parse(JSON.stringify(prev)) as PorterFactorsMap;
-      pendingSuggestions.forEach((sug) => {
+      const next = JSON.parse(JSON.stringify(prev));
+      for (const item of pendingSuggestions) {
         const newItem: PorterFactorItem = {
-          id: `${sug.force}-${sug.field}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          force: sug.force,
-          field: sug.field,
-          content: sug.content,
+          id: `${item.force}-${item.field}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          force: item.force,
+          field: item.field,
+          content: item.content,
           source: "ai",
-          sortOrder: (next[sug.force]?.[sug.field]?.length || 0),
+          sortOrder: next[item.force]?.[item.field]?.length || 0,
         };
-        if (!next[sug.force]) next[sug.force] = {} as any;
-        if (!next[sug.force][sug.field]) next[sug.force][sug.field] = [];
-        next[sug.force][sug.field].push(newItem);
-      });
-
+        next[item.force][item.field].push(newItem);
+      }
       triggerAutoSave(next);
       return next;
     });
 
-    toast.success(`تم قبول جميع المقترحات (${pendingSuggestions.length}) بنجاح.`);
     setPendingSuggestions([]);
+    toast.success("تم قبول جميع المقترحات وإضافتها للتحليل بنجاح.");
   }, [pendingSuggestions, triggerAutoSave]);
 
   const rejectAllSuggestions = useCallback(() => {
     setPendingSuggestions([]);
-    toast("تم تجاهل جميع المقترحات.");
+    toast("تم رفض كافة المقترحات.");
   }, []);
 
   // ── Undo Last Generation ──
@@ -548,12 +837,10 @@ export function usePorterEditor(initialId?: string) {
     setFactors(undoSnapshot);
     setUndoSnapshot(null);
     await executeSave(undoSnapshot);
-    toast.success("تم التراجع عن التوليد واستعادة المحتوى السابق.");
+    toast.success("تم التراجع عن آخر توليد بنجاح.");
   }, [undoSnapshot, executeSave]);
 
-  const closeConfirmDialog = useCallback(() => {
-    setConfirmDialog((c) => ({ ...c, isOpen: false }));
-  }, []);
+  const canUndo = Boolean(undoSnapshot);
 
   return {
     analysis,
@@ -561,26 +848,27 @@ export function usePorterEditor(initialId?: string) {
     saveState,
     generatingScopes,
     pendingSuggestions,
-    canUndo: Boolean(undoSnapshot),
+    canUndo,
+    canEdit,
     confirmDialog,
     closeConfirmDialog,
     factors,
-    setFactors,
     forces,
     title,
-    setTitle,
     projectName,
-    setProjectName,
     projectDescription,
-    setProjectDescription,
     industry,
-    setIndustry,
     countryRegion,
-    setCountryRegion,
+    highlightedParentId,
+    setHighlightedParentId,
     updateMetadata,
+    addLinkedFactor,
+    suggestImplications,
+    addMissingImplication,
     addFactor,
     updateFactor,
     deleteFactor,
+    requestDeleteFactor,
     moveFactor,
     reorderFactors,
     triggerGenerate,
@@ -589,9 +877,5 @@ export function usePorterEditor(initialId?: string) {
     acceptAllSuggestions,
     rejectAllSuggestions,
     undoLastGeneration,
-    saveAnalysis: () => executeSave(factors),
-    loadAnalysis,
   };
 }
-
-export default usePorterEditor;

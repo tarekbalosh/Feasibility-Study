@@ -22,10 +22,21 @@ export type PorterForceKey = (typeof PORTER_FORCES)[number];
 export const PORTER_FIELDS = ["trends", "positiveImpacts", "negativeImpacts"] as const;
 export type PorterFieldKey = (typeof PORTER_FIELDS)[number];
 
+export interface PorterFactorItem {
+  id: string;
+  force: PorterForceKey;
+  field: PorterFieldKey;
+  content: string;
+  source: "manual" | "ai" | "ai_edited";
+  sortOrder?: number;
+  parentFactorId?: string | null;
+}
+
 export interface PorterForceContent {
   trends: string;
   positiveImpacts: string;
   negativeImpacts: string;
+  items?: PorterFactorItem[];
 }
 
 export type PorterForces = Record<PorterForceKey, PorterForceContent>;

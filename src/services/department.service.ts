@@ -5,8 +5,8 @@ export const listDepartments = async () => {
   return data.data;
 };
 
-export const getDepartment = async (id: string) => {
-  const { data } = await apiClient.get(`/departments/${id}`);
+export const getDepartment = async (id: string, params?: any) => {
+  const { data } = await apiClient.get(`/departments/${id}`, { params });
   return data.data;
 };
 

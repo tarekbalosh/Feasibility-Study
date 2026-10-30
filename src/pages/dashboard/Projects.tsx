@@ -1,21 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { useProjects, useDeleteProject } from '@/hooks/useProjects';
 import { useToolRuns, useDeleteToolRun } from '@/hooks/useToolRuns';
+import { useDepartments } from '@/hooks/useDepartments';
 import { ToolRunCard } from '@/components/dashboard/ToolRunCard';
 import { useAuth } from '@/context/AuthContext';
 import {
   Plus, FileText, Edit2, Trash2, AlertCircle,
   Save, Loader2, Info, TrendingUp, Calendar, DollarSign,
   Building2, Briefcase, Cpu, Wrench, BarChart3, Eye,
-  MapPin, Clock, Sparkles, ChevronLeft, Filter, ChevronDown, Check
+  MapPin, Clock, Sparkles, ChevronLeft, Filter, ChevronDown, Check,
+  CheckCircle2, RotateCcw
 } from 'lucide-react';
 import axios from '@/lib/axios';
 import { toast } from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { FilterBar, FilterItemConfig, FilterValues } from '@/components/ui/filters';
 
 // Industry config for visual differentiation
 const industryConfig: Record<string, { icon: any; gradient: string; accent: string; bg: string; label: string }> = {
@@ -328,52 +331,148 @@ export default function Projects() {
   const { mutate: deleteToolRun } = useDeleteToolRun();
   const [deleteRunId, setDeleteRunId] = useState<string | null>(null);
 
+  const { data: departments } = useDepartments();
+
   // ── Filters State ────────────────────────────────────────
-  const [filterType, setFilterType] = useState<'all' | 'projects' | 'tool'>('all');
-  const [filterToolSlug, setFilterToolSlug] = useState<string>('all');
-  const [filterPlan, setFilterPlan] = useState<string>('all');
-  const [isToolDropdownOpen, setIsToolDropdownOpen] = useState(false);
+  const [search, setSearch] = useState(() => (typeof router.query.search === 'string' ? router.query.search : ''));
+  const [statusFilter, setStatusFilter] = useState(() => (typeof router.query.status === 'string' ? router.query.status : ''));
+  const [deptFilter, setDeptFilter] = useState(() => (typeof router.query.department === 'string' ? router.query.department : ''));
+  const [toolSlugFilter, setToolSlugFilter] = useState(() => (typeof router.query.tool === 'string' ? router.query.tool : ''));
+
+  // Sync to URL
+  useEffect(() => {
+    if (!router.isReady) return;
+    const nextQuery: Record<string, any> = { ...router.query };
+
+    if (search.trim()) nextQuery.search = search.trim();
+    else delete nextQuery.search;
+
+    if (statusFilter) nextQuery.status = statusFilter;
+    else delete nextQuery.status;
+
+    if (deptFilter) nextQuery.department = deptFilter;
+    else delete nextQuery.department;
+
+    if (toolSlugFilter) nextQuery.tool = toolSlugFilter;
+    else delete nextQuery.tool;
+
+    router.push({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true });
+  }, [search, statusFilter, deptFilter, toolSlugFilter]);
 
   const availableTools = React.useMemo(() => {
-    // Dynamically import getAvailableTools to avoid hydration issues if it depends on browser APIs
-    // But since it's just an array of objects, we can import it at the top or here.
     return require('@/config/tools.registry').getAvailableTools();
   }, []);
 
-  const uniquePlans = React.useMemo(() => {
-    const plans = new Set<string>();
-    toolRuns?.forEach(run => {
-      if (run.plan?.name) {
-        plans.add(run.plan.name);
-      }
+  const filterConfigs: FilterItemConfig[] = useMemo(() => {
+    const list: FilterItemConfig[] = [
+      {
+        key: 'status',
+        label: 'الحالة',
+        type: 'select',
+        icon: CheckCircle2,
+        isAllOptionLabel: 'كل الحالات',
+        options: [
+          { value: 'excellent', label: 'مجدي ممتاز', dotColor: '#10B981' },
+          { value: 'good', label: 'مجدي جيد', dotColor: '#3B82F6' },
+          { value: 'caution', label: 'يحتاج مراجعة', dotColor: '#EF4444' },
+        ],
+      },
+    ];
+
+    if (departments && departments.length > 0) {
+      list.push({
+        key: 'departmentId',
+        label: 'القسم',
+        type: 'select',
+        icon: Building2,
+        isAllOptionLabel: 'كل الأقسام',
+        options: departments.map((d: any) => ({ value: d.id, label: d.name })),
+        searchThreshold: 5,
+      });
+    }
+
+    list.push({
+      key: 'toolSlug',
+      label: 'نوع الأداة',
+      type: 'select',
+      icon: BarChart3,
+      isAllOptionLabel: 'جميع الأدوات',
+      options: availableTools.map((t: any) => ({
+        value: t.slug,
+        label: t.name,
+      })),
+      searchThreshold: 5,
     });
-    return Array.from(plans);
-  }, [toolRuns]);
+
+    return list;
+  }, [departments, availableTools]);
+
+  const currentFilterValues: FilterValues = useMemo(
+    () => ({
+      status: statusFilter,
+      departmentId: deptFilter,
+      toolSlug: toolSlugFilter,
+    }),
+    [statusFilter, deptFilter, toolSlugFilter]
+  );
+
+  const handleFilterChange = (key: string, val: any) => {
+    if (key === 'status') setStatusFilter(val || '');
+    else if (key === 'departmentId') setDeptFilter(val || '');
+    else if (key === 'toolSlug') setToolSlugFilter(val || '');
+  };
+
+  const handleClearAll = () => {
+    setSearch('');
+    setStatusFilter('');
+    setDeptFilter('');
+    setToolSlugFilter('');
+  };
 
   const filteredToolRuns = React.useMemo(() => {
     if (!toolRuns) return [];
-    if (filterType === 'projects') return [];
     
-    let filtered = toolRuns;
-    if (filterType === 'tool' && filterToolSlug !== 'all') {
-      filtered = filtered.filter(run => run.toolSlug === filterToolSlug);
-    }
-    
-    if (filterPlan !== 'all') {
-      filtered = filtered.filter(run => run.plan?.name === filterPlan);
-    }
-    return filtered;
-  }, [toolRuns, filterType, filterToolSlug, filterPlan]);
+    return toolRuns.filter((run) => {
+      if (toolSlugFilter && run.toolSlug !== toolSlugFilter) {
+        return false;
+      }
+      if (deptFilter && run.department?.id !== deptFilter && (run as any).departmentId !== deptFilter && (run.plan as any)?.departmentId !== deptFilter) {
+        return false;
+      }
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const matchesTitle = run.title?.toLowerCase().includes(q);
+        const matchesSummary = run.summary?.toLowerCase().includes(q);
+        const matchesPlan = run.plan?.name?.toLowerCase().includes(q);
+        if (!matchesTitle && !matchesSummary && !matchesPlan) return false;
+      }
+      return true;
+    });
+  }, [toolRuns, toolSlugFilter, deptFilter, search]);
 
   const filteredProjects = React.useMemo(() => {
     if (!projects) return [];
-    if (filterType === 'tool') {
-      if (filterToolSlug === 'feasibility-study') return projects;
+    if (toolSlugFilter && toolSlugFilter !== 'feasibility-study') {
       return [];
     }
-    if (filterPlan !== 'all') return [];
-    return projects;
-  }, [projects, filterType, filterToolSlug, filterPlan]);
+    
+    return projects.filter((p) => {
+      if (statusFilter) {
+        const s = String((p as any).status || '');
+        if (statusFilter === 'excellent' && !s.includes('ممتاز')) return false;
+        if (statusFilter === 'good' && !s.includes('جيد')) return false;
+        if (statusFilter === 'caution' && (s.includes('ممتاز') || s.includes('جيد'))) return false;
+      }
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const matchesName = p.name?.toLowerCase().includes(q);
+        const matchesDesc = p.description?.toLowerCase().includes(q);
+        const matchesInd = p.industry?.toLowerCase().includes(q);
+        if (!matchesName && !matchesDesc && !matchesInd) return false;
+      }
+      return true;
+    });
+  }, [projects, toolSlugFilter, statusFilter, search]);
 
   // Unsaved project handling
   const [unsavedData, setUnsavedData] = useState<any>(null);
@@ -392,7 +491,7 @@ export default function Projects() {
     }
   }, []);
 
-  const showUnsaved = (filterType === 'all' || (filterType === 'tool' && filterToolSlug === 'feasibility-study')) && filterPlan === 'all' && !!unsavedData;
+  const showUnsaved = (!toolSlugFilter || toolSlugFilter === 'feasibility-study') && !deptFilter && !!unsavedData;
 
   const handleSaveUnsaved = async () => {
     try {
@@ -477,88 +576,18 @@ export default function Projects() {
 
       {/* ── Filters Bar ────────────────────────────────── */}
       {!isLoading && !isLoadingRuns && totalCount > 0 && (
-        <div className="relative z-20 flex flex-wrap items-center gap-2 bg-white/50 p-1.5 rounded-2xl border border-gray-100 mb-6 backdrop-blur-xl">
-          <button
-            onClick={() => { setFilterType('all'); setFilterPlan('all'); setFilterToolSlug('all'); }}
-            className={`px-5 py-2.5 text-sm font-bold rounded-xl whitespace-nowrap transition-all ${
-              filterType === 'all' && filterPlan === 'all'
-                ? 'bg-white text-blue-600 shadow-sm border border-gray-200/50'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50'
-            }`}
-          >
-            الكل
-          </button>
-          
-          {/* Tools Dropdown */}
-          <div className="relative shrink-0">
-            <button
-              onClick={() => setIsToolDropdownOpen(!isToolDropdownOpen)}
-              className={`px-5 py-2.5 text-sm font-bold rounded-xl whitespace-nowrap transition-all flex items-center gap-2 ${
-                filterType === 'tool'
-                  ? 'bg-white text-blue-600 shadow-sm border border-gray-200/50'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50'
-              }`}
-            >
-              <BarChart3 size={16} className={filterType === 'tool' ? "text-blue-500" : ""} />
-              {filterType === 'tool' && filterToolSlug !== 'all' 
-                ? availableTools.find((t: any) => t.slug === filterToolSlug)?.name || 'الأدوات'
-                : 'الأدوات'}
-              <ChevronDown size={14} className={`transition-transform ${isToolDropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
-            
-            {isToolDropdownOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setIsToolDropdownOpen(false)} />
-                <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-100 shadow-xl shadow-gray-200/50 rounded-xl overflow-hidden z-50 animate-in slide-in-from-top-2 duration-200 py-1">
-                  <button
-                    onClick={() => { setFilterType('tool'); setFilterToolSlug('all'); setIsToolDropdownOpen(false); }}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors ${filterToolSlug === 'all' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700 hover:bg-gray-50'}`}
-                  >
-                    <span>جميع الأدوات</span>
-                    {filterToolSlug === 'all' && <Check size={16} />}
-                  </button>
-                  {availableTools.map((tool: any) => {
-                    const ToolIcon = tool.icon;
-                    return (
-                      <button
-                        key={tool.slug}
-                        onClick={() => { setFilterType('tool'); setFilterToolSlug(tool.slug); setIsToolDropdownOpen(false); }}
-                        className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors ${filterToolSlug === tool.slug ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700 hover:bg-gray-50'}`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <ToolIcon size={14} className="text-gray-400" />
-                          <span>{tool.name}</span>
-                        </div>
-                        {filterToolSlug === tool.slug && <Check size={16} />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Plan filters */}
-          {uniquePlans.length > 0 && (
-            <>
-              <div className="w-px h-6 bg-gray-200 mx-2 shrink-0" />
-              {uniquePlans.map(plan => (
-                <button
-                  key={plan}
-                  onClick={() => { setFilterType('tool'); setFilterPlan(plan); }}
-                  className={`px-4 py-2.5 text-sm font-bold rounded-xl whitespace-nowrap transition-all flex items-center gap-2 ${
-                    filterPlan === plan
-                      ? 'bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-100'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50'
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
-                  خطة: {plan}
-                </button>
-              ))}
-            </>
-          )}
-        </div>
+        <FilterBar
+          filters={filterConfigs}
+          values={currentFilterValues}
+          onChange={handleFilterChange}
+          onClearAll={handleClearAll}
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="ابحث في المشاريع والتحليلات..."
+          totalResults={totalFilteredCount}
+          resultsLabel="مشروع وتحليل"
+          isLoading={isLoading || isLoadingRuns}
+        />
       )}
 
       {/* ── Error Banner ───────────────────────────────── */}
@@ -610,10 +639,12 @@ export default function Projects() {
           <h3 className="text-lg font-bold text-gray-900 mb-1">لا توجد نتائج مطابقة</h3>
           <p className="text-gray-500 text-sm">جرب إزالة بعض الفلاتر لرؤية المزيد من النتائج</p>
           <button 
-            onClick={() => { setFilterType('all'); setFilterPlan('all'); }}
-            className="mt-4 text-blue-600 text-sm font-semibold hover:underline"
+            type="button"
+            onClick={handleClearAll}
+            className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors"
           >
-            مسح الفلاتر
+            <RotateCcw size={13} />
+            <span>مسح الفلاتر</span>
           </button>
         </div>
       ) : (

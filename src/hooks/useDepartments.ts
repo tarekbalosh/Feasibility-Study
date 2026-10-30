@@ -9,6 +9,19 @@ export const useDepartments = () => {
   });
 };
 
+export const useDepartment = (id?: string | null, params?: any) => {
+  return useQuery({
+    queryKey: ['department', id, params],
+    queryFn: () => (id ? departmentService.getDepartment(id, params) : null),
+    enabled: Boolean(id),
+    retry: (failureCount, error: any) => {
+      // Don't retry on 403 or 404
+      if (error?.response?.status === 403 || error?.response?.status === 404) return false;
+      return failureCount < 2;
+    },
+  });
+};
+
 export const useCreateDepartment = () => {
   const queryClient = useQueryClient();
   return useMutation({

@@ -9,11 +9,11 @@ export const useOrgContext = (enabled: boolean = true) => {
   });
 };
 
-export const useOrgOverview = (enabled: boolean = true) => {
+export const useOrgOverview = (workspaceId?: string, enabled: boolean = true) => {
   return useQuery({
-    queryKey: ['orgOverview'],
+    queryKey: ['orgOverview', workspaceId],
     queryFn: getOrgOverview,
-    enabled,
+    enabled: enabled && Boolean(workspaceId),
   });
 };
 

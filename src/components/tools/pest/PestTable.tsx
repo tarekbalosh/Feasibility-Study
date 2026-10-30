@@ -45,15 +45,22 @@ export const PestTable: React.FC<PestTableProps> = ({
   const {
     analysis,
     loading,
+    canEdit,
     saveState,
     generatingScopes,
     pendingSuggestions,
     canUndo,
     confirmDialog,
+    highlightedParentId,
+    setHighlightedParentId,
     updateMetadata,
     addFactor,
+    addLinkedFactor,
+    suggestImplications,
+    addMissingImplication,
     updateFactor,
     deleteFactor,
+    requestDeleteFactor,
     moveFactor,
     reorderFactors,
     triggerGenerate,
@@ -207,14 +214,16 @@ export const PestTable: React.FC<PestTableProps> = ({
                 <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight truncate">
                   {analysis.title}
                 </h1>
-                <button
-                  type="button"
-                  onClick={openMetaModal}
-                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                  title="تعديل بيانات المشروع والتحليل"
-                >
-                  <Edit3 className="w-4 h-4" />
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={openMetaModal}
+                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                    title="تعديل بيانات المشروع والتحليل"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
 
               {/* شارات البيانات الوصفية */}
@@ -264,7 +273,7 @@ export const PestTable: React.FC<PestTableProps> = ({
             )}
 
             {/* زر التراجع عن آخر توليد */}
-            {canUndo && (
+            {canEdit && canUndo && (
               <button
                 type="button"
                 onClick={undoLastGeneration}
@@ -277,12 +286,14 @@ export const PestTable: React.FC<PestTableProps> = ({
             )}
 
             {/* زر توليد التحليل بالكامل */}
-            <GenerateMenu
-              label="توليد التحليل كاملاً"
-              isLoading={isFullGenerating}
-              onGenerate={(strat) => triggerGenerate("full", undefined, undefined, strat)}
-              variant="primary"
-            />
+            {canEdit && (
+              <GenerateMenu
+                label="توليد التحليل كاملاً"
+                isLoading={isFullGenerating}
+                onGenerate={(strat) => triggerGenerate("full", undefined, undefined, strat)}
+                variant="primary"
+              />
+            )}
 
             {/* زر التصدير للطباعة / PDF */}
             <button
@@ -461,13 +472,17 @@ export const PestTable: React.FC<PestTableProps> = ({
             dimension={dim}
             factors={analysis.factors[dim]}
             generatingScopes={generatingScopes}
+            readOnly={!canEdit}
+            highlightedParentId={highlightedParentId}
+            onHighlight={setHighlightedParentId}
+            onAddLinkedFactor={addLinkedFactor}
+            onSuggestImplications={suggestImplications}
+            onAddMissingImplication={addMissingImplication}
             onAddFactor={(cat: PestCategory) => addFactor(dim, cat)}
-            onUpdateFactor={(cat: PestCategory, factorId: string, content: string) =>
-              updateFactor(factorId, dim, cat, content)
+            onUpdateFactor={(cat: PestCategory, factorId: string, content: string, parentFactorId?: string | null) =>
+              updateFactor(factorId, dim, cat, { content, parentFactorId })
             }
-            onDeleteFactor={(cat: PestCategory, factorId: string) =>
-              deleteFactor(factorId, dim, cat)
-            }
+            onDeleteFactor={requestDeleteFactor}
             onMoveFactor={(cat: PestCategory, factorId: string, dir: "up" | "down") =>
               moveFactor(dim, cat, factorId, dir)
             }

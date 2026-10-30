@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { usePlans, useCreatePlan, useDeletePlan, useUpdatePlan } from '@/hooks/usePlans';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useOrgMembers } from '@/hooks/useOrg';
-import { Briefcase, Plus, Trash2, Edit2, Loader2, Calendar, Users, Table, LayoutGrid } from 'lucide-react';
+import { Briefcase, Plus, Trash2, Edit2, Loader2, Calendar, Users, Table, LayoutGrid, Building2, User, CheckCircle2, RotateCcw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import PlanSheet from '@/components/plans/PlanSheet';
+import { FilterBar, FilterItemConfig, FilterValues, DateRangeValue } from '@/components/ui/filters';
 
 export default function Plans() {
+  const router = useRouter();
   const { data: plans, isLoading } = usePlans();
   const { data: departments } = useDepartments();
   const { data: membersList } = useOrgMembers();
@@ -16,9 +19,54 @@ export default function Plans() {
   const updatePlan = useUpdatePlan();
   const deletePlan = useDeletePlan();
   
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>(() => (router.query.view === 'cards' ? 'cards' : 'table'));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+
+  // Cards view filter states
+  const [search, setSearch] = useState(() => (typeof router.query.search === 'string' ? router.query.search : ''));
+  const [departmentId, setDepartmentId] = useState(() => (typeof router.query.departmentId === 'string' ? router.query.departmentId : ''));
+  const [statusFilter, setStatusFilter] = useState(() => (typeof router.query.status === 'string' ? router.query.status : ''));
+  const [assigneeId, setAssigneeId] = useState(() => (typeof router.query.assignee === 'string' ? router.query.assignee : ''));
+  const [dateRange, setDateRange] = useState<DateRangeValue>({
+    from: typeof router.query.dateFrom === 'string' ? router.query.dateFrom : undefined,
+    to: typeof router.query.dateTo === 'string' ? router.query.dateTo : undefined,
+  });
+
+  // Sync viewMode and card filters to URL
+  useEffect(() => {
+    if (!router.isReady) return;
+    const nextQuery: Record<string, any> = { ...router.query };
+
+    if (viewMode === 'cards') {
+      nextQuery.view = 'cards';
+      if (search.trim()) nextQuery.search = search.trim();
+      else delete nextQuery.search;
+
+      if (departmentId) nextQuery.departmentId = departmentId;
+      else delete nextQuery.departmentId;
+
+      if (statusFilter) nextQuery.status = statusFilter;
+      else delete nextQuery.status;
+
+      if (assigneeId) nextQuery.assignee = assigneeId;
+      else delete nextQuery.assignee;
+
+      if (dateRange.from) nextQuery.dateFrom = dateRange.from;
+      else delete nextQuery.dateFrom;
+
+      if (dateRange.to) nextQuery.dateTo = dateRange.to;
+      else delete nextQuery.dateTo;
+    } else {
+      delete nextQuery.view;
+    }
+
+    router.push({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true });
+  }, [viewMode, search, departmentId, statusFilter, assigneeId, dateRange]);
+
+  const allowedDepartments = departments?.filter((d: any) => d.canCreatePlan) || [];
+  const canCreateAnyPlan = allowedDepartments.length > 0;
+
   const [newPlan, setNewPlan] = useState<{
     name: string;
     description: string;
@@ -81,6 +129,103 @@ export default function Plans() {
     });
   };
 
+  const filterConfigs: FilterItemConfig[] = useMemo(() => [
+    {
+      key: 'departmentId',
+      label: 'القسم',
+      type: 'select',
+      icon: Building2,
+      isAllOptionLabel: 'كل الأقسام',
+      options: (departments || []).map((d: any) => ({ value: d.id, label: d.name })),
+      searchThreshold: 5,
+    },
+    {
+      key: 'status',
+      label: 'الحالة',
+      type: 'select',
+      icon: CheckCircle2,
+      isAllOptionLabel: 'كل الحالات',
+      options: [
+        { value: 'active', label: 'نشطة', dotColor: '#10B981' },
+        { value: 'draft', label: 'مسودة', dotColor: '#94A3B8' },
+        { value: 'archived', label: 'مؤرشفة', dotColor: '#6B7280' },
+      ],
+    },
+    {
+      key: 'assignee',
+      label: 'المسؤول',
+      type: 'select',
+      icon: User,
+      isAllOptionLabel: 'كل المسؤولين',
+      options: (membersList || []).map((m: any) => ({
+        value: m.id,
+        label: m.name,
+        initials: m.name.trim().slice(0, 2),
+      })),
+      searchThreshold: 5,
+    },
+    {
+      key: 'dateRange',
+      label: 'نطاق التاريخ',
+      type: 'date-range',
+      icon: Calendar,
+    },
+  ], [departments, membersList]);
+
+  const currentValues: FilterValues = useMemo(
+    () => ({
+      departmentId,
+      status: statusFilter,
+      assignee: assigneeId,
+      dateRange,
+    }),
+    [departmentId, statusFilter, assigneeId, dateRange]
+  );
+
+  const handleFilterChange = (key: string, val: any) => {
+    if (key === 'departmentId') setDepartmentId(val || '');
+    else if (key === 'status') setStatusFilter(val || '');
+    else if (key === 'assignee') setAssigneeId(val || '');
+    else if (key === 'dateRange') setDateRange(val || {});
+  };
+
+  const handleClearAll = () => {
+    setSearch('');
+    setDepartmentId('');
+    setStatusFilter('');
+    setAssigneeId('');
+    setDateRange({});
+  };
+
+  const filteredPlans = useMemo(() => {
+    if (!plans) return [];
+    return plans.filter((plan: any) => {
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const matchesName = plan.name?.toLowerCase().includes(q);
+        const matchesDesc = plan.description?.toLowerCase().includes(q);
+        const matchesDept = plan.department?.name?.toLowerCase().includes(q);
+        if (!matchesName && !matchesDesc && !matchesDept) return false;
+      }
+      if (departmentId && plan.department?.id !== departmentId) return false;
+      if (statusFilter && plan.status !== statusFilter) return false;
+      if (assigneeId) {
+        const hasMember = plan.members?.some(
+          (m: any) => (m.id || m.memberId || m.workspaceMemberId) === assigneeId
+        );
+        if (!hasMember) return false;
+      }
+      if (dateRange.from || dateRange.to) {
+        const planDate = plan.startDate ? new Date(plan.startDate) : plan.createdAt ? new Date(plan.createdAt) : null;
+        if (planDate) {
+          if (dateRange.from && planDate < new Date(dateRange.from)) return false;
+          if (dateRange.to && planDate > new Date(dateRange.to + 'T23:59:59')) return false;
+        }
+      }
+      return true;
+    });
+  }, [plans, search, departmentId, statusFilter, assigneeId, dateRange]);
+
   return (
     <DashboardLayout>
       <Head>
@@ -114,13 +259,15 @@ export default function Plans() {
             </button>
           </div>
 
-          <button
-            onClick={openCreateModal}
-            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors shadow-sm"
-          >
-            <Plus size={16} />
-            إضافة خطة
-          </button>
+          {canCreateAnyPlan && (
+            <button
+              onClick={openCreateModal}
+              className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors shadow-sm"
+            >
+              <Plus size={16} />
+              إضافة خطة
+            </button>
+          )}
         </div>
       </div>
 
@@ -130,6 +277,22 @@ export default function Plans() {
         </div>
       ) : (
         <>
+          {/* شريط الفلاتر الموحد للبطاقات */}
+          {!isLoading && (plans?.length ?? 0) > 0 && (
+            <FilterBar
+              filters={filterConfigs}
+              values={currentValues}
+              onChange={handleFilterChange}
+              onClearAll={handleClearAll}
+              searchValue={search}
+              onSearchChange={setSearch}
+              searchPlaceholder="ابحث باسم الخطة أو وصفها أو قسمها..."
+              totalResults={filteredPlans.length}
+              resultsLabel="خطة"
+              isLoading={isLoading}
+            />
+          )}
+
           {isLoading ? (
             <div className="flex justify-center py-20">
               <Loader2 className="animate-spin text-emerald-500" size={32} />
@@ -141,17 +304,31 @@ export default function Plans() {
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-1">لا توجد خطط تشغيلية بعد</h3>
               <p className="text-gray-500 mb-6">قم بإنشاء خطة للبدء بتوزيع المهام ومتابعة الإنجاز.</p>
+              {canCreateAnyPlan && (
+                <button
+                  onClick={openCreateModal}
+                  className="inline-flex items-center gap-2 bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-emerald-700 transition-colors shadow-sm"
+                >
+                  <Plus size={18} />
+                  إضافة خطة
+                </button>
+              )}
+            </div>
+          ) : filteredPlans.length === 0 ? (
+            <div className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-12 text-center">
+              <h3 className="text-lg font-bold text-gray-900 mb-1">لا توجد خطط مطابقة للبحث أو الفلاتر</h3>
+              <p className="text-gray-500 mb-4 text-sm">جرّب تغيير عبارة البحث أو مسح الفلاتر المحددة.</p>
               <button
-                onClick={openCreateModal}
-                className="inline-flex items-center gap-2 bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-emerald-700 transition-colors shadow-sm"
+                type="button"
+                onClick={handleClearAll}
+                className="inline-flex items-center gap-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-4 py-2 rounded-xl text-xs font-semibold transition-colors"
               >
-                <Plus size={18} />
-                إضافة خطة
+                <RotateCcw size={14} /> مسح جميع الفلاتر
               </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {plans?.map((plan: any) => (
+              {filteredPlans.map((plan: any) => (
             <div key={plan.id} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow relative group flex flex-col">
               {plan.access?.canManage && (
                 <div className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 z-10">
@@ -241,7 +418,7 @@ export default function Plans() {
                     className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-colors appearance-none bg-white"
                   >
                     <option value="">-- اختر القسم التابعة له --</option>
-                    {departments?.map((dept: any) => (
+                    {allowedDepartments.map((dept: any) => (
                       <option key={dept.id} value={dept.id}>{dept.name}</option>
                     ))}
                   </select>

@@ -8,7 +8,7 @@ export const list = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getOne = asyncHandler(async (req: Request, res: Response) => {
-  const department = await departmentService.getDepartment(req.actor!, req.params.id as string);
+  const department = await departmentService.getDepartment(req.actor!, req.params.id as string, req.query as any);
   res.status(200).json({ success: true, data: department });
 });
 

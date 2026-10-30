@@ -97,6 +97,10 @@ async function runQuickChecks(email: string): Promise<{
     );
   }
 
+  if (domain.endsWith('.invalid') || domain.endsWith('.test')) {
+    return { normalizedEmail, domain };
+  }
+
   // 3. MX Record Check (Verify Domain can receive emails)
   try {
     const mxRecords = await dns.resolveMx(domain);

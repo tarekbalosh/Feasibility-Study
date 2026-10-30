@@ -37,15 +37,40 @@ export interface DepartmentInput {
   description?: string | null;
   color?: string;
   icon?: string;
+  managerId?: string | null;
   members?: DepartmentMemberInput[];
 }
 
-function cleanMembers(members: DepartmentMemberInput[] = []) {
+export interface DepartmentTasksFilter {
+  status?: string | string[];
+  assignee?: string | string[];
+  planId?: string;
+  search?: string;
+  q?: string;
+  page?: string | number;
+  limit?: string | number;
+}
+
+function cleanMembers(members: DepartmentMemberInput[] = [], managerId?: string | null) {
   const map = new Map<string, "head" | "member">();
   for (const m of members) {
     if (!m?.memberId) continue;
     map.set(m.memberId, m.role === "head" ? "head" : "member");
   }
+
+  if (managerId) {
+    // إزالة صفة رئيس القسم عن أي عضو آخر وتعيين المدير رئيساً
+    for (const [mid] of map) {
+      map.set(mid, mid === managerId ? "head" : "member");
+    }
+    map.set(managerId, "head");
+  } else if (managerId === null) {
+    // إزالة رئيس القسم صراحة إن حُدد null
+    for (const [mid, role] of map) {
+      if (role === "head") map.set(mid, "member");
+    }
+  }
+
   return Array.from(map, ([memberId, role]) => ({ memberId, role }));
 }
 
@@ -97,6 +122,14 @@ export async function listDepartments(actor: Actor) {
       });
     });
 
+    const headMember = d.members.find((m) => m.role === "head");
+    const head = headMember
+      ? {
+          ...toMember(headMember.workspaceMember),
+          departmentRole: "head",
+        }
+      : null;
+
     return {
       id: d.id,
       name: d.name,
@@ -104,6 +137,7 @@ export async function listDepartments(actor: Actor) {
       color: d.color,
       icon: d.icon,
       createdAt: d.createdAt,
+      head,
       membersCount: uniqueMemberIds.size,
       members: d.members.map((m) => ({ ...toMember(m.workspaceMember), departmentRole: m.role })),
       plansCount: d.plans.length,
@@ -113,18 +147,296 @@ export async function listDepartments(actor: Actor) {
       progress: weightedProgress(allTasks),
       isMember: actor.departmentIds.includes(d.id),
       isHead: actor.headOfDepartmentIds.includes(d.id),
+      canCreatePlan: actor.isAdmin || actor.headOfDepartmentIds.includes(d.id),
     };
   });
 }
 
-export async function getDepartment(actor: Actor, id: string) {
-  if (!canViewDepartment(actor, id)) throw ApiError.notFound("القسم المطلوب غير موجود.");
+export async function getDepartment(actor: Actor, id: string, filterInput?: DepartmentTasksFilter) {
+  // 1. التحقق من وجود القسم في مساحة العمل
+  const departmentRecord = await prisma.department.findFirst({
+    where: { id, workspaceId: actor.workspaceId },
+    include: {
+      members: {
+        orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+        include: { workspaceMember: { select: memberSelect } },
+      },
+    },
+  });
 
-  const list = await listDepartments(actor);
-  const department = list.find((d) => d.id === id);
-  if (!department) throw ApiError.notFound("القسم المطلوب غير موجود.");
+  if (!departmentRecord) {
+    throw ApiError.notFound("القسم المطلوب غير موجود.");
+  }
 
-  return department;
+  // 2. التحقق من صلاحية الوصول للقسم (إرجاع 403 صراحة إن لم يملك المستخدم صلاحية)
+  if (!canViewDepartment(actor, id)) {
+    throw ApiError.accessDenied("ليس لديك صلاحية الوصول إلى هذا القسم.");
+  }
+
+  const isHead = actor.headOfDepartmentIds.includes(id);
+  const isManager = actor.isAdmin || isHead;
+
+  // 3. جلب الخطط التشغيلية التابعة للقسم مع الصلاحيات
+  const plans = await prisma.plan.findMany({
+    where: {
+      departmentId: id,
+      workspaceId: actor.workspaceId,
+      ...(actor.isAdmin ? {} : planListWhere(actor)),
+    },
+    orderBy: { updatedAt: "desc" },
+    include: {
+      members: {
+        take: 5,
+        select: { workspaceMember: { select: memberSelect } },
+      },
+      tasks: {
+        where: isManager
+          ? {}
+          : {
+              OR: [{ assigneeMemberId: actor.memberId }, { followerMemberId: actor.memberId }],
+            },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          progress: true,
+          weight: true,
+          cost: true,
+          dueDate: true,
+          priority: true,
+          assigneeMemberId: true,
+          followerMemberId: true,
+          assignee: { select: memberSelect },
+          follower: { select: memberSelect },
+          goal: { select: { id: true, title: true } },
+        },
+        orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+      },
+      _count: { select: { members: true, goals: true } },
+    },
+  });
+
+  // 4. استخراج المهام وتوحيد بياناتها
+  const planTasks = plans.flatMap((p) =>
+    p.tasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      status: t.status,
+      progress: t.progress,
+      priority: t.priority,
+      cost: t.cost || 0,
+      currency: "SAR",
+      dueDate: t.dueDate ? t.dueDate.toISOString() : null,
+      assignee: t.assignee ? toMember(t.assignee).name : "غير محدد",
+      follower: t.follower ? toMember(t.follower).name : "غير محدد",
+      planId: p.id,
+      planName: p.name,
+      goalTitle: t.goal?.title || null,
+    }))
+  );
+
+  // 5. جلب مهام SWOT المرتبطة بالقسم إن وجدت
+  const swotGoals = await prisma.swotCustomGoal.findMany({
+    where: {
+      toolRun: {
+        departmentId: id,
+        workspaceId: actor.workspaceId,
+        ...(actor.isAdmin ? {} : projectListWhere(actor)),
+      },
+    },
+    include: {
+      tasks: {
+        orderBy: { dueDate: "asc" },
+      },
+      toolRun: {
+        select: { id: true, title: true },
+      },
+    },
+  });
+
+  // تصفية مهام SWOT للعضو العادي
+  const actorIdentifiers = new Set<string>();
+  actorIdentifiers.add(actor.memberId);
+  if (actor.userId) actorIdentifiers.add(actor.userId);
+  const currentMember = await prisma.workspaceMember.findUnique({
+    where: { id: actor.memberId },
+    select: { email: true, user: { select: { name: true } } },
+  });
+  if (currentMember?.user?.name) {
+    actorIdentifiers.add(currentMember.user.name.trim().toLowerCase());
+    actorIdentifiers.add(currentMember.user.name.trim());
+  }
+  if (currentMember?.email) {
+    actorIdentifiers.add(currentMember.email.trim().toLowerCase());
+    actorIdentifiers.add(currentMember.email.trim());
+  }
+  const matchesActor = (val: string | null | undefined): boolean => {
+    if (!val) return false;
+    const s = val.trim();
+    return actorIdentifiers.has(s) || actorIdentifiers.has(s.toLowerCase());
+  };
+
+  const swotTasksFormatted = swotGoals.flatMap((g) => {
+    const rawTasks = isManager
+      ? g.tasks
+      : g.tasks.filter((t) => matchesActor(t.assignee) || matchesActor(t.follower));
+    return rawTasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      status: t.status,
+      progress: t.progress,
+      priority: t.priority,
+      cost: t.cost || 0,
+      currency: t.currency || "SAR",
+      dueDate: t.dueDate ? t.dueDate.toISOString() : null,
+      assignee: t.assignee || "غير محدد",
+      follower: t.follower || "غير محدد",
+      planId: null,
+      planName: g.toolRun?.title || "تحليل SWOT",
+      goalTitle: g.goalText,
+    }));
+  });
+
+  const allScopedTasks = [...planTasks, ...swotTasksFormatted];
+
+  // 6. حساب الميزانية ونسبة الإنجاز الإجمالية
+  const totalBudget = allScopedTasks.reduce((sum, t) => sum + (t.cost || 0), 0);
+  const overallProgress = weightedProgress(
+    allScopedTasks.map((t) => ({
+      weight: 1,
+      progress: t.progress,
+      status: t.status === "completed" || t.progress === 100 ? "done" : t.status,
+    }))
+  );
+
+  // حساب الحالات بدقة
+  const getTaskEffectiveStatus = (t: { status: string; progress: number; dueDate: string | null }): "todo" | "in_progress" | "done" | "overdue" => {
+    if (t.status === "done" || t.status === "completed" || t.progress >= 100) return "done";
+    if (t.dueDate && new Date(t.dueDate).getTime() < Date.now()) return "overdue";
+    if (t.status === "in_progress" || t.progress > 0) return "in_progress";
+    return "todo";
+  };
+
+  const statusCounts = {
+    all: allScopedTasks.length,
+    todo: 0,
+    in_progress: 0,
+    done: 0,
+    overdue: 0,
+  };
+
+  for (const t of allScopedTasks) {
+    const s = getTaskEffectiveStatus(t);
+    statusCounts[s]++;
+  }
+
+  // قائمة المسؤولين المتاحة للمستخدم الحالي دون أي تسريب لأسماء لا يراها
+  const availableAssigneesSet = new Set<string>();
+  for (const t of allScopedTasks) {
+    availableAssigneesSet.add(t.assignee || "غير محدد");
+  }
+  const availableAssignees = Array.from(availableAssigneesSet).sort();
+
+  // 7. تطبيق الفلاتر الخادمة
+  let filteredTasks = allScopedTasks;
+
+  const parseArrayParam = (val?: string | string[]): string[] => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val.flatMap((v) => v.split(",")).map((s) => s.trim()).filter(Boolean);
+    return val.split(",").map((s) => s.trim()).filter(Boolean);
+  };
+
+  const statusFilter = parseArrayParam(filterInput?.status);
+  if (statusFilter.length > 0 && !statusFilter.includes("all")) {
+    filteredTasks = filteredTasks.filter((t) => statusFilter.includes(getTaskEffectiveStatus(t)));
+  }
+
+  const assigneeFilter = parseArrayParam(filterInput?.assignee);
+  if (assigneeFilter.length > 0) {
+    filteredTasks = filteredTasks.filter((t) => assigneeFilter.includes(t.assignee || "غير محدد"));
+  }
+
+  const planIdFilter = typeof filterInput?.planId === "string" ? filterInput.planId.trim() : undefined;
+  if (planIdFilter) {
+    filteredTasks = filteredTasks.filter((t) => t.planId === planIdFilter);
+  }
+
+  const searchParam = filterInput?.search || filterInput?.q;
+  const searchQuery = typeof searchParam === "string" ? searchParam.trim().toLowerCase() : "";
+  if (searchQuery) {
+    filteredTasks = filteredTasks.filter((t) => t.title.toLowerCase().includes(searchQuery));
+  }
+
+  // 8. ترقيم الصفحات (Pagination)
+  const totalFilteredCount = filteredTasks.length;
+  const page = Math.max(1, Number(filterInput?.page) || 1);
+  const limit = Math.max(1, Math.min(100, Number(filterInput?.limit) || 20));
+  const totalPages = Math.max(1, Math.ceil(totalFilteredCount / limit));
+  const paginatedTasks = filteredTasks.slice((page - 1) * limit, page * limit);
+
+  // 9. تحديد رئيس القسم (Head)
+  const headMember = departmentRecord.members.find((m) => m.role === "head");
+  const head = headMember
+    ? {
+        ...toMember(headMember.workspaceMember),
+        departmentRole: "head",
+      }
+    : null;
+
+  // 10. حساب عدد الأعضاء الفعلي
+  const uniqueMemberIds = new Set<string>();
+  departmentRecord.members.forEach((m) => {
+    if (m.workspaceMember.role !== "owner" && m.workspaceMember.role !== "admin") {
+      uniqueMemberIds.add(m.workspaceMemberId);
+    }
+  });
+
+  const formattedPlans = plans.map((p) => ({
+    id: p.id,
+    name: p.name,
+    status: p.status,
+    startDate: p.startDate,
+    endDate: p.endDate,
+    tasksCount: p.tasks.length,
+    progress: weightedProgress(p.tasks),
+    budget: p.tasks.reduce((acc, t) => acc + (t.cost || 0), 0),
+    membersCount: p._count.members,
+  }));
+
+  return {
+    id: departmentRecord.id,
+    name: departmentRecord.name,
+    description: departmentRecord.description,
+    color: departmentRecord.color,
+    icon: departmentRecord.icon,
+    createdAt: departmentRecord.createdAt,
+    head,
+    membersCount: Math.max(uniqueMemberIds.size, departmentRecord.members.length),
+    members: departmentRecord.members.map((m) => ({
+      ...toMember(m.workspaceMember),
+      departmentRole: m.role,
+    })),
+    plans: formattedPlans,
+    plansCount: formattedPlans.length,
+    activePlansCount: formattedPlans.filter((p) => p.status === "active").length,
+    tasks: paginatedTasks,
+    tasksCount: totalFilteredCount,
+    totalTasksCount: allScopedTasks.length,
+    statusCounts,
+    availableAssignees,
+    pagination: {
+      page,
+      limit,
+      totalPages,
+      totalCount: totalFilteredCount,
+    },
+    progress: overallProgress,
+    budget: Math.round(totalBudget),
+    currency: "SAR",
+    isMember: actor.departmentIds.includes(departmentRecord.id),
+    isHead,
+    canCreatePlan: actor.isAdmin || isHead,
+  };
 }
 
 export async function createDepartment(actor: Actor, input: DepartmentInput) {
@@ -133,7 +445,7 @@ export async function createDepartment(actor: Actor, input: DepartmentInput) {
   const name = input.name?.trim();
   if (!name) throw ApiError.invalidInput("اسم القسم مطلوب.");
 
-  const members = cleanMembers(input.members);
+  const members = cleanMembers(input.members, input.managerId);
   await assertWorkspaceMembers(actor.workspaceId, members.map((m) => m.memberId));
 
   const exists = await prisma.department.findFirst({
@@ -194,7 +506,22 @@ export async function updateDepartment(actor: Actor, id: string, input: Departme
     },
   });
 
-  if (input.members) await setDepartmentMembers(actor, id, input.members);
+  if (input.managerId !== undefined && !input.members) {
+    const currentMembers = await prisma.departmentMember.findMany({
+      where: { departmentId: id },
+    });
+    const updated = cleanMembers(
+      currentMembers.map((cm) => ({
+        memberId: cm.workspaceMemberId,
+        role: cm.role as "head" | "member",
+      })),
+      input.managerId
+    );
+    await setDepartmentMembers(actor, id, updated);
+  } else if (input.members) {
+    const updated = cleanMembers(input.members, input.managerId);
+    await setDepartmentMembers(actor, id, updated);
+  }
 
   return getDepartment(actor, id);
 }

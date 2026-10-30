@@ -1,4 +1,6 @@
-import React, { useCallback, useEffect, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/router"
 import clsx from "clsx"
 import {
   Check,
@@ -6,6 +8,7 @@ import {
   Crown,
   Loader2,
   Mail,
+  MessageSquare,
   Shield,
   ShieldCheck,
   Trash2,
@@ -13,11 +16,18 @@ import {
   UserMinus,
   Users,
   Eye,
+  Building2,
+  CheckCircle2,
+  RotateCcw,
 } from "lucide-react"
 import { toast } from "react-hot-toast"
+import { useAuth } from "@/context/AuthContext"
 import { useWorkspace } from "@/context/WorkspaceContext"
+import { useChat } from "@/context/ChatContext"
+import { useDepartments } from "@/hooks/useDepartments"
 import * as workspaceService from "@/services/workspace.service"
 import { canManageMembers } from "@/utils/permissions"
+import { FilterBar, FilterItemConfig, FilterValues } from "@/components/ui/filters"
 import {
   INVITE_ROLE_OPTIONS,
   ROLE_LABELS,
@@ -189,7 +199,9 @@ const RoleChanger: React.FC<RoleChangerProps> = ({
 // ——————————————————————————————————————————————
 
 export const TeamMembersPanel: React.FC = () => {
+  const { user } = useAuth()
   const { workspace } = useWorkspace()
+  const { presences, conversations } = useChat()
   const [members, setMembers] = useState<WorkspaceMember[]>([])
   const [loading, setLoading] = useState(true)
   const [removingId, setRemovingId] = useState<string | null>(null)
@@ -239,6 +251,129 @@ export const TeamMembersPanel: React.FC = () => {
     )
   }
 
+  const router = useRouter()
+  const { data: departments } = useDepartments()
+
+  const [search, setSearch] = useState(() => (typeof router.query.search === 'string' ? router.query.search : ''))
+  const [roleFilter, setRoleFilter] = useState(() => (typeof router.query.role === 'string' ? router.query.role : ''))
+  const [deptFilter, setDeptFilter] = useState(() => (typeof router.query.department === 'string' ? router.query.department : ''))
+  const [statusFilter, setStatusFilter] = useState(() => (typeof router.query.status === 'string' ? router.query.status : ''))
+
+  useEffect(() => {
+    if (!router.isReady) return
+    const nextQuery: Record<string, any> = { ...router.query }
+
+    if (search.trim()) nextQuery.search = search.trim()
+    else delete nextQuery.search
+
+    if (roleFilter) nextQuery.role = roleFilter
+    else delete nextQuery.role
+
+    if (deptFilter) nextQuery.department = deptFilter
+    else delete nextQuery.department
+
+    if (statusFilter) nextQuery.status = statusFilter
+    else delete nextQuery.status
+
+    router.push({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true })
+  }, [search, roleFilter, deptFilter, statusFilter])
+
+  const filterConfigs: FilterItemConfig[] = useMemo(() => {
+    const list: FilterItemConfig[] = [
+      {
+        key: 'role',
+        label: 'الدور',
+        type: 'select',
+        icon: Shield,
+        isAllOptionLabel: 'كل الأدوار',
+        options: [
+          { value: 'owner', label: 'مالك', dotColor: '#D97706' },
+          { value: 'admin', label: 'مشرف', dotColor: '#4F46E5' },
+          { value: 'member', label: 'عضو', dotColor: '#10B981' },
+          { value: 'viewer', label: 'مشاهد', dotColor: '#64748B' },
+        ],
+      },
+    ]
+
+    if (departments && departments.length > 0) {
+      list.push({
+        key: 'department',
+        label: 'القسم',
+        type: 'select',
+        icon: Building2,
+        isAllOptionLabel: 'كل الأقسام',
+        options: departments.map((d: any) => ({ value: d.id, label: d.name })),
+        searchThreshold: 5,
+      })
+    }
+
+    list.push({
+      key: 'status',
+      label: 'الحالة',
+      type: 'select',
+      icon: CheckCircle2,
+      isAllOptionLabel: 'كل الحالات',
+      options: [
+        { value: 'active', label: 'نشط', dotColor: '#10B981' },
+        { value: 'pending', label: 'معلّق / مدعو', dotColor: '#F59E0B' },
+      ],
+    })
+
+    return list
+  }, [departments])
+
+  const currentValues: FilterValues = useMemo(
+    () => ({
+      role: roleFilter,
+      department: deptFilter,
+      status: statusFilter,
+    }),
+    [roleFilter, deptFilter, statusFilter]
+  )
+
+  const handleFilterChange = (key: string, val: any) => {
+    if (key === 'role') setRoleFilter(val || '')
+    else if (key === 'department') setDeptFilter(val || '')
+    else if (key === 'status') setStatusFilter(val || '')
+  }
+
+  const handleClearAll = () => {
+    setSearch('')
+    setRoleFilter('')
+    setDeptFilter('')
+    setStatusFilter('')
+  }
+
+  const filteredMembers = useMemo(() => {
+    return members.filter((member) => {
+      if (search.trim()) {
+        const q = search.trim().toLowerCase()
+        const matchesName = member.name?.toLowerCase().includes(q)
+        const matchesEmail = member.email?.toLowerCase().includes(q)
+        if (!matchesName && !matchesEmail) return false
+      }
+
+      if (roleFilter && member.role !== roleFilter) {
+        return false
+      }
+
+      if (deptFilter && departments) {
+        const dept = departments.find((d: any) => d.id === deptFilter)
+        const inDept =
+          dept?.members?.some((m: any) => m.workspaceMemberId === member.id || m.memberId === member.id) ||
+          dept?.head?.id === member.id
+        if (!inDept) return false
+      }
+
+      if (statusFilter) {
+        if (statusFilter === 'active' && member.status !== 'active') return false
+        if (statusFilter === 'pending' && member.status === 'active') return false
+      }
+
+      return true
+    })
+  }, [members, search, roleFilter, deptFilter, statusFilter, departments])
+
   if (!workspace) return null
 
   return (
@@ -260,6 +395,23 @@ export const TeamMembersPanel: React.FC = () => {
         </div>
       </div>
 
+      {/* شريط الفلاتر الموحد */}
+      {!loading && members.length > 0 && (
+        <div className="px-6 pt-4 pb-1 border-b border-gray-100 bg-slate-50/40">
+          <FilterBar
+            filters={filterConfigs}
+            values={currentValues}
+            onChange={handleFilterChange}
+            onClearAll={handleClearAll}
+            searchValue={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="ابحث بالاسم أو البريد..."
+            totalResults={filteredMembers.length}
+            resultsLabel="عضو"
+          />
+        </div>
+      )}
+
       {/* قائمة الأعضاء */}
       <div className="divide-y divide-gray-100">
         {loading ? (
@@ -271,8 +423,21 @@ export const TeamMembersPanel: React.FC = () => {
             <Users className="h-10 w-10 text-gray-300" />
             <p className="text-sm text-gray-500">لا يوجد أعضاء بعد.</p>
           </div>
+        ) : filteredMembers.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-2 text-center p-6">
+            <h3 className="text-base font-bold text-gray-900">لا يوجد أعضاء يطابقون الفلاتر المحددة</h3>
+            <p className="text-xs text-gray-500">جرّب تغيير عبارة البحث أو مسح الفلاتر.</p>
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className="mt-2 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+            >
+              <RotateCcw size={13} />
+              <span>مسح الفلاتر</span>
+            </button>
+          </div>
         ) : (
-          members.map((member) => {
+          filteredMembers.map((member) => {
             const roleCfg =
               ROLE_CONFIG[member.role as WorkspaceRole] ?? ROLE_CONFIG.member
             const RoleIcon = roleCfg.icon
@@ -281,22 +446,53 @@ export const TeamMembersPanel: React.FC = () => {
             const isConfirming = confirmRemoveId === member.id
             const isRemoving = removingId === member.id
 
+            // التحقق من حالة التواجد ومحادثة العضو
+            const isOnline = Boolean(
+              member.userId && presences[member.userId]?.status === "online"
+            )
+            const isCurrentUser = Boolean(
+              user?.id && (member.userId === user.id || member.email === user.email)
+            )
+            const isPending =
+              member.status !== "active" || !member.userId || Boolean((member as any).isInvite)
+
+            const directConv = member.userId
+              ? conversations.find(
+                  (c) =>
+                    c.type === "direct" &&
+                    c.members.some((m) => m.userId === member.userId)
+                )
+              : null
+            const unreadCount = directConv?.unreadCount ?? 0
+
             return (
               <div
                 key={member.id}
                 className={clsx(
-                  "flex items-center gap-4 px-6 py-4 transition-colors",
+                  "flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-4 transition-colors",
                   isConfirming ? "bg-red-50/60" : "hover:bg-gray-50/60"
                 )}
               >
-                {/* الأيقونة */}
-                <div
-                  className={clsx(
-                    "flex items-center justify-center w-10 h-10 rounded-full shrink-0",
-                    roleCfg.bg
+                {/* الأيقونة مع مؤشر التواجد */}
+                <div className="relative shrink-0">
+                  <div
+                    className={clsx(
+                      "flex items-center justify-center w-10 h-10 rounded-full",
+                      roleCfg.bg
+                    )}
+                  >
+                    <RoleIcon className={clsx("h-5 w-5", roleCfg.color)} />
+                  </div>
+                  {member.userId && member.status === "active" && (
+                    <span
+                      className={clsx(
+                        "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white transition-colors",
+                        isOnline ? "bg-emerald-500" : "bg-gray-300"
+                      )}
+                      title={isOnline ? "متصل الآن" : "غير متصل"}
+                      aria-label={isOnline ? "متصل الآن" : "غير متصل"}
+                    />
                   )}
-                >
-                  <RoleIcon className={clsx("h-5 w-5", roleCfg.color)} />
                 </div>
 
                 {/* التفاصيل */}
@@ -341,8 +537,41 @@ export const TeamMembersPanel: React.FC = () => {
                   )}
                 </div>
 
-                {/* شارة الدور / تغيير الدور */}
-                <div className="shrink-0">
+                {/* عناصر الإجراءات: الدردشة، الدور، الحذف */}
+                <div className="shrink-0 flex items-center gap-2">
+                  {/* أيقونة الدردشة */}
+                  {!isCurrentUser && (
+                    isPending ? (
+                      <button
+                        type="button"
+                        disabled
+                        title="لم ينضم بعد"
+                        aria-label="لم ينضم بعد"
+                        className="flex items-center justify-center w-9 h-9 rounded-xl border border-gray-200/60 bg-gray-100/70 text-gray-300 cursor-not-allowed opacity-60 transition-colors"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <Link
+                        href={`/dashboard/Chat?user=${member.userId}`}
+                        title={`مراسلة ${member.name || member.email}`}
+                        aria-label={`مراسلة ${member.name || member.email}`}
+                        className="relative flex items-center justify-center w-9 h-9 rounded-xl border border-gray-200/80 bg-gray-50 text-gray-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 active:scale-95 transition-all shadow-xs"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        {unreadCount > 0 && (
+                          <span
+                            className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shadow-xs"
+                            title={`${unreadCount} رسائل غير مقروءة`}
+                          >
+                            {unreadCount > 99 ? "+99" : unreadCount}
+                          </span>
+                        )}
+                      </Link>
+                    )
+                  )}
+
+                  {/* شارة الدور / تغيير الدور */}
                   {isManager && !isOwner ? (
                     <RoleChanger
                       member={member}
@@ -362,12 +591,10 @@ export const TeamMembersPanel: React.FC = () => {
                       {ROLE_LABELS[member.role as WorkspaceRole] ?? member.role}
                     </span>
                   )}
-                </div>
 
-                {/* زر الحذف */}
-                {isManager && !isOwner && (
-                  <div className="shrink-0">
-                    {isConfirming ? (
+                  {/* زر الحذف */}
+                  {isManager && !isOwner && (
+                    confirmRemoveId === member.id ? (
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
@@ -399,9 +626,9 @@ export const TeamMembersPanel: React.FC = () => {
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
-                    )}
-                  </div>
-                )}
+                    )
+                  )}
+                </div>
               </div>
             )
           })

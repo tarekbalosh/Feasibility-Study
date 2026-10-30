@@ -1,38 +1,18 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { FolderGit2, FileText, Settings, LogOut, Menu, X, User, Users, MessageSquare } from 'lucide-react';
+import { FolderGit2, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useWorkspace } from '@/context/WorkspaceContext';
-import { useChat } from '@/context/ChatContext';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { UserProfileDropdown } from '@/components/dashboard/UserProfileDropdown';
+import { SidebarNav } from '@/components/dashboard/SidebarNav';
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const { workspace } = useWorkspace();
-  const { totalUnreadCount } = useChat();
-
-  const isAdminOrOwner = workspace?.role === 'owner' || workspace?.role === 'admin';
-
-  let navigation = [
-    { name: 'الرئيسية', href: '/dashboard/Overview', icon: require('lucide-react').LayoutDashboard },
-    { name: 'الأقسام', href: '/dashboard/Departments', icon: require('lucide-react').Building2 },
-    { name: 'الخطط التشغيلية', href: '/dashboard/Plans', icon: require('lucide-react').Briefcase },
-    { name: 'مشاريعي', href: '/dashboard/Projects', icon: FolderGit2 },
-    { name: 'فريق العمل', href: '/dashboard/Team', icon: Users },
-    { name: 'الدردشة', href: '/dashboard/Chat', icon: MessageSquare, badge: totalUnreadCount },
-    { name: 'التقارير', href: '/dashboard/Reports', icon: FileText },
-    { name: 'الإعدادات', href: '/dashboard/Settings', icon: Settings },
-  ];
-
-  if (!isAdminOrOwner) {
-    navigation = navigation.filter(
-      (item) => item.name !== 'الرئيسية' && item.name !== 'الأقسام'
-    );
-  }
 
   const handleLogout = () => {
     logout();
@@ -52,43 +32,69 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           </Link>
         </div>
 
-        <nav className="flex-1 px-4 space-y-2 mt-4">
-          {navigation.map((item) => {
-            const isActive = router.pathname.includes(item.href);
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 ${
-                  isActive 
-                    ? 'bg-blue-50 text-blue-700 font-semibold' 
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <item.icon size={20} className={isActive ? 'text-blue-600' : 'text-gray-400'} />
-                  {item.name}
-                </div>
-                {item.badge && item.badge > 0 ? (
-                  <span className="px-2 py-0.5 text-xs font-bold bg-blue-600 text-white rounded-full">
-                    {item.badge}
-                  </span>
-                ) : null}
-              </Link>
-            );
-          })}
-        </nav>
+        <div className="flex-1 px-4 mt-2 overflow-y-auto">
+          <SidebarNav />
+        </div>
 
         <div className="p-4 border-t border-gray-200">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-red-600 hover:bg-red-50 transition-colors font-medium"
+            className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-red-600 hover:bg-red-50 transition-colors font-medium text-sm"
           >
             <LogOut size={20} />
             تسجيل الخروج
           </button>
         </div>
       </aside>
+
+      {/* Mobile Slide-over Drawer (القائمة الجانبية المنزلقة للجوال) */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex" dir="rtl">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
+            onClick={() => setIsMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+
+          {/* Drawer content */}
+          <aside className="relative mr-0 w-72 max-w-[85vw] bg-white h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-200">
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+              <Link
+                href="/"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="text-xl font-bold text-blue-600 flex items-center gap-2"
+              >
+                <span className="bg-blue-600 text-white p-1.5 rounded-lg">
+                  <FolderGit2 size={20} />
+                </span>
+                جدوى
+              </Link>
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg focus:outline-none"
+                aria-label="إغلاق القائمة"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 px-4 mt-3 overflow-y-auto">
+              <SidebarNav onItemClick={() => setIsMobileMenuOpen(false)} />
+            </div>
+
+            <div className="p-4 border-t border-gray-200">
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-red-600 hover:bg-red-50 transition-colors font-medium text-sm"
+              >
+                <LogOut size={18} />
+                تسجيل الخروج
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 md:mr-64 pb-20 md:pb-0 min-h-screen flex flex-col">
@@ -138,7 +144,11 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
 
           <div className="flex items-center gap-4 justify-end w-full md:w-auto">
             <UserProfileDropdown />
-            <button className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+            <button
+              className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg focus:outline-none"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label={isMobileMenuOpen ? "إغلاق القائمة" : "فتح القائمة"}
+            >
               {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
           </div>
@@ -151,34 +161,6 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           {children}
         </div>
       </main>
-
-      {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30 pb-safe">
-        <div className="flex justify-around items-center h-16 px-2">
-          {navigation.map((item) => {
-            const isActive = router.pathname.includes(item.href);
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`relative flex flex-col items-center justify-center w-full h-full space-y-1 ${
-                  isActive ? 'text-blue-600' : 'text-gray-500'
-                }`}
-              >
-                <div className="relative">
-                  <item.icon size={20} className={isActive ? 'text-blue-600' : 'text-gray-400'} />
-                  {item.badge && item.badge > 0 ? (
-                    <span className="absolute -top-1.5 -right-2 px-1 text-[9px] font-bold bg-blue-600 text-white rounded-full min-w-3.5 h-3.5 flex items-center justify-center">
-                      {item.badge}
-                    </span>
-                  ) : null}
-                </div>
-                <span className="text-[10px] font-medium">{item.name}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
 
     </div>
   );

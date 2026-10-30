@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import {
@@ -22,33 +23,48 @@ import {
 import {
   callOpenAIForPest,
   computeMergePlan,
+  isImplicationScope,
+  selectImplicationTargets,
+  suggestImplicationsForTrend,
   GenerateRequestInput,
   GenerationContext,
   ExistingFactor,
   ProposedFactor,
 } from "./pestGeneration";
+import {
+  validateLinkedFactorInput,
+  checkImplicationLink,
+  orderImplications,
+  isImplicationCategory,
+  resolveSuggestedSource,
+  LINKED_MESSAGES,
+  type LinkedFactorInput,
+} from "./pestLinks";
 import { logger } from "../../utils/logger";
 
 // ─────────────────────────────────────────────────────────────
 // Rate Limiter for AI Generation (In-Memory per user/workspace)
 // ─────────────────────────────────────────────────────────────
 const AI_RATE_LIMIT_PER_HOUR = 20;
+const AI_SUGGEST_RATE_LIMIT_PER_HOUR = 60;
 const aiGenerationLogMap = new Map<string, number[]>();
 
-function checkAiRateLimit(userId: string) {
+function checkAiRateLimit(userId: string, bucket: "generate" | "suggest" = "generate") {
+  const limit = bucket === "generate" ? AI_RATE_LIMIT_PER_HOUR : AI_SUGGEST_RATE_LIMIT_PER_HOUR;
+  const key = `${bucket}:${userId}`;
   const now = Date.now();
   const oneHourAgo = now - 60 * 60 * 1000;
-  const history = aiGenerationLogMap.get(userId) || [];
+  const history = aiGenerationLogMap.get(key) || [];
   const activeRequests = history.filter((timestamp) => timestamp > oneHourAgo);
 
-  if (activeRequests.length >= AI_RATE_LIMIT_PER_HOUR) {
+  if (activeRequests.length >= limit) {
     throw ApiError.rateLimitExceeded(
-      `تم تجاوز الحد المسموح لتوليد الذكاء الاصطناعي (${AI_RATE_LIMIT_PER_HOUR} عملية/ساعة). يرجى المحاولة لاحقاً.`
+      `تم تجاوز الحد المسموح لتوليد الذكاء الاصطناعي (${limit} عملية/ساعة). يرجى المحاولة لاحقاً.`
     );
   }
 
   activeRequests.push(now);
-  aiGenerationLogMap.set(userId, activeRequests);
+  aiGenerationLogMap.set(key, activeRequests);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -123,6 +139,24 @@ async function syncToolRunSummary(
       updatedAt: new Date(),
     },
   });
+}
+
+/** يجلب التحليل ويتحقق من صلاحية التعديل (يُستخدم في كل عمليات الكتابة) */
+async function loadAnalysisForEdit(actor: Actor, analysisId: string) {
+  const analysis = await prisma.pestAnalysis.findFirst({
+    where: { id: analysisId, workspaceId: actor.workspaceId },
+  });
+  if (!analysis) throw ApiError.notFound("التحليل غير موجود.");
+
+  if (analysis.toolRunId) {
+    await getRunWithAccess(actor, analysis.toolRunId, "edit");
+  }
+  return analysis;
+}
+
+/** خطأ قيد التفرد (انعكاس من نفس النوع مرتبط مسبقاً بنفس البند) */
+function isUniqueViolation(err: any) {
+  return err?.code === "P2002";
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -265,6 +299,8 @@ export async function getAnalysisWithFactors(actor: Actor, analysisId: string) {
       throw ApiError.accessDenied("ليس لديك صلاحية للاطلاع على هذا التحليل.");
     }
     accessLevel = level;
+  } else if (actor.canWrite) {
+    accessLevel = "edit";
   }
 
   // تجميع البنود حسب البُعد والفئة
@@ -286,6 +322,13 @@ export async function getAnalysisWithFactors(actor: Actor, analysisId: string) {
     ) {
       groupedFactors[factor.dimension as PestDimensionKey][factor.category as PestCategoryKey].push(factor);
     }
+  }
+
+  // ترتيب الانعكاسات حسب ترتيب بنودها الأبوية (القديمة غير المرتبطة في الأسفل)
+  for (const dim of PEST_DIMENSIONS) {
+    const g = groupedFactors[dim];
+    g.positive_impact = orderImplications(g.trend, g.positive_impact);
+    g.negative_impact = orderImplications(g.trend, g.negative_impact);
   }
 
   return {
@@ -377,18 +420,22 @@ export interface AddFactorInput {
   content: string;
 }
 
+/**
+ * إضافة بند منفرد (المسار القديم). بنود التوجهات لم تعد تُضاف منفردة —
+ * يجب إنشاؤها مع انعكاسيها عبر createLinkedFactor.
+ */
 export async function addFactor(
   actor: Actor,
   analysisId: string,
   input: AddFactorInput
 ) {
-  const analysis = await prisma.pestAnalysis.findFirst({
-    where: { id: analysisId, workspaceId: actor.workspaceId },
-  });
-  if (!analysis) throw ApiError.notFound("التحليل غير موجود.");
+  await loadAnalysisForEdit(actor, analysisId);
 
-  if (analysis.toolRunId) {
-    await getRunWithAccess(actor, analysis.toolRunId, "edit");
+  if (input.category === "trend") {
+    throw ApiError.invalidInput(
+      "يجب إضافة بند التوجه مع انعكاسيه الإيجابي والسلبي معاً.",
+      [{ field: "category", issue: "استخدم إضافة البند مع الانعكاسين." }]
+    );
   }
 
   const content = typeof input.content === "string" ? input.content.trim() : "";
@@ -432,44 +479,220 @@ export async function addFactor(
   return factor;
 }
 
+/**
+ * إنشاء بند توجه مع انعكاسه الإيجابي والسلبي في عملية واحدة (transaction):
+ * إما أن تُحفظ الثلاثة معاً أو لا يُحفظ شيء.
+ */
+export async function createLinkedFactor(
+  actor: Actor,
+  analysisId: string,
+  input: LinkedFactorInput
+) {
+  const validation = validateLinkedFactorInput(input);
+  if (!validation.ok) {
+    throw ApiError.invalidInput("يرجى إكمال الحقول المطلوبة للبند وانعكاسيه.", validation.issues);
+  }
+  const v = validation.value;
+
+  await loadAnalysisForEdit(actor, analysisId);
+
+  return prisma.$transaction(
+    async (tx) => {
+      const [totalCount, last] = await Promise.all([
+        tx.pestFactor.count({ where: { analysisId } }),
+        tx.pestFactor.findFirst({
+          where: { analysisId, dimension: v.dimension, category: "trend" },
+          orderBy: { sortOrder: "desc" },
+          select: { sortOrder: true },
+        }),
+      ]);
+
+      if (totalCount + 3 > MAX_FACTORS_PER_ANALYSIS) {
+        throw ApiError.invalidInput(`تم الوصول إلى الحد الأقصى للبنود (${MAX_FACTORS_PER_ANALYSIS}).`);
+      }
+
+      const sortOrder = (last?.sortOrder ?? -1) + 1;
+
+      const trend = await tx.pestFactor.create({
+        data: {
+          analysisId,
+          dimension: v.dimension,
+          category: "trend",
+          content: v.content,
+          sortOrder,
+          source: "manual",
+          createdById: actor.userId,
+        },
+      });
+
+      const [positive, negative] = await Promise.all([
+        tx.pestFactor.create({
+          data: {
+            analysisId,
+            dimension: v.dimension,
+            category: "positive_impact",
+            content: v.positiveImplication,
+            sortOrder,
+            source: v.positiveSource,
+            createdById: actor.userId,
+            parentFactorId: trend.id,
+          },
+        }),
+        tx.pestFactor.create({
+          data: {
+            analysisId,
+            dimension: v.dimension,
+            category: "negative_impact",
+            content: v.negativeImplication,
+            sortOrder,
+            source: v.negativeSource,
+            createdById: actor.userId,
+            parentFactorId: trend.id,
+          },
+        }),
+      ]);
+
+      const creationMode = await updateAnalysisCreationMode(analysisId, tx);
+      await syncToolRunSummary(analysisId, tx);
+
+      return { trend, positive, negative, creationMode };
+    },
+    { maxWait: 10000, timeout: 25000 }
+  );
+}
+
+/** إضافة انعكاس ناقص لبند توجه قائم */
+export async function addImplication(
+  actor: Actor,
+  analysisId: string,
+  parentFactorId: string,
+  input: { category?: unknown; content?: unknown; aiSuggested?: unknown }
+) {
+  if (!isImplicationCategory(input.category)) {
+    throw ApiError.invalidInput("نوع الانعكاس غير صالح.", [
+      { field: "category", issue: "يجب أن يكون positive_impact أو negative_impact." },
+    ]);
+  }
+  const category = input.category;
+  const content = typeof input.content === "string" ? input.content.trim() : "";
+  if (!content) {
+    throw ApiError.invalidInput(LINKED_MESSAGES.implicationRequired, [
+      { field: "content", issue: LINKED_MESSAGES.implicationRequired },
+    ]);
+  }
+  if (content.length > MAX_FACTOR_CHARS) {
+    throw ApiError.invalidInput(LINKED_MESSAGES.tooLong, [{ field: "content", issue: LINKED_MESSAGES.tooLong }]);
+  }
+
+  await loadAnalysisForEdit(actor, analysisId);
+
+  try {
+    return await prisma.$transaction(
+      async (tx) => {
+        const parent = await tx.pestFactor.findFirst({ where: { id: parentFactorId, analysisId } });
+        const siblings = parent
+          ? await tx.pestFactor.findMany({ where: { analysisId, parentFactorId: parent.id } })
+          : [];
+        const error = checkImplicationLink(
+          { id: "__new__", dimension: parent?.dimension ?? "", category },
+          parent,
+          siblings
+        );
+        if (error) throw ApiError.invalidInput(error, [{ field: "parentFactorId", issue: error }]);
+
+        const factor = await tx.pestFactor.create({
+          data: {
+            analysisId,
+            dimension: parent!.dimension,
+            category,
+            content,
+            sortOrder: parent!.sortOrder,
+            source: resolveSuggestedSource(content, input.aiSuggested),
+            createdById: actor.userId,
+            parentFactorId: parent!.id,
+          },
+        });
+
+        const creationMode = await updateAnalysisCreationMode(analysisId, tx);
+        await syncToolRunSummary(analysisId, tx);
+        return { factor, creationMode };
+      },
+      { maxWait: 10000, timeout: 20000 }
+    );
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      throw ApiError.invalidInput("هذا البند مرتبط مسبقاً بانعكاس من نفس النوع.");
+    }
+    throw err;
+  }
+}
+
+export interface UpdateFactorPatch {
+  content?: unknown;
+  /** ربط انعكاس ببند أب (أو null لفك الربط) */
+  parentFactorId?: unknown;
+}
+
 export async function updateFactor(
   actor: Actor,
   analysisId: string,
   factorId: string,
-  content: string
+  patch: UpdateFactorPatch
 ) {
-  const analysis = await prisma.pestAnalysis.findFirst({
-    where: { id: analysisId, workspaceId: actor.workspaceId },
-  });
-  if (!analysis) throw ApiError.notFound("التحليل غير موجود.");
-
-  if (analysis.toolRunId) {
-    await getRunWithAccess(actor, analysis.toolRunId, "edit");
-  }
-
-  const cleanContent = typeof content === "string" ? content.trim() : "";
-  if (cleanContent.length > MAX_FACTOR_CHARS) {
-    throw ApiError.invalidInput(`طول البند يتجاوز الحد الأقصى (${MAX_FACTOR_CHARS} حرفاً).`);
-  }
+  await loadAnalysisForEdit(actor, analysisId);
 
   const existing = await prisma.pestFactor.findFirst({
     where: { id: factorId, analysisId },
   });
   if (!existing) throw ApiError.notFound("البند غير موجود.");
 
-  // تحول المصدر من ai إلى ai_edited عند التعديل
-  let nextSource: PestFactorSourceKey = existing.source as PestFactorSourceKey;
-  if (existing.source === "ai") {
-    nextSource = "ai_edited";
+  const data: Record<string, unknown> = {};
+
+  if (patch.content !== undefined) {
+    const cleanContent = typeof patch.content === "string" ? patch.content.trim() : "";
+    if (cleanContent.length > MAX_FACTOR_CHARS) {
+      throw ApiError.invalidInput(`طول البند يتجاوز الحد الأقصى (${MAX_FACTOR_CHARS} حرفاً).`);
+    }
+    // البنود المرتبطة (التوجه وانعكاساه) لا تُترك فارغة
+    if (!cleanContent && (existing.category === "trend" || existing.parentFactorId)) {
+      throw ApiError.invalidInput("لا يمكن ترك نص البند فارغاً.", [
+        { field: "content", issue: "النص مطلوب." },
+      ]);
+    }
+    if (cleanContent !== existing.content) {
+      data.content = cleanContent;
+      // تحول المصدر من ai إلى ai_edited عند التعديل
+      if (existing.source === "ai") data.source = "ai_edited" as PestFactorSourceKey;
+    }
   }
 
-  const updated = await prisma.pestFactor.update({
-    where: { id: factorId },
-    data: {
-      content: cleanContent,
-      source: nextSource,
-    },
-  });
+  if (patch.parentFactorId !== undefined) {
+    if (patch.parentFactorId === null || patch.parentFactorId === "") {
+      data.parentFactorId = null;
+    } else {
+      const parentId = String(patch.parentFactorId);
+      const parent = await prisma.pestFactor.findFirst({ where: { id: parentId, analysisId } });
+      const siblings = parent
+        ? await prisma.pestFactor.findMany({ where: { analysisId, parentFactorId: parent.id } })
+        : [];
+      const error = checkImplicationLink(existing, parent, siblings);
+      if (error) throw ApiError.invalidInput(error, [{ field: "parentFactorId", issue: error }]);
+      data.parentFactorId = parent!.id;
+      data.sortOrder = parent!.sortOrder;
+    }
+  }
+
+  if (Object.keys(data).length === 0) return existing;
+
+  let updated;
+  try {
+    updated = await prisma.pestFactor.update({ where: { id: factorId }, data });
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      throw ApiError.invalidInput("هذا البند مرتبط مسبقاً بانعكاس من نفس النوع.");
+    }
+    throw err;
+  }
 
   await updateAnalysisCreationMode(analysisId);
   await syncToolRunSummary(analysisId);
@@ -477,61 +700,113 @@ export async function updateFactor(
   return updated;
 }
 
+/** حذف بند. حذف بند توجه يحذف انعكاسيه المرتبطين معه في نفس العملية */
 export async function deleteFactor(
   actor: Actor,
   analysisId: string,
   factorId: string
 ) {
-  const analysis = await prisma.pestAnalysis.findFirst({
-    where: { id: analysisId, workspaceId: actor.workspaceId },
-  });
-  if (!analysis) throw ApiError.notFound("التحليل غير موجود.");
-
-  if (analysis.toolRunId) {
-    await getRunWithAccess(actor, analysis.toolRunId, "edit");
-  }
+  await loadAnalysisForEdit(actor, analysisId);
 
   const existing = await prisma.pestFactor.findFirst({
     where: { id: factorId, analysisId },
   });
   if (!existing) throw ApiError.notFound("البند غير موجود.");
 
-  await prisma.pestFactor.delete({ where: { id: factorId } });
+  const deletedIds = await prisma.$transaction(
+    async (tx) => {
+      const children = await tx.pestFactor.findMany({
+        where: { analysisId, parentFactorId: factorId },
+        select: { id: true },
+      });
+      const childIds = children.map((c) => c.id);
+      if (childIds.length > 0) {
+        await tx.pestFactor.deleteMany({ where: { id: { in: childIds } } });
+      }
+      await tx.pestFactor.delete({ where: { id: factorId } });
 
-  await updateAnalysisCreationMode(analysisId);
-  await syncToolRunSummary(analysisId);
+      await updateAnalysisCreationMode(analysisId, tx);
+      await syncToolRunSummary(analysisId, tx);
+      return [factorId, ...childIds];
+    },
+    { maxWait: 10000, timeout: 20000 }
+  );
 
-  return { success: true };
+  return { success: true, deletedIds };
 }
 
+/** إعادة الترتيب — ترتيب التوجه يُطبَّق على انعكاسيه المرتبطين أيضاً */
 export async function reorderFactors(
   actor: Actor,
   analysisId: string,
   items: Array<{ id: string; sortOrder: number }>
 ) {
-  const analysis = await prisma.pestAnalysis.findFirst({
-    where: { id: analysisId, workspaceId: actor.workspaceId },
-  });
-  if (!analysis) throw ApiError.notFound("التحليل غير موجود.");
-
-  if (analysis.toolRunId) {
-    await getRunWithAccess(actor, analysis.toolRunId, "edit");
-  }
+  await loadAnalysisForEdit(actor, analysisId);
 
   if (!items || items.length === 0) {
     return { success: true };
   }
 
   await prisma.$transaction(
-    items.map((item) =>
+    items.flatMap((item) => [
       prisma.pestFactor.updateMany({
         where: { id: item.id, analysisId },
         data: { sortOrder: item.sortOrder },
-      })
-    )
+      }),
+      prisma.pestFactor.updateMany({
+        where: { parentFactorId: item.id, analysisId },
+        data: { sortOrder: item.sortOrder },
+      }),
+    ])
   );
 
   return { success: true };
+}
+
+// ─────────────────────────────────────────────────────────────
+// AI: اقتراح انعكاسين لبند واحد (بدون حفظ)
+// ─────────────────────────────────────────────────────────────
+
+export async function suggestImplications(
+  actor: Actor,
+  analysisId: string,
+  input: { dimension?: unknown; content?: unknown }
+) {
+  if (!PEST_DIMENSIONS.includes(input.dimension as PestDimensionKey)) {
+    throw ApiError.invalidInput(LINKED_MESSAGES.dimensionInvalid);
+  }
+  const content = typeof input.content === "string" ? input.content.trim() : "";
+  if (content.length < 3) {
+    throw ApiError.invalidInput("اكتب نص البند أولاً ليتم اقتراح الانعكاسين.", [
+      { field: "content", issue: "اكتب نص البند أولاً ليتم اقتراح الانعكاسين." },
+    ]);
+  }
+
+  const analysis = await loadAnalysisForEdit(actor, analysisId);
+  checkAiRateLimit(actor.userId, "suggest");
+
+  const factors = await prisma.pestFactor.findMany({
+    where: { analysisId },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  const ctx: GenerationContext = {
+    projectName: analysis.projectName || analysis.title,
+    projectDescription: analysis.projectDescription,
+    industry: analysis.industry,
+    countryRegion: analysis.countryRegion,
+    existingFactors: factors.map((f) => ({
+      id: f.id,
+      dimension: f.dimension as PestDimensionKey,
+      category: f.category as PestCategoryKey,
+      content: f.content,
+      sortOrder: f.sortOrder,
+      source: f.source as PestFactorSourceKey,
+      parentFactorId: f.parentFactorId,
+    })),
+  };
+
+  return suggestImplicationsForTrend(ctx, input.dimension as PestDimensionKey, content);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -564,8 +839,8 @@ export async function generatePestAI(
     );
   }
 
-  // فحص معدل التوليد للمستخدم
-  checkAiRateLimit(actor.userId);
+  const dimension = input.dimension as PestDimensionKey | undefined;
+  const category = input.category as PestCategoryKey | undefined;
 
   const existingFactors: ExistingFactor[] = analysis.factors.map((f) => ({
     id: f.id,
@@ -574,7 +849,42 @@ export async function generatePestAI(
     content: f.content,
     sortOrder: f.sortOrder,
     source: f.source as PestFactorSourceKey,
+    parentFactorId: f.parentFactorId,
   }));
+
+  // توليد عمود الانعكاسات: يعمل فقط على توجهات قائمة (لا انعكاسات بلا بند أب)
+  let implicationTargets: ExistingFactor[] = [];
+  if (isImplicationScope(input.scope, category) && dimension) {
+    const hasTrends = existingFactors.some((f) => f.dimension === dimension && f.category === "trend");
+    if (!hasTrends) {
+      throw ApiError.invalidInput(
+        "لا توجد بنود في «أبرز التوجهات والمؤشرات» لهذا البُعد. أضف بنوداً أولاً أو استخدم «توليد البُعد»."
+      );
+    }
+    implicationTargets = selectImplicationTargets(existingFactors, dimension, category, input.strategy);
+    if (implicationTargets.length === 0) {
+      return {
+        requiresConfirmation: false,
+        message: "جميع بنود هذا البُعد لديها انعكاس من هذا النوع بالفعل.",
+        data: await getAnalysisWithFactors(actor, analysisId),
+      };
+    }
+  }
+
+  // فحص التعارض مع البنود اليدوية قبل استدعاء النموذج (توفيراً للاستهلاك)
+  const preCheck = computeMergePlan(
+    input.scope, input.strategy, dimension, category, existingFactors, null, input.confirmOverwrite
+  );
+  if (preCheck.hasProtectedManualConflict) {
+    return {
+      requiresConfirmation: true,
+      protectedManualCount: preCheck.protectedManualCount,
+      message: `يحتوي هذا النطاق على ${preCheck.protectedManualCount} بنود يدوية أو معدلة. هل ترغب بالتأكيد في استبدالها؟`,
+    };
+  }
+
+  // فحص معدل التوليد للمستخدم
+  checkAiRateLimit(actor.userId);
 
   const ctx: GenerationContext = {
     projectName: analysis.projectName,
@@ -584,76 +894,83 @@ export async function generatePestAI(
     existingFactors,
   };
 
-  // 1. استدعاء OpenAI للحصول على البنود المقترحة
-  const { proposedFactors, tokens, model } = await callOpenAIForPest(
-    ctx,
-    input.scope,
-    input.strategy,
-    input.dimension as PestDimensionKey,
-    input.category as PestCategoryKey
+  // 1. استدعاء النموذج: توجهات مع انعكاسيها، أو انعكاسات لتوجهات قائمة
+  const { proposal, tokens, model } = await callOpenAIForPest(
+    ctx, input.scope, input.strategy, dimension, category, implicationTargets
   );
 
-  // 2. تطبيق منطق الحماية والدمج (Merge Logic)
+  // 2. منطق الحماية والدمج
   const mergePlan = computeMergePlan(
-    input.scope,
-    input.strategy,
-    input.dimension as PestDimensionKey,
-    input.category as PestCategoryKey,
-    existingFactors,
-    proposedFactors,
-    input.confirmOverwrite
+    input.scope, input.strategy, dimension, category, existingFactors, proposal, input.confirmOverwrite
   );
 
-  // إذا وجد تعارض مع بنود يدوية ولم يؤكد المستخدم الاستبدال:
-  if (mergePlan.hasProtectedManualConflict) {
-    return {
-      requiresConfirmation: true,
-      protectedManualCount: mergePlan.protectedManualCount,
-      message: `يحتوي هذا النطاق على ${mergePlan.protectedManualCount} بنود يدوية أو معدلة. هل ترغب بالتأكيد في استبدالها؟`,
-      proposedFactors,
-    };
+  const deleted = new Set(mergePlan.factorsToDeleteIds);
+  const remaining = existingFactors.filter(
+    (f) => !deleted.has(f.id) && !(f.parentFactorId && deleted.has(f.parentFactorId))
+  );
+  const remainingById = new Map(remaining.map((f) => [f.id, f]));
+
+  // حساب أعلى ترتيب للتوجهات في كل بُعد
+  const trendMaxOrder: Record<string, number> = {};
+  for (const f of remaining) {
+    if (f.category === "trend") {
+      trendMaxOrder[f.dimension] = Math.max(trendMaxOrder[f.dimension] ?? -1, f.sortOrder);
+    }
   }
 
-  // 3. تطبيق التغييرات في قاعدة البيانات دفعة واحدة مع مهلة كافية
+  type Row = {
+    id: string;
+    analysisId: string;
+    dimension: PestDimensionKey;
+    category: PestCategoryKey;
+    content: string;
+    sortOrder: number;
+    source: PestFactorSourceKey;
+    createdById: string;
+    parentFactorId: string | null;
+  };
+  const trendRows: Row[] = [];
+  const childRows: Row[] = [];
+
+  for (const t of proposal.triples) {
+    const order = (trendMaxOrder[t.dimension] ?? -1) + 1;
+    trendMaxOrder[t.dimension] = order;
+    const trendId = randomUUID();
+    const base = { analysisId, dimension: t.dimension, sortOrder: order, source: t.source, createdById: actor.userId };
+    trendRows.push({ ...base, id: trendId, category: "trend", content: t.content, parentFactorId: null });
+    childRows.push({ ...base, id: randomUUID(), category: "positive_impact", content: t.positiveImplication, parentFactorId: trendId });
+    childRows.push({ ...base, id: randomUUID(), category: "negative_impact", content: t.negativeImplication, parentFactorId: trendId });
+  }
+
+  for (const imp of proposal.implications) {
+    const parent = remainingById.get(imp.parentFactorId);
+    if (!parent || parent.category !== "trend" || parent.dimension !== imp.dimension) continue; // لا انعكاس بلا أب صالح
+    childRows.push({
+      id: randomUUID(),
+      analysisId,
+      dimension: imp.dimension,
+      category: imp.category,
+      content: imp.content,
+      sortOrder: parent.sortOrder,
+      source: imp.source,
+      createdById: actor.userId,
+      parentFactorId: parent.id,
+    });
+  }
+
+  // 3. تطبيق التغييرات في قاعدة البيانات دفعة واحدة
   await prisma.$transaction(
     async (tx) => {
-      // حذف البنود المحددة في خطة الدمج إن وجدت (في وضع replace)
       if (mergePlan.factorsToDeleteIds.length > 0) {
+        // الانعكاسات المرتبطة بالتوجهات المحذوفة تُحذف تلقائياً (ON DELETE CASCADE)
         await tx.pestFactor.deleteMany({
           where: { id: { in: mergePlan.factorsToDeleteIds } },
         });
       }
 
-      // حساب أعلى ترتيب حالي لكل خلية في الذاكرة لتجنب استعلامات متكررة عبر الشبكة
-      const cellMaxOrder: Record<string, number> = {};
-      const remainingFactors = existingFactors.filter(
-        (f) => !mergePlan.factorsToDeleteIds.includes(f.id)
-      );
-      for (const f of remainingFactors) {
-        const key = `${f.dimension}:${f.category}`;
-        cellMaxOrder[key] = Math.max(cellMaxOrder[key] ?? -1, f.sortOrder);
-      }
-
-      const factorsToInsert = mergePlan.factorsToCreate.map((factor) => {
-        const key = `${factor.dimension}:${factor.category}`;
-        const nextOrder = (cellMaxOrder[key] ?? -1) + 1;
-        cellMaxOrder[key] = nextOrder;
-        return {
-          analysisId,
-          dimension: factor.dimension,
-          category: factor.category,
-          content: factor.content,
-          sortOrder: nextOrder,
-          source: factor.source,
-          createdById: actor.userId,
-        };
-      });
-
-      if (factorsToInsert.length > 0) {
-        await tx.pestFactor.createMany({
-          data: factorsToInsert,
-        });
-      }
+      // الآباء أولاً ثم الانعكاسات لضمان سلامة المفتاح الأجنبي
+      if (trendRows.length > 0) await tx.pestFactor.createMany({ data: trendRows });
+      if (childRows.length > 0) await tx.pestFactor.createMany({ data: childRows });
 
       // تسجيل استهلاك التوليد في pest_generation_logs
       await tx.pestGenerationLog.create({
@@ -668,7 +985,7 @@ export async function generatePestAI(
           promptTokens: tokens.prompt,
           completionTokens: tokens.completion,
           totalTokens: tokens.total,
-          itemsCount: mergePlan.factorsToCreate.length,
+          itemsCount: trendRows.length + childRows.length,
         },
       });
 

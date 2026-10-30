@@ -99,7 +99,67 @@ router.post(
 // Factors Routes
 // ─────────────────────────────────────────────────────────────
 
-// POST /api/pest/:id/factors — إضافة بند جديد يدوياً
+// POST /api/pest/:id/factors/linked — إضافة بند توجه مع انعكاسيه الإيجابي والسلبي في عملية واحدة
+router.post(
+  "/:id/factors/linked",
+  requirePermission("canWrite"),
+  validateRequest([
+    param("id").isUUID().withMessage("معرّف التحليل غير صالح."),
+    body("dimension")
+      .isIn(PEST_DIMENSIONS)
+      .withMessage("البُعد غير صالح (يجب أن يكون أحد الأبعاد الخمسة)."),
+    body("content")
+      .trim()
+      .isLength({ min: 1, max: 600 })
+      .withMessage("نص البند (التوجه أو المؤشر) مطلوب ويجب ألا يتجاوز 600 حرف."),
+    body("positiveImplication")
+      .trim()
+      .isLength({ min: 1, max: 600 })
+      .withMessage("الانعكاس الإيجابي والفرصة المرتبطة مطلوب ويجب ألا يتجاوز 600 حرف."),
+    body("negativeImplication")
+      .trim()
+      .isLength({ min: 1, max: 600 })
+      .withMessage("الانعكاس السلبي والمخاطر المرتبطة مطلوب ويجب ألا يتجاوز 600 حرف."),
+  ]),
+  pestController.createLinkedFactor
+);
+
+// POST /api/pest/:id/factors/suggest-implications — اقتراح انعكاسين بالذكاء الاصطناعي لبند توجه
+router.post(
+  "/:id/factors/suggest-implications",
+  requirePermission("canWrite"),
+  validateRequest([
+    param("id").isUUID().withMessage("معرّف التحليل غير صالح."),
+    body("dimension")
+      .isIn(PEST_DIMENSIONS)
+      .withMessage("البُعد غير صالح (يجب أن يكون أحد الأبعاد الخمسة)."),
+    body("content")
+      .trim()
+      .isLength({ min: 3, max: 600 })
+      .withMessage("اكتب نص البند أولاً (3 أحرف على الأقل)."),
+  ]),
+  pestController.suggestImplications
+);
+
+// POST /api/pest/:id/factors/:parentFactorId/implications — إضافة انعكاس ناقص لبند توجه قائم
+router.post(
+  "/:id/factors/:parentFactorId/implications",
+  requirePermission("canWrite"),
+  validateRequest([
+    param("id").isUUID().withMessage("معرّف التحليل غير صالح."),
+    param("parentFactorId").isUUID().withMessage("معرّف البند الأب غير صالح."),
+    body("category")
+      .isIn(["positive_impact", "negative_impact"])
+      .withMessage("نوع الانعكاس يجب أن يكون positive_impact أو negative_impact."),
+    body("content")
+      .trim()
+      .isLength({ min: 1, max: 600 })
+      .withMessage("نص الانعكاس مطلوب ويجب ألا يتجاوز 600 حرف."),
+  ]),
+  pestController.addImplication
+);
+
+// POST /api/pest/:id/factors — إضافة بند جديد يدوياً (للانعكاسات المنفردة غير المرتبطة)
 router.post(
   "/:id/factors",
   requirePermission("canWrite"),
@@ -119,7 +179,7 @@ router.post(
   pestController.addFactor
 );
 
-// PATCH /api/pest/:id/factors/:factorId — تعديل محتوى بند
+// PATCH /api/pest/:id/factors/:factorId — تعديل محتوى بند أو ربطه ببند أب
 router.patch(
   "/:id/factors/:factorId",
   requirePermission("canWrite"),
@@ -130,6 +190,12 @@ router.patch(
       .optional({ values: "undefined" })
       .isLength({ max: 600 })
       .withMessage("محتوى البند يجب ألا يتجاوز 600 حرف."),
+    body("parentFactorId")
+      .optional({ nullable: true })
+      .custom((val) => {
+        if (val === null || val === "" || typeof val === "string") return true;
+        throw new Error("معرّف البند الأب غير صالح.");
+      }),
   ]),
   pestController.updateFactor
 );

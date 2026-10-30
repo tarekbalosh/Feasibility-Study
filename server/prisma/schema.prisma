@@ -606,12 +606,17 @@ model PestFactor {
   sortOrder   Int              @default(0) @map("sort_order")
   source      PestFactorSource @default(manual)
   createdById String?          @map("created_by")
+  // الانعكاس (إيجابي/سلبي) مرتبط ببند التوجه الأب في نفس البُعد — NULL للبنود القديمة والتوجهات نفسها
+  parentFactorId String?       @map("parent_factor_id") @db.Uuid
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
 
-  analysis  PestAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
-  createdBy User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  analysis     PestAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  parent       PestFactor?  @relation("PestFactorImplications", fields: [parentFactorId], references: [id], onDelete: Cascade)
+  implications PestFactor[] @relation("PestFactorImplications")
 
+  @@unique([parentFactorId, category])
   @@index([analysisId, dimension, category, sortOrder])
   @@map("pest_factors")
 }

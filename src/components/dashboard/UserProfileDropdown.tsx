@@ -314,10 +314,10 @@ export const UserProfileDropdown: React.FC = () => {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-xs font-bold text-gray-800">
-                      إعدادات مساحة العمل
+                      الإعدادات
                     </span>
                     <span className="text-[10px] text-gray-400">
-                      بيانات المنشأة، التفضيلات، الأمان
+                      الحساب، التفضيلات، والأمان
                     </span>
                   </div>
                 </div>

@@ -116,13 +116,55 @@ export const addFactor = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
+// ——— POST /api/pest/:id/factors/linked ———
+export const createLinkedFactor = asyncHandler(async (req: Request, res: Response) => {
+  const result = await pestService.createLinkedFactor(
+    req.actor!,
+    req.params.id as string,
+    req.body
+  );
+  res.status(201).json({
+    success: true,
+    message: "تم حفظ البند وانعكاسيه بنجاح.",
+    data: result,
+  });
+});
+
+// ——— POST /api/pest/:id/factors/suggest-implications ———
+export const suggestImplications = asyncHandler(async (req: Request, res: Response) => {
+  const result = await pestService.suggestImplications(
+    req.actor!,
+    req.params.id as string,
+    req.body
+  );
+  res.status(200).json({
+    success: true,
+    data: result,
+  });
+});
+
+// ——— POST /api/pest/:id/factors/:parentFactorId/implications ———
+export const addImplication = asyncHandler(async (req: Request, res: Response) => {
+  const result = await pestService.addImplication(
+    req.actor!,
+    req.params.id as string,
+    req.params.parentFactorId as string,
+    req.body
+  );
+  res.status(201).json({
+    success: true,
+    message: "تمت إضافة الانعكاس بنجاح.",
+    data: result,
+  });
+});
+
 // ——— PATCH /api/pest/:id/factors/:factorId ———
 export const updateFactor = asyncHandler(async (req: Request, res: Response) => {
   const factor = await pestService.updateFactor(
     req.actor!,
     req.params.id as string,
     req.params.factorId as string,
-    req.body.content
+    req.body
   );
   res.status(200).json({
     success: true,

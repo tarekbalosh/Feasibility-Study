@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Head from "next/head";
+import { useRouter } from "next/router";
+import { toast } from "react-hot-toast";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { useAuth } from "@/context/AuthContext";
 import { useWorkspace } from "@/context/WorkspaceContext";
@@ -9,6 +11,7 @@ import * as workspaceService from "@/services/workspace.service";
 import type { WorkspaceMember } from "@/types/workspace";
 import type { ChatMessage, ConversationItem } from "@/services/chat.service";
 import { NewGroupModal } from "@/components/chat/NewGroupModal";
+import { SearchInput } from "@/components/ui/filters";
 import {
   Search,
   Plus,
@@ -63,6 +66,7 @@ function formatMessageTime(dateStr: string): string {
 }
 
 export default function ChatPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const { workspace } = useWorkspace();
   const {
@@ -93,9 +97,47 @@ export default function ChatPage() {
   const [isNewGroupModalOpen, setIsNewGroupModalOpen] = useState(false);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [isOpeningDirect, setIsOpeningDirect] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const processedTargetUserRef = useRef<string | null>(null);
+  const startDirectRef = useRef(startDirectConversation);
+  startDirectRef.current = startDirectConversation;
+
+  // فتح المحادثة المباشرة تلقائياً عند تمرير ?user=:id في الرابط
+  useEffect(() => {
+    if (!router.isReady) return;
+    const targetUserId = (router.query.user || router.query.userId) as string | undefined;
+    if (!targetUserId) return;
+
+    if (user?.id && targetUserId === user.id) {
+      toast.error("لا يمكنك بدء محادثة مع نفسك.");
+      return;
+    }
+
+    if (processedTargetUserRef.current === targetUserId) return;
+    processedTargetUserRef.current = targetUserId;
+
+    const openDirect = async () => {
+      setIsOpeningDirect(true);
+      try {
+        await startDirectRef.current(targetUserId);
+        setActiveTab("conversations");
+      } catch (err: any) {
+        console.error("فشل فتح المحادثة المباشرة:", err);
+        toast.error(
+          err?.response?.data?.error?.message ||
+            err?.response?.data?.message ||
+            "تعذّر فتح المحادثة مع هذا العضو."
+        );
+      } finally {
+        setIsOpeningDirect(false);
+      }
+    };
+
+    void openDirect();
+  }, [router.isReady, router.query.user, router.query.userId, user?.id]);
 
   // جلب أعضاء مساحة العمل
   useEffect(() => {
@@ -258,19 +300,14 @@ export default function ChatPage() {
               </div>
 
               {/* حقل البحث */}
-              <div className="relative">
-                <Search
-                  size={16}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="بحث بالاسم..."
-                  className="w-full pl-3 pr-9 py-2 rounded-xl bg-gray-100/80 border border-transparent focus:bg-white focus:border-blue-500 focus:outline-none text-xs transition-all"
-                />
-              </div>
+              <SearchInput
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="بحث في المحادثات والأعضاء..."
+                className="w-full"
+                id="chat-search"
+                debounceMs={150}
+              />
 
               {/* التبويبات: المحادثات | الزملاء */}
               <div className="flex items-center gap-1 mt-3 bg-gray-100 p-1 rounded-xl">
@@ -458,7 +495,7 @@ export default function ChatPage() {
           {/* ═════════════════════════════════════════════════════════════════ */}
           <div
             className={`flex-1 flex flex-col bg-white min-h-0 ${
-              activeConversationId ? "flex" : "hidden md:flex"
+              activeConversationId || isOpeningDirect ? "flex" : "hidden md:flex"
             }`}
           >
             {activeConversation ? (
@@ -656,6 +693,19 @@ export default function ChatPage() {
                   </button>
                 </form>
               </>
+            ) : isOpeningDirect ? (
+              /* حالة تحميل المحادثة المباشرة */
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/40">
+                <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3 shadow-xs">
+                  <Loader2 className="w-7 h-7 animate-spin" />
+                </div>
+                <h3 className="text-sm font-bold text-gray-900 mb-1">
+                  جارٍ فتح المحادثة المباشرة...
+                </h3>
+                <p className="text-xs text-gray-500">
+                  يرجى الانتظار لحظات لتحميل تفاصيل المحادثة
+                </p>
+              </div>
             ) : (
               /* حالة عدم اختيار أي محادثة */
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/30">

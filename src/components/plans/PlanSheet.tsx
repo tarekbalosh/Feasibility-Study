@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ExternalLink, Download, Loader2, Plus, Search, X } from 'lucide-react';
+import { useRouter } from 'next/router';
+import { ExternalLink, Download, Loader2, Plus, Search, X, Building2, User, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { getToolStartPath } from '@/config/tools.registry';
 import { usePlanSheet, useAddGoalMeans } from '@/hooks/usePlans';
 import * as planService from '@/services/plan.service';
+import { FilterBar, FilterItemConfig, FilterValues } from '@/components/ui/filters';
 
 // ——————————————————————————————————————————————
 // PlanSheet — «الجدول الشامل» للخطة بنمط ملف Excel (RTL)
@@ -159,12 +161,16 @@ function AddDialog({ plans, goalsByPlan, onClose }: { plans: PlanMeta[]; goalsBy
 }
 
 export default function PlanSheet({ planId, members: membersProp = [], planName, departmentName, toolRunsCount }: { planId: string | null; members?: Member[]; planName?: string; departmentName?: string; toolRunsCount?: number }) {
-  const [search, setSearch] = useState('');
-  const [q, setQ] = useState('');
-  const [departmentId, setDepartmentId] = useState('');
-  const [assignee, setAssignee] = useState('');
-  const [status, setStatus] = useState('');
-  const [importance, setImportance] = useState('');
+  const router = useRouter();
+
+  // Read initial values from router query
+  const [search, setSearch] = useState(() => (typeof router.query.search === 'string' ? router.query.search : typeof router.query.q === 'string' ? router.query.q : ''));
+  const [q, setQ] = useState(search);
+  const [departmentId, setDepartmentId] = useState(() => (typeof router.query.departmentId === 'string' ? router.query.departmentId : ''));
+  const [assignee, setAssignee] = useState(() => (typeof router.query.assignee === 'string' ? router.query.assignee : ''));
+  const [status, setStatus] = useState(() => (typeof router.query.status === 'string' ? router.query.status : ''));
+  const [importance, setImportance] = useState(() => (typeof router.query.importance === 'string' ? router.query.importance : ''));
+
   const [showAdd, setShowAdd] = useState(false);
   const [exporting, setExporting] = useState(false);
   const allMode = planId === null;
@@ -173,6 +179,31 @@ export default function PlanSheet({ planId, members: membersProp = [], planName,
     const t = setTimeout(() => setQ(search), 300);
     return () => clearTimeout(t);
   }, [search]);
+
+  // Sync filters to URL query params
+  useEffect(() => {
+    if (!router.isReady) return;
+    const nextQuery: Record<string, any> = { ...router.query };
+
+    if (q) nextQuery.search = q;
+    else delete nextQuery.search;
+
+    if (departmentId) nextQuery.departmentId = departmentId;
+    else delete nextQuery.departmentId;
+
+    if (assignee) nextQuery.assignee = assignee;
+    else delete nextQuery.assignee;
+
+    if (status) nextQuery.status = status;
+    else delete nextQuery.status;
+
+    if (importance) nextQuery.importance = importance;
+    else delete nextQuery.importance;
+
+    delete nextQuery.q; // normalize to 'search'
+
+    router.push({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true });
+  }, [q, departmentId, assignee, status, importance]);
 
   const filters = useMemo(
     () => ({ q: q || undefined, departmentId: departmentId || undefined, assignee: assignee || undefined, status: status || undefined, importance: importance || undefined }),
@@ -189,12 +220,14 @@ export default function PlanSheet({ planId, members: membersProp = [], planName,
       ? [{ id: planId, name: planName ?? sheet?.plan?.name ?? '', departmentName: departmentName ?? sheet?.plan?.department?.name ?? '', canEditContent: true, members: membersProp }]
       : [];
   }, [allMode, sheet, planId, planName, departmentName, membersProp]);
+
   const members: Member[] = useMemo(() => {
     if (!allMode) return membersProp;
     const m = new Map<string, Member>();
     (sheet?.plans ?? []).forEach((p: PlanMeta) => p.members.forEach((x) => m.set(x.id, x)));
     return Array.from(m.values());
   }, [allMode, sheet, membersProp]);
+
   const departmentOptions: { id: string; name: string }[] = useMemo(() => {
     if (!allMode) return sheet?.plan?.department ? [sheet.plan.department] : [];
     const m = new Map<string, string>();
@@ -233,8 +266,88 @@ export default function PlanSheet({ planId, members: membersProp = [], planName,
 
   const th = 'sticky top-0 z-20 bg-emerald-700 text-white text-xs font-bold px-2 py-3 border border-emerald-800/40 whitespace-nowrap';
   const td = 'border border-gray-300/70 px-2 py-2 text-center align-middle text-xs';
-  const filterCls = 'border border-gray-300 rounded-xl py-2 px-3 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500';
-  const hasFilters = !!(q || departmentId || assignee || status || importance);
+
+  const filterConfigs: FilterItemConfig[] = useMemo(() => {
+    const list: FilterItemConfig[] = [];
+
+    if (allMode && departmentOptions.length > 0) {
+      list.push({
+        key: 'departmentId',
+        label: 'القسم',
+        type: 'select',
+        icon: Building2,
+        isAllOptionLabel: 'كل الأقسام',
+        options: departmentOptions.map((d) => ({ value: d.id, label: d.name })),
+        searchThreshold: 5,
+      });
+    }
+
+    list.push({
+      key: 'assignee',
+      label: 'المسؤول',
+      type: 'select',
+      icon: User,
+      isAllOptionLabel: 'كل المسؤولين',
+      options: members.map((m) => ({
+        value: m.id,
+        label: m.name,
+        initials: m.name.trim().slice(0, 2),
+      })),
+      searchThreshold: 5,
+    });
+
+    list.push({
+      key: 'status',
+      label: 'الحالة',
+      type: 'select',
+      icon: CheckCircle2,
+      isAllOptionLabel: 'كل الحالات',
+      options: [
+        { value: 'completed', label: 'أنجزت', dotColor: '#10B981' },
+        { value: 'in_progress', label: 'قيد الإنجاز', dotColor: '#3B82F6' },
+        { value: 'not_started', label: 'لم تبدأ', dotColor: '#94A3B8' },
+        { value: 'overdue', label: 'متأخرة', dotColor: '#EF4444' },
+      ],
+    });
+
+    list.push({
+      key: 'importance',
+      label: 'الأهمية',
+      type: 'select',
+      icon: AlertCircle,
+      isAllOptionLabel: 'كل الأهميات',
+      options: [
+        { value: 'high', label: 'عالية', dotColor: '#EF4444' },
+        { value: 'medium', label: 'متوسطة', dotColor: '#F59E0B' },
+        { value: 'normal', label: 'عادية', dotColor: '#10B981' },
+      ],
+    });
+
+    return list;
+  }, [allMode, departmentOptions, members]);
+
+  const currentFilterValues: FilterValues = useMemo(
+    () => ({ departmentId, assignee, status, importance }),
+    [departmentId, assignee, status, importance]
+  );
+
+  const handleFilterChange = (key: string, val: any) => {
+    if (key === 'departmentId') setDepartmentId(val || '');
+    else if (key === 'assignee') setAssignee(val || '');
+    else if (key === 'status') setStatus(val || '');
+    else if (key === 'importance') setImportance(val || '');
+  };
+
+  const handleClearAll = () => {
+    setSearch('');
+    setQ('');
+    setDepartmentId('');
+    setAssignee('');
+    setStatus('');
+    setImportance('');
+  };
+
+  const hasFilters = Boolean(q || departmentId || assignee || status || importance);
 
   const columnHeaders: { label: string; minWidth: string }[] = [
     { label: 'الإدارة / القسم', minWidth: 'min-w-[120px]' },
@@ -254,42 +367,40 @@ export default function PlanSheet({ planId, members: membersProp = [], planName,
 
   return (
     <div dir="rtl">
-      {/* شريط الأدوات: إضافة + بحث + فلاتر */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        {canAdd && (
-          <button id="sheet-add" onClick={() => setShowAdd(true)} className="inline-flex items-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-emerald-700 shadow-sm active:scale-95 transition-all">
-            <Plus size={16} /> إضافة هدف / مهمة
-          </button>
-        )}
-        <div className="relative flex-grow sm:flex-grow-0 sm:w-64">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input id="sheet-search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث في الجدول..." className={`${filterCls} w-full pr-10`} />
-        </div>
-        <select id="filter-department" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} className={filterCls}>
-          <option value="">كل الأقسام</option>
-          {departmentOptions.map((d) => (
-            <option key={d.id} value={d.id}>{d.name}</option>
-          ))}
-        </select>
-        <select id="filter-assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)} className={filterCls}>
-          <option value="">كل المسؤولين</option>
-          {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-        </select>
-        <select id="filter-status" value={status} onChange={(e) => setStatus(e.target.value)} className={filterCls}>
-          <option value="">كل الحالات</option>
-          {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </select>
-        <select id="filter-importance" value={importance} onChange={(e) => setImportance(e.target.value)} className={filterCls}>
-          <option value="">كل الأهميات</option>
-          {Object.entries(IMPORTANCE).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </select>
-        {hasFilters && (
-          <button onClick={() => { setSearch(''); setDepartmentId(''); setAssignee(''); setStatus(''); setImportance(''); }} className="text-sm text-gray-500 hover:text-emerald-700 underline">مسح الفلاتر</button>
-        )}
-        <button id="sheet-export" onClick={exportXlsx} disabled={exporting || rows.length === 0} className="mr-auto inline-flex items-center gap-2 border border-emerald-600 text-emerald-700 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-emerald-50 disabled:opacity-50 transition-all">
-          {exporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} تصدير إلى Excel
-        </button>
-      </div>
+      {/* شريط الفلاتر الموحد: إضافة + بحث + فلاتر + تصدير */}
+      <FilterBar
+        filters={filterConfigs}
+        values={currentFilterValues}
+        onChange={handleFilterChange}
+        onClearAll={handleClearAll}
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="ابحث في الجدول..."
+        totalResults={rows.length}
+        resultsLabel="صف"
+        isLoading={isLoading}
+        extraActions={
+          <div className="flex items-center gap-2">
+            {canAdd && (
+              <button
+                id="sheet-add"
+                onClick={() => setShowAdd(true)}
+                className="inline-flex items-center gap-2 bg-emerald-600 text-white px-4 h-10 rounded-xl text-xs sm:text-sm font-semibold hover:bg-emerald-700 shadow-sm active:scale-95 transition-all shrink-0"
+              >
+                <Plus size={16} /> إضافة هدف / مهمة
+              </button>
+            )}
+            <button
+              id="sheet-export"
+              onClick={exportXlsx}
+              disabled={exporting || rows.length === 0}
+              className="inline-flex items-center gap-2 border border-emerald-600 text-emerald-700 px-4 h-10 rounded-xl text-xs sm:text-sm font-semibold hover:bg-emerald-50 disabled:opacity-50 transition-all shrink-0"
+            >
+              {exporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} تصدير إلى Excel
+            </button>
+          </div>
+        }
+      />
 
       {sheet?.scope === 'assigned' && (
         <p className="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">

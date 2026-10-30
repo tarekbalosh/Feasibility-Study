@@ -8,7 +8,7 @@ import { useWorkspace } from "@/context/WorkspaceContext"
 export const START_WORKSPACE_LABEL = "أنشئ مساحة عملك الخاصة"
 
 /** النص المعروض لمن يملك مساحة عمل بالفعل */
-export const OPEN_WORKSPACE_LABEL = "انتقل إلى لوحة التحكم"
+export const OPEN_WORKSPACE_LABEL = "انتقل إلى مساحة عملك الخاصة"
 
 interface StartWorkspaceButtonProps {
   className?: string

@@ -29,16 +29,28 @@ export const PestPrintDocument: React.FC<PestPrintDocumentProps> = ({ analysis }
 
   const renderLines = (dimension: PestDimension, category: PestCategory) => {
     const items = analysis.factors[dimension]?.[category] || []
+    const trends = analysis.factors[dimension]?.trend || []
+    const trendIndexMap = new Map(trends.map((t, idx) => [t.id, idx]))
     const emptyCount = Math.max(0, MIN_EMPTY_LINES - items.length)
 
     return (
       <div className="flex flex-col gap-1.5">
-        {items.map((item, idx) => (
-          <div key={item.id} className="flex items-start gap-2 text-xs text-slate-900 leading-relaxed">
-            <span className="font-bold text-slate-500 w-4 shrink-0 text-right">{idx + 1}.</span>
-            <span className="flex-1 font-normal">{item.content}</span>
-          </div>
-        ))}
+        {items.map((item, idx) => {
+          const parentIdx = item.parentFactorId ? trendIndexMap.get(item.parentFactorId) : undefined
+          return (
+            <div key={item.id} className="flex items-start gap-2 text-xs text-slate-900 leading-relaxed">
+              <span className="font-bold text-slate-500 w-4 shrink-0 text-right">{idx + 1}.</span>
+              <span className="flex-1 font-normal">
+                {item.content}
+                {category !== "trend" && parentIdx !== undefined && (
+                  <span className="text-[10px] font-bold text-indigo-700 mr-2 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
+                    (من البند {parentIdx + 1})
+                  </span>
+                )}
+              </span>
+            </div>
+          )
+        })}
 
         {/* عرض خطوط فارغة للبيانات غير المكتملة كما في الصورة المرجعية */}
         {Array.from({ length: emptyCount }).map((_, i) => (

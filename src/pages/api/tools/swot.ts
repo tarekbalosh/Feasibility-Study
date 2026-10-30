@@ -109,6 +109,12 @@ export default async function handler(
   const workspace = await requireWorkspaceApi(req, res)
   if (!workspace) return
 
+  // التحقق من صلاحية دور المستخدم على أداة SWOT
+  const { canRoleAccessTool } = await import("@/config/tools.registry")
+  if (!canRoleAccessTool("swot", workspace.role)) {
+    return res.status(403).json({ message: "ليس لديك صلاحية الوصول لأداة تحليل SWOT." })
+  }
+
   try {
     const { selections, ...input } = parsed.data
     const analysis = await generateSwotAnalysis(input, selections)

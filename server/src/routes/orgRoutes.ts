@@ -13,5 +13,6 @@ router.use(attachActor);
 router.get("/context", orgController.getMyContext);
 router.get("/members", orgController.listMembers);
 router.get("/overview", orgController.getOverview);
+router.get("/home", orgController.getHomeDashboard);
 
 export default router;

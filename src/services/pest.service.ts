@@ -86,7 +86,7 @@ export const pestService = {
     }
   },
 
-  /** إضافة بند جديد يدوياً */
+  /** إضافة بند جديد يدوياً (للانعكاسات المنفردة) */
   async addFactor(
     analysisId: string,
     payload: { dimension: PestDimension; category: PestCategory; content?: string }
@@ -95,15 +95,70 @@ export const pestService = {
     return data.data
   },
 
-  /** تعديل محتوى بند */
-  async updateFactor(analysisId: string, factorId: string, content: string): Promise<PestFactor> {
-    const { data } = await apiClient.patch(`/pest/${analysisId}/factors/${factorId}`, { content })
+  /** إضافة بند توجه جديد مع انعكاسيه الإيجابي والسلبي في عملية واحدة */
+  async createLinkedFactor(
+    analysisId: string,
+    payload: {
+      dimension: PestDimension
+      content: string
+      positiveImplication: string
+      negativeImplication: string
+      aiSuggested?: { positive?: string; negative?: string } | null
+    }
+  ): Promise<{
+    trend: PestFactor
+    positive: PestFactor
+    negative: PestFactor
+    creationMode: any
+  }> {
+    const { data } = await apiClient.post(`/pest/${analysisId}/factors/linked`, payload)
     return data.data
   },
 
-  /** حذف بند */
-  async deleteFactor(analysisId: string, factorId: string): Promise<void> {
-    await apiClient.delete(`/pest/${analysisId}/factors/${factorId}`)
+  /** اقتراح انعكاسين بالذكاء الاصطناعي بناءً على نص البند والبعد */
+  async suggestImplications(
+    analysisId: string,
+    payload: { dimension: PestDimension; content: string }
+  ): Promise<{ positiveImplication: string; negativeImplication: string; model?: string }> {
+    const { data } = await apiClient.post(
+      `/pest/${analysisId}/factors/suggest-implications`,
+      payload
+    )
+    return data.data
+  },
+
+  /** إضافة انعكاس ناقص لبند توجه قائم */
+  async addImplication(
+    analysisId: string,
+    parentFactorId: string,
+    payload: {
+      category: "positive_impact" | "negative_impact"
+      content: string
+      aiSuggested?: string
+    }
+  ): Promise<{ factor: PestFactor; creationMode: any }> {
+    const { data } = await apiClient.post(
+      `/pest/${analysisId}/factors/${parentFactorId}/implications`,
+      payload
+    )
+    return data.data
+  },
+
+  /** تعديل محتوى بند أو ربطه */
+  async updateFactor(
+    analysisId: string,
+    factorId: string,
+    patch: string | { content?: string; parentFactorId?: string | null }
+  ): Promise<PestFactor> {
+    const body = typeof patch === "string" ? { content: patch } : patch
+    const { data } = await apiClient.patch(`/pest/${analysisId}/factors/${factorId}`, body)
+    return data.data
+  },
+
+  /** حذف بند (يحذف الانعكاسين المرتبطين تلقائياً إذا كان بند توجه) */
+  async deleteFactor(analysisId: string, factorId: string): Promise<{ success: boolean; deletedIds?: string[] }> {
+    const { data } = await apiClient.delete(`/pest/${analysisId}/factors/${factorId}`)
+    return data
   },
 
   /** إعادة ترتيب البنود دفعة واحدة */

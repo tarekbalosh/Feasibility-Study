@@ -293,5 +293,41 @@ export const getToolPath = (slug: string): string => `/tools/${slug}`
 /** الرابط الكامل لتشغيل الأداة نفسها */
 export const getToolStartPath = (slug: string): string => `/tools/${slug}/start`
 
+/** الرابط المعتمد للملاحة نحو الأداة من الشريط الجانبي */
+export const getToolNavPath = (tool: ToolDefinition): string =>
+  tool.path || getToolStartPath(tool.slug)
+
 /** المعرّف الافتراضي — يُستخدم لربط المشاريع القديمة بأداة دراسة الجدوى */
 export const DEFAULT_TOOL_SLUG = "feasibility-study"
+
+/**
+ * فحص صلاحية الدور للوصول إلى أداة محددة
+ * إذا لم تُحدّد allowedRoles فالأداة متاحة لكافة الأدوار
+ */
+export const canRoleAccessTool = (
+  toolOrSlug: ToolDefinition | string,
+  role?: string
+): boolean => {
+  const tool = typeof toolOrSlug === "string" ? getToolBySlug(toolOrSlug) : toolOrSlug
+  if (!tool) return false
+  if (!tool.allowedRoles || tool.allowedRoles.length === 0) return true
+  if (!role) return false
+  return tool.allowedRoles.includes(role as any)
+}
+
+/**
+ * جلب قائمة الأدوات المخصصة لشريط التنقل (التخطيط)
+ * - مرتبة حسب order
+ * - مفلترة بحسب صلاحية دور المستخدم
+ * - ترجع الأدوات الجاهزة (والمجدولة بشارة إن طُلبت)
+ */
+export const getNavPlanningTools = (
+  role?: string,
+  includeSoon: boolean = true
+): ToolDefinition[] => {
+  return getAllTools().filter((tool) => {
+    if (!canRoleAccessTool(tool, role)) return false
+    if (!includeSoon && tool.status === "soon") return false
+    return true
+  })
+}

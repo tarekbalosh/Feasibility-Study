@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react"
+import type { WorkspaceRole } from "@/types/workspace"
 
 /**
  * حالة الأداة داخل المنصة
@@ -58,6 +59,13 @@ export interface ToolDefinition {
   estimatedMinutes?: number
   /** مسار قديم يظل يعمل للحفاظ على الروابط السابقة */
   legacyPath?: string
+  /** مسار مخصص للصفحة إن وجد — الافتراضي هو /tools/<slug>/start */
+  path?: string
+  /**
+   * الأدوار المصرح لها باستخدام الأداة داخل مساحة العمل
+   * إن لم يُحدد، فالأداة متاحة لكافة الأدوار
+   */
+  allowedRoles?: WorkspaceRole[]
 }
 
 /** بيانات عرض التصنيف */

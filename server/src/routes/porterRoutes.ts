@@ -50,6 +50,17 @@ router.get("/", porterController.list);
 // ملاحظة: يجب أن يسبق مسارات /:id
 router.post("/generate", requirePermission("canWrite"), porterController.generate);
 
+// POST /api/porter/suggest-implications — اقتراح انعكاسين بالذكاء الاصطناعي لبند توجه
+router.post(
+  "/suggest-implications",
+  requirePermission("canWrite"),
+  validateRequest([
+    body("force").isString().withMessage("القوة التنافسية مطلوبة."),
+    body("content").trim().isLength({ min: 1 }).withMessage("محتوى البند مطلوب."),
+  ]),
+  porterController.suggestImplications
+);
+
 // GET /api/porter/:id — تفاصيل التحليل (بالمعرّف أو بمعرّف سجل tool_run)
 router.get(
   "/:id",

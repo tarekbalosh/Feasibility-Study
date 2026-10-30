@@ -38,6 +38,9 @@ export function usePestEditor(initialId?: string) {
     onConfirm: () => {},
   })
 
+  // حالة التمييز المتبادل (المرور على بند يميّز أصله أو انعكاسيه)
+  const [highlightedParentId, setHighlightedParentId] = useState<string | null>(null)
+
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const showSaveSuccess = useCallback(() => {
@@ -69,6 +72,9 @@ export function usePestEditor(initialId?: string) {
     }
   }, [initialId, loadAnalysis])
 
+  // ── فحص صلاحية التعديل (View only mode) ──
+  const canEdit = analysis ? analysis.accessLevel !== "view" : false
+
   // ── التعديل الفوري للبيانات الوصفية ──
   const updateMetadata = useCallback(
     async (fields: { title?: string; projectName?: string; projectDescription?: string; industry?: string; countryRegion?: string }) => {
@@ -86,7 +92,120 @@ export function usePestEditor(initialId?: string) {
     [analysis, showSaveSuccess]
   )
 
-  // ── إضافة بند ──
+  // ── إضافة بند توجه مرتبط بانعكاسين (عملية واحدة) ──
+  const addLinkedFactor = useCallback(
+    async (payload: {
+      dimension: PestDimension
+      content: string
+      positiveImplication: string
+      negativeImplication: string
+      aiSuggested?: { positive?: string; negative?: string } | null
+    }) => {
+      if (!analysis) return
+      try {
+        setSaveState("saving")
+        const res = await pestService.createLinkedFactor(analysis.id, payload)
+
+        setAnalysis((prev) => {
+          if (!prev) return null
+          const dimObj = { ...prev.factors[payload.dimension] }
+          dimObj.trend = [...dimObj.trend, res.trend]
+          dimObj.positive_impact = [...dimObj.positive_impact, res.positive]
+          dimObj.negative_impact = [...dimObj.negative_impact, res.negative]
+
+          return {
+            ...prev,
+            creationMode: res.creationMode || prev.creationMode,
+            factors: {
+              ...prev.factors,
+              [payload.dimension]: dimObj,
+            },
+            factorsFlat: [...prev.factorsFlat, res.trend, res.positive, res.negative],
+          }
+        })
+        showSaveSuccess()
+        toast.success("تم حفظ البند وانعكاسيه بنجاح.")
+        return res
+      } catch (err: any) {
+        setSaveState("error")
+        toast.error(err?.response?.data?.error?.message || "فشل حفظ البند وانعكاسيه.")
+        throw err
+      }
+    },
+    [analysis, showSaveSuccess]
+  )
+
+  // ── اقتراح انعكاسين بالذكاء الاصطناعي ──
+  const suggestImplications = useCallback(
+    async (dimension: PestDimension, content: string) => {
+      if (!analysis) throw new Error("التحليل غير متاح.")
+      try {
+        return await pestService.suggestImplications(analysis.id, { dimension, content })
+      } catch (err: any) {
+        toast.error(err?.response?.data?.error?.message || "تعذّر الحصول على مقترحات الذكاء الاصطناعي.")
+        throw err
+      }
+    },
+    [analysis]
+  )
+
+  // ── إضافة انعكاس ناقص لبند توجه قائم ──
+  const addMissingImplication = useCallback(
+    async (
+      parentFactorId: string,
+      dimension: PestDimension,
+      category: "positive_impact" | "negative_impact",
+      content: string,
+      aiSuggested?: string
+    ) => {
+      if (!analysis) return
+      try {
+        setSaveState("saving")
+        const res = await pestService.addImplication(analysis.id, parentFactorId, {
+          category,
+          content,
+          aiSuggested,
+        })
+
+        setAnalysis((prev) => {
+          if (!prev) return null
+          const dimObj = { ...prev.factors[dimension] }
+          dimObj[category] = [...dimObj[category], res.factor]
+
+          // إعادة ترتيب الانعكاسات حسب ترتيب الأب
+          const parentOrderMap = new Map(dimObj.trend.map((t, idx) => [t.id, idx]))
+          const linked: PestFactor[] = []
+          const unlinked: PestFactor[] = []
+          for (const f of dimObj[category]) {
+            if (f.parentFactorId && parentOrderMap.has(f.parentFactorId)) linked.push(f)
+            else unlinked.push(f)
+          }
+          linked.sort((a, b) => (parentOrderMap.get(a.parentFactorId!) ?? 0) - (parentOrderMap.get(b.parentFactorId!) ?? 0))
+          dimObj[category] = [...linked, ...unlinked]
+
+          return {
+            ...prev,
+            creationMode: res.creationMode || prev.creationMode,
+            factors: {
+              ...prev.factors,
+              [dimension]: dimObj,
+            },
+            factorsFlat: [...prev.factorsFlat, res.factor],
+          }
+        })
+        showSaveSuccess()
+        toast.success("تمت إضافة الانعكاس بنجاح.")
+        return res.factor
+      } catch (err: any) {
+        setSaveState("error")
+        toast.error(err?.response?.data?.error?.message || "فشلت إضافة الانعكاس.")
+        throw err
+      }
+    },
+    [analysis, showSaveSuccess]
+  )
+
+  // ── إضافة بند يدوي منفرد ──
   const addFactor = useCallback(
     async (dimension: PestDimension, category: PestCategory, content: string = "") => {
       if (!analysis) return
@@ -104,7 +223,6 @@ export function usePestEditor(initialId?: string) {
           const dimObj = { ...prev.factors[dimension] }
           dimObj[category] = [...dimObj[category], newFactor]
 
-          // تحديث نمط الإنشاء تلقائياً
           let nextMode: PestCreationMode = prev.creationMode
           if (prev.creationMode === "ai") nextMode = "hybrid"
 
@@ -128,11 +246,17 @@ export function usePestEditor(initialId?: string) {
     [analysis, showSaveSuccess]
   )
 
-  // ── تعديل محتوى بند ──
+  // ── تعديل محتوى بند أو ربطه ──
   const updateFactor = useCallback(
-    async (factorId: string, dimension: PestDimension, category: PestCategory, newContent: string) => {
+    async (
+      factorId: string,
+      dimension: PestDimension,
+      category: PestCategory,
+      patch: string | { content?: string; parentFactorId?: string | null }
+    ) => {
       if (!analysis) return
-      const clean = typeof newContent === "string" ? newContent.trim() : ""
+      const patchObj = typeof patch === "string" ? { content: patch } : patch
+      const clean = patchObj.content !== undefined ? patchObj.content.trim() : undefined
 
       // تحديث متفائل في الواجهة فوراً
       setAnalysis((prev) => {
@@ -142,12 +266,26 @@ export function usePestEditor(initialId?: string) {
           if (f.id === factorId) {
             return {
               ...f,
-              content: clean,
-              source: f.source === "ai" ? "ai_edited" : f.source,
+              ...(clean !== undefined ? { content: clean, source: f.source === "ai" ? "ai_edited" : f.source } : {}),
+              ...(patchObj.parentFactorId !== undefined ? { parentFactorId: patchObj.parentFactorId } : {}),
             }
           }
           return f
         })
+
+        // إذا تم تغيير parentFactorId، إعادة فرز الانعكاسات
+        if (patchObj.parentFactorId !== undefined) {
+          const parentOrderMap = new Map(dimObj.trend.map((t, idx) => [t.id, idx]))
+          const linked: PestFactor[] = []
+          const unlinked: PestFactor[] = []
+          for (const f of dimObj[category]) {
+            if (f.parentFactorId && parentOrderMap.has(f.parentFactorId)) linked.push(f)
+            else unlinked.push(f)
+          }
+          linked.sort((a, b) => (parentOrderMap.get(a.parentFactorId!) ?? 0) - (parentOrderMap.get(b.parentFactorId!) ?? 0))
+          dimObj[category] = [...linked, ...unlinked]
+        }
+
         return {
           ...prev,
           factors: {
@@ -155,14 +293,20 @@ export function usePestEditor(initialId?: string) {
             [dimension]: dimObj,
           },
           factorsFlat: prev.factorsFlat.map((f) =>
-            f.id === factorId ? { ...f, content: clean, source: f.source === "ai" ? "ai_edited" : f.source } : f
+            f.id === factorId
+              ? {
+                  ...f,
+                  ...(clean !== undefined ? { content: clean, source: f.source === "ai" ? "ai_edited" : f.source } : {}),
+                  ...(patchObj.parentFactorId !== undefined ? { parentFactorId: patchObj.parentFactorId } : {}),
+                }
+              : f
           ),
         }
       })
 
       try {
         setSaveState("saving")
-        const updated = await pestService.updateFactor(analysis.id, factorId, clean)
+        const updated = await pestService.updateFactor(analysis.id, factorId, patchObj)
         setAnalysis((prev) => {
           if (!prev) return null
           const dimObj = { ...prev.factors[dimension] }
@@ -174,15 +318,15 @@ export function usePestEditor(initialId?: string) {
           }
         })
         showSaveSuccess()
-      } catch (err) {
+      } catch (err: any) {
         setSaveState("error")
-        toast.error("فشل حفظ تعديل البند.")
+        toast.error(err?.response?.data?.error?.message || "فشل حفظ تعديل البند.")
       }
     },
     [analysis, showSaveSuccess]
   )
 
-  // ── حذف بند ──
+  // ── حذف بند (مع الحذف المتسلسل للتابعين) ──
   const deleteFactor = useCallback(
     async (factorId: string, dimension: PestDimension, category: PestCategory) => {
       if (!analysis) return
@@ -191,19 +335,33 @@ export function usePestEditor(initialId?: string) {
         setAnalysis((prev) => {
           if (!prev) return null
           const dimObj = { ...prev.factors[dimension] }
-          dimObj[category] = dimObj[category].filter((f) => f.id !== factorId)
+          let removedIds = new Set<string>([factorId])
+
+          if (category === "trend") {
+            // حذف التوجه وانعكاسيه المرتبطين به
+            const children = prev.factorsFlat.filter((f) => f.parentFactorId === factorId)
+            children.forEach((c) => removedIds.add(c.id))
+
+            dimObj.trend = dimObj.trend.filter((f) => f.id !== factorId)
+            dimObj.positive_impact = dimObj.positive_impact.filter((f) => f.parentFactorId !== factorId)
+            dimObj.negative_impact = dimObj.negative_impact.filter((f) => f.parentFactorId !== factorId)
+          } else {
+            dimObj[category] = dimObj[category].filter((f) => f.id !== factorId)
+          }
+
           return {
             ...prev,
             factors: {
               ...prev.factors,
               [dimension]: dimObj,
             },
-            factorsFlat: prev.factorsFlat.filter((f) => f.id !== factorId),
+            factorsFlat: prev.factorsFlat.filter((f) => !removedIds.has(f.id)),
           }
         })
 
         await pestService.deleteFactor(analysis.id, factorId)
         showSaveSuccess()
+        toast.success(category === "trend" ? "تم حذف البند وانعكاسيه المرتبطين." : "تم حذف البند.")
       } catch (err) {
         setSaveState("error")
         toast.error("فشل حذف البند.")
@@ -212,7 +370,33 @@ export function usePestEditor(initialId?: string) {
     [analysis, showSaveSuccess]
   )
 
-  // ── إعادة الترتيب ──
+  // ── طلب حذف بند مع تأكيد إذا كان بند توجه ──
+  const requestDeleteFactor = useCallback(
+    (factor: PestFactor) => {
+      if (!analysis) return
+      if (factor.category === "trend") {
+        const childCount = analysis.factorsFlat.filter((f) => f.parentFactorId === factor.id).length
+        setConfirmDialog({
+          isOpen: true,
+          title: "تأكيد حذف البند",
+          message:
+            childCount > 0
+              ? `سيؤدي حذف هذا البند («${factor.content.slice(0, 45)}...») إلى حذف انعكاسيه المرتبطين (${childCount} انعكاس) في نفس البُعد أيضاً. هل ترغب بالاستمرار؟`
+              : `هل أنت متأكد من رغبتك في حذف هذا البند؟`,
+          confirmText: "حذف البند",
+          onConfirm: () => {
+            setConfirmDialog((c) => ({ ...c, isOpen: false }))
+            deleteFactor(factor.id, factor.dimension, factor.category)
+          },
+        })
+      } else {
+        deleteFactor(factor.id, factor.dimension, factor.category)
+      }
+    },
+    [analysis, deleteFactor]
+  )
+
+  // ── إعادة الترتيب (مع تحريك الانعكاسات آلياً مع بندها الأب) ──
   const reorderFactors = useCallback(
     async (dimension: PestDimension, category: PestCategory, reorderedList: PestFactor[]) => {
       if (!analysis) return
@@ -222,6 +406,26 @@ export function usePestEditor(initialId?: string) {
         if (!prev) return null
         const dimObj = { ...prev.factors[dimension] }
         dimObj[category] = reorderedList
+
+        // إذا كانت إعادة الترتيب للتوجهات، نحرك انعكاساتها معها
+        if (category === "trend") {
+          const parentOrderMap = new Map(reorderedList.map((t, idx) => [t.id, idx]))
+          const sortChildList = (list: PestFactor[]) => {
+            const linked: PestFactor[] = []
+            const unlinked: PestFactor[] = []
+            for (const f of list) {
+              if (f.parentFactorId && parentOrderMap.has(f.parentFactorId)) linked.push(f)
+              else unlinked.push(f)
+            }
+            linked.sort(
+              (a, b) => (parentOrderMap.get(a.parentFactorId!) ?? 0) - (parentOrderMap.get(b.parentFactorId!) ?? 0)
+            )
+            return [...linked, ...unlinked]
+          }
+          dimObj.positive_impact = sortChildList(dimObj.positive_impact)
+          dimObj.negative_impact = sortChildList(dimObj.negative_impact)
+        }
+
         return {
           ...prev,
           factors: { ...prev.factors, [dimension]: dimObj },
@@ -387,11 +591,9 @@ export function usePestEditor(initialId?: string) {
 
     try {
       setSaveState("saving")
-      // استعادة البنود محلياً
       setAnalysis((prev) => (prev ? { ...prev, factors: undoSnapshot } : null))
       setUndoSnapshot(null)
       toast.success("تم التراجع عن آخر عملية توليد.")
-      // إعادة تحميل التحليل الأصلي لضمان تزامن السيرفر
       await loadAnalysis(analysis.id)
     } catch {
       toast.error("تعذّر التراجع.")
@@ -405,16 +607,23 @@ export function usePestEditor(initialId?: string) {
   return {
     analysis,
     loading,
+    canEdit,
     saveState,
     generatingScopes,
     pendingSuggestions,
     canUndo: Boolean(undoSnapshot),
     confirmDialog,
+    highlightedParentId,
+    setHighlightedParentId,
     loadAnalysis,
     updateMetadata,
     addFactor,
+    addLinkedFactor,
+    suggestImplications,
+    addMissingImplication,
     updateFactor,
     deleteFactor,
+    requestDeleteFactor,
     moveFactor,
     reorderFactors,
     triggerGenerate,
@@ -426,3 +635,5 @@ export function usePestEditor(initialId?: string) {
     closeConfirmDialog,
   }
 }
+
+export default usePestEditor

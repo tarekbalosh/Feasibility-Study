@@ -86,3 +86,26 @@ export const generate = asyncHandler(async (req: Request, res: Response) => {
     ...result,
   });
 });
+
+// ——— POST /api/porter/suggest-implications ———
+export const suggestImplications = asyncHandler(async (req: Request, res: Response) => {
+  const { force, content, projectName, projectDescription, industry, countryRegion } = req.body;
+  if (!force || typeof content !== "string" || !content.trim()) {
+    throw ApiError.invalidInput("القوة التنافسية ومحتوى البند مطلوبان لاقتراح الانعكاسين.");
+  }
+
+  const result = await porterService.suggestImplications(req.actor!, {
+    force,
+    content: content.trim(),
+    projectName,
+    projectDescription,
+    industry,
+    countryRegion,
+  });
+
+  res.status(200).json({
+    success: true,
+    data: result,
+  });
+});
+
