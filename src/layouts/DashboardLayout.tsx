@@ -22,7 +22,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
     <div className="min-h-screen bg-gray-50 flex" dir="rtl">
       
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-l border-gray-200 fixed h-full z-10 shadow-sm">
+      <aside className="hidden md:flex flex-col w-64 bg-white border-l border-gray-200 fixed right-0 top-0 h-full z-30 shadow-sm">
         <div className="p-6">
           <Link href="/" className="text-2xl font-bold text-blue-600 flex items-center gap-2">
             <span className="bg-blue-600 text-white p-1.5 rounded-lg">
@@ -99,7 +99,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       {/* Main Content Area */}
       <main className="flex-1 md:mr-64 pb-20 md:pb-0 min-h-screen flex flex-col">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-20 px-4 md:px-8 h-16 flex items-center justify-between">
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-40 px-4 md:px-8 h-16 flex items-center justify-between">
           <div className="md:hidden flex items-center gap-2">
             <Link href="/" className="flex items-center gap-1.5 shrink-0">
               <span className="bg-blue-600 text-white p-1.5 rounded-lg">

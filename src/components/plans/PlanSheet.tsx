@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { ExternalLink, Download, Loader2, Plus, Search, X, Building2, User, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ExternalLink, Download, Loader2, Building2, User, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { getToolStartPath } from '@/config/tools.registry';
-import { usePlanSheet, useAddGoalMeans } from '@/hooks/usePlans';
+import { usePlanSheet } from '@/hooks/usePlans';
 import * as planService from '@/services/plan.service';
 import { FilterBar, FilterItemConfig, FilterValues } from '@/components/ui/filters';
 
@@ -42,124 +42,6 @@ const Badge = ({ cls, children }: { cls: string; children: React.ReactNode }) =>
   <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-md text-xs font-semibold border ${cls}`}>{children}</span>
 );
 
-interface PlanMeta { id: string; name: string; departmentName: string; canEditContent: boolean; members: Member[] }
-
-function AddDialog({ plans, goalsByPlan, onClose }: { plans: PlanMeta[]; goalsByPlan: Record<string, { id: string; title: string }[]>; onClose: () => void }) {
-  const add = useAddGoalMeans();
-  const [f, setF] = useState<any>({ planId: plans[0]?.id ?? '', goalId: '', goalTitle: '', title: '', weight: 10, cost: 0, priority: 'medium', assigneeMemberId: '', followerMemberId: '', referenceType: 'kpi', referenceDetail: '', need: '', party: '' });
-  const set = (k: string, v: any) => setF((p: any) => ({ ...p, [k]: v }));
-  const input = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500';
-  const goals = goalsByPlan[f.planId] ?? [];
-  const members = plans.find((p) => p.id === f.planId)?.members ?? [];
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!f.goalId && !f.goalTitle.trim()) return toast.error('اختر هدفاً أو اكتب هدفاً جديداً');
-    add.mutate(
-      {
-        planId: f.planId,
-        goalId: f.goalId || undefined,
-        goal: f.goalId ? undefined : { title: f.goalTitle.trim(), referenceType: f.referenceType, referenceDetail: f.referenceDetail },
-        task: f.title.trim()
-          ? {
-              title: f.title.trim(),
-              weight: Number(f.weight) || 1,
-              cost: Number(f.cost) || 0,
-              priority: f.priority,
-              assigneeMemberId: f.assigneeMemberId || undefined,
-              followerMemberId: f.followerMemberId || undefined,
-              need: f.need || undefined,
-              party: f.party || undefined,
-            }
-          : null,
-      },
-      { onSuccess: onClose }
-    );
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" dir="rtl" onClick={onClose}>
-      <form onSubmit={submit} onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-gray-900">إضافة هدف / مهمة</h3>
-          <button type="button" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X size={18} /></button>
-        </div>
-
-        <div className="grid sm:grid-cols-2 gap-3">
-          {plans.length > 1 && (
-            <label className="text-sm font-medium text-gray-700 sm:col-span-2">الخطة
-              <select id="add-plan-select" className={input} value={f.planId} onChange={(e) => setF((p: any) => ({ ...p, planId: e.target.value, goalId: '', assigneeMemberId: '', followerMemberId: '' }))}>
-                {plans.map((p) => <option key={p.id} value={p.id}>{p.departmentName} — {p.name}</option>)}
-              </select>
-            </label>
-          )}
-          <label className="text-sm font-medium text-gray-700">الهدف الحالي
-            <select id="add-goal-select" className={input} value={f.goalId} onChange={(e) => set('goalId', e.target.value)}>
-              <option value="">— هدف جديد —</option>
-              {goals.map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
-            </select>
-          </label>
-          {!f.goalId && (
-            <label className="text-sm font-medium text-gray-700">عنوان الهدف الجديد
-              <input id="add-goal-title" className={input} value={f.goalTitle} onChange={(e) => set('goalTitle', e.target.value)} />
-            </label>
-          )}
-          {!f.goalId && (
-            <>
-              <label className="text-sm font-medium text-gray-700">المرجع
-                <select className={input} value={f.referenceType} onChange={(e) => set('referenceType', e.target.value)}>
-                  <option value="kpi">KPIs</option><option value="swot">SWOT</option><option value="need">الاحتياج</option>
-                </select>
-              </label>
-              <label className="text-sm font-medium text-gray-700">تفصيل المرجع
-                <input className={input} value={f.referenceDetail} onChange={(e) => set('referenceDetail', e.target.value)} placeholder="مثال: 2 مليون" />
-              </label>
-            </>
-          )}
-        </div>
-
-        <div className="border-t pt-4 grid sm:grid-cols-2 gap-3">
-          <label className="text-sm font-medium text-gray-700 sm:col-span-2">المهمة (اختياري)
-            <input id="add-means-title" className={input} value={f.title} onChange={(e) => set('title', e.target.value)} />
-          </label>
-          {f.title.trim() && (
-            <>
-              <label className="text-sm font-medium text-gray-700">الوزن النسبي %
-                <input type="number" min={1} max={100} className={input} value={f.weight} onChange={(e) => set('weight', e.target.value)} />
-              </label>
-              <label className="text-sm font-medium text-gray-700">الموازنة
-                <input type="number" min={0} className={input} value={f.cost} onChange={(e) => set('cost', e.target.value)} />
-              </label>
-              <label className="text-sm font-medium text-gray-700">المسؤول
-                <select className={input} value={f.assigneeMemberId} onChange={(e) => set('assigneeMemberId', e.target.value)}>
-                  <option value="">—</option>{members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                </select>
-              </label>
-              <label className="text-sm font-medium text-gray-700">المعني بالمتابعة
-                <select className={input} value={f.followerMemberId} onChange={(e) => set('followerMemberId', e.target.value)}>
-                  <option value="">—</option>{members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                </select>
-              </label>
-              <label className="text-sm font-medium text-gray-700">الأهمية
-                <select className={input} value={f.priority} onChange={(e) => set('priority', e.target.value)}>
-                  <option value="low">عادية</option><option value="medium">متوسطة</option><option value="high">عالية</option>
-                </select>
-              </label>
-            </>
-          )}
-        </div>
-
-        <div className="flex justify-end gap-2 pt-2">
-          <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-gray-600 hover:bg-gray-100">إلغاء</button>
-          <button id="add-submit" type="submit" disabled={add.isPending} className="px-5 py-2 rounded-xl text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60">
-            {add.isPending ? 'جارٍ الحفظ…' : 'إضافة'}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
 export default function PlanSheet({ planId, members: membersProp = [], planName, departmentName, toolRunsCount }: { planId: string | null; members?: Member[]; planName?: string; departmentName?: string; toolRunsCount?: number }) {
   const router = useRouter();
 
@@ -171,7 +53,6 @@ export default function PlanSheet({ planId, members: membersProp = [], planName,
   const [status, setStatus] = useState(() => (typeof router.query.status === 'string' ? router.query.status : ''));
   const [importance, setImportance] = useState(() => (typeof router.query.importance === 'string' ? router.query.importance : ''));
 
-  const [showAdd, setShowAdd] = useState(false);
   const [exporting, setExporting] = useState(false);
   const allMode = planId === null;
 
@@ -213,18 +94,10 @@ export default function PlanSheet({ planId, members: membersProp = [], planName,
   const { data: sheet, isLoading, isError } = usePlanSheet(planId, filters);
   const rows: any[] = sheet?.rows ?? [];
 
-  // خطط قابلة للإضافة وأعضاؤها: من الخادم في وضع «الكل»، ومن الخصائص في خطة واحدة
-  const planMetas: PlanMeta[] = useMemo(() => {
-    if (allMode) return (sheet?.plans ?? []).filter((p: PlanMeta) => p.canEditContent);
-    return sheet?.access?.canEditContent && planId
-      ? [{ id: planId, name: planName ?? sheet?.plan?.name ?? '', departmentName: departmentName ?? sheet?.plan?.department?.name ?? '', canEditContent: true, members: membersProp }]
-      : [];
-  }, [allMode, sheet, planId, planName, departmentName, membersProp]);
-
   const members: Member[] = useMemo(() => {
     if (!allMode) return membersProp;
     const m = new Map<string, Member>();
-    (sheet?.plans ?? []).forEach((p: PlanMeta) => p.members.forEach((x) => m.set(x.id, x)));
+    (sheet?.plans ?? []).forEach((p: any) => p.members?.forEach((x: Member) => m.set(x.id, x)));
     return Array.from(m.values());
   }, [allMode, sheet, membersProp]);
 
@@ -234,17 +107,6 @@ export default function PlanSheet({ planId, members: membersProp = [], planName,
     rows.forEach((r) => m.set(r.departmentId, r.departmentName));
     return Array.from(m, ([id, name]) => ({ id, name }));
   }, [allMode, sheet, rows]);
-
-  const canAdd = planMetas.length > 0;
-  const goalsByPlan = useMemo(() => {
-    const out: Record<string, { id: string; title: string }[]> = {};
-    rows.forEach((r) => {
-      if (!r.goalId) return;
-      const list = (out[r.planId] ??= []);
-      if (!list.some((g) => g.id === r.goalId)) list.push({ id: r.goalId, title: r.goalTitle });
-    });
-    return out;
-  }, [rows]);
 
   const exportXlsx = async () => {
     setExporting(true);
@@ -381,15 +243,6 @@ export default function PlanSheet({ planId, members: membersProp = [], planName,
         isLoading={isLoading}
         extraActions={
           <div className="flex items-center gap-2">
-            {canAdd && (
-              <button
-                id="sheet-add"
-                onClick={() => setShowAdd(true)}
-                className="inline-flex items-center gap-2 bg-emerald-600 text-white px-4 h-10 rounded-xl text-xs sm:text-sm font-semibold hover:bg-emerald-700 shadow-sm active:scale-95 transition-all shrink-0"
-              >
-                <Plus size={16} /> إضافة هدف / مهمة
-              </button>
-            )}
             <button
               id="sheet-export"
               onClick={exportXlsx}
@@ -509,8 +362,6 @@ export default function PlanSheet({ planId, members: membersProp = [], planName,
       {typeof toolRunsCount === 'number' && toolRunsCount > 0 && (
         <p className="mt-3 text-xs text-gray-500">المراجع المرتبطة بتحليلات الأدوات (SWOT وغيرها) تفتح مباشرة بالنقر على «تفصيل المرجع».</p>
       )}
-
-      {showAdd && <AddDialog plans={planMetas} goalsByPlan={goalsByPlan} onClose={() => setShowAdd(false)} />}
     </div>
   );
 }

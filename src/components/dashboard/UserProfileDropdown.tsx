@@ -146,29 +146,29 @@ export const UserProfileDropdown: React.FC = () => {
   return (
     <>
       <div className="relative inline-block text-right" ref={menuRef} dir="rtl">
-        {/* Trigger Button - Matches existing pill design */}
+        {/* Trigger Button - Clean pill design */}
         <button
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
           aria-expanded={isOpen}
           aria-haspopup="true"
-          className="flex items-center gap-2.5 bg-gray-50 hover:bg-gray-100/90 active:scale-[0.98] px-3 py-1.5 rounded-full border border-gray-200/80 transition-all cursor-pointer group shadow-2xs"
+          className="flex items-center gap-2.5 bg-gray-50 hover:bg-gray-100 active:scale-[0.98] px-2.5 py-1.5 rounded-full border border-gray-200/80 transition-all cursor-pointer group shadow-2xs"
         >
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
             {initial}
           </div>
           <div className="flex flex-col text-right leading-tight hidden sm:flex">
-            <span className="font-bold text-sm text-gray-800 truncate max-w-[140px]">
+            <span className="font-bold text-xs text-gray-800 truncate max-w-[130px]">
               {user?.name || workspace?.name || 'مستخدم'}
             </span>
-            {workspace?.name && (
-              <span className="text-[11px] text-gray-400 font-normal truncate max-w-[140px]">
+            {workspace?.name && workspace.name !== user?.name && (
+              <span className="text-[10px] text-gray-400 font-normal truncate max-w-[130px]">
                 {workspace.name}
               </span>
             )}
           </div>
           <ChevronDown
-            size={15}
+            size={14}
             className={`text-gray-400 group-hover:text-gray-600 transition-transform duration-200 ${
               isOpen ? 'rotate-180 text-blue-600' : ''
             }`}
@@ -177,58 +177,56 @@ export const UserProfileDropdown: React.FC = () => {
 
         {/* Popover Card */}
         {isOpen && (
-          <div className="absolute left-0 mt-2.5 w-88 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 ring-1 ring-black/5 divide-y divide-gray-100 z-50 animate-in fade-in zoom-in-95 duration-150 overflow-hidden">
+          <div className="absolute left-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 ring-1 ring-black/5 z-50 animate-in fade-in zoom-in-95 duration-150 overflow-hidden divide-y divide-gray-100">
             
-            {/* 1. Header: Profile Info (Google Account Style) */}
-            <div className="bg-gradient-to-b from-blue-50/70 via-indigo-50/20 to-white p-5 text-center">
-              <div className="relative w-14 h-14 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xl flex items-center justify-center mx-auto shadow-md ring-4 ring-white mb-3">
-                {initial}
+            {/* 1. Header: User Profile Info */}
+            <div className="p-4 bg-gradient-to-br from-blue-50/70 via-indigo-50/30 to-white">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-base flex items-center justify-center shadow-xs shrink-0 ring-2 ring-white">
+                  {initial}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-sm text-gray-900 truncate">
+                    {user?.name || 'مستخدم'}
+                  </h3>
+                  <p className="text-xs text-gray-500 font-normal truncate mt-0.5">
+                    {user?.email || ''}
+                  </p>
+                </div>
               </div>
-
-              <h3 className="font-bold text-base text-gray-900 leading-tight">
-                {user?.name || 'مستخدم'}
-              </h3>
-              <p className="text-xs text-gray-500 font-medium truncate mt-0.5 px-2">
-                {user?.email || ''}
-              </p>
 
               {/* Current Workspace & Role Badge */}
               {workspace && (
-                <Link
-                  href="/dashboard/Overview"
-                  onClick={() => setIsOpen(false)}
-                  title={`الانتقال إلى لوحة تحكم ${workspace.name}`}
-                  className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white border border-gray-200/80 text-gray-700 shadow-2xs hover:border-blue-300 hover:bg-blue-50/50 hover:text-blue-700 transition-colors cursor-pointer"
-                >
-                  <Building2 size={13} className="text-blue-600 shrink-0" />
-                  <span className="truncate max-w-[200px] font-bold text-gray-800">
-                    {workspace.name}
-                  </span>
-                  <span className="text-gray-300">•</span>
-                  <span className={`text-[11px] px-1.5 py-0.2 rounded font-bold border ${activeRole.bg}`}>
+                <div className="mt-3 flex items-center justify-between bg-white/90 backdrop-blur-xs px-2.5 py-1.5 rounded-xl border border-gray-200/70 shadow-2xs">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Building2 size={13} className="text-blue-600 shrink-0" />
+                    <span className="text-xs font-semibold text-gray-800 truncate">
+                      {workspace.name}
+                    </span>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold border shrink-0 ${activeRole.bg}`}>
                     {activeRole.label}
                   </span>
-                </Link>
+                </div>
               )}
             </div>
 
-            {/* 2. Workspaces Section (الانتقال إلى مساحة عمل أخرى) */}
-            <div className="py-2.5">
-              <div className="flex items-center justify-between px-4 pb-2">
-                <span className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
-                  <Building2 size={14} className="text-gray-400" />
+            {/* 2. Workspaces Section (تبديل مساحات العمل) */}
+            <div className="p-2.5">
+              <div className="flex items-center justify-between px-2 pb-1.5">
+                <span className="text-xs font-bold text-gray-600 flex items-center gap-1.5">
+                  <Building2 size={13} className="text-gray-400" />
                   مساحات العمل
                 </span>
-                <span className="text-[11px] font-semibold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
                   {workspaces.length} مساحات
                 </span>
               </div>
 
               {/* Workspace list */}
-              <div className="max-h-44 overflow-y-auto px-2 space-y-1">
+              <div className="max-h-36 overflow-y-auto space-y-1 pr-0.5">
                 {workspaces.map((ws) => {
                   const isActive = ws.id === workspace?.id;
-                  const wsRole = getRoleBadge(ws.role);
                   const isThisSwitching = switchingId === ws.id;
 
                   return (
@@ -237,44 +235,39 @@ export const UserProfileDropdown: React.FC = () => {
                       type="button"
                       disabled={isThisSwitching}
                       onClick={() => handleSwitch(ws.id)}
-                      className={`w-full flex items-center justify-between p-2 rounded-xl text-right transition-all group ${
+                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-right transition-all group ${
                         isActive
-                          ? 'bg-blue-50/80 border border-blue-200/80 text-blue-900 font-semibold'
-                          : 'hover:bg-gray-50 text-gray-700 border border-transparent'
+                          ? 'bg-blue-50/80 text-blue-900 font-semibold'
+                          : 'hover:bg-gray-50 text-gray-700'
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0">
                         <div
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 transition-colors ${
+                          className={`w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0 ${
                             isActive
-                              ? 'bg-blue-600 text-white shadow-xs'
-                              : 'bg-gray-100 text-gray-600 group-hover:bg-white group-hover:border group-hover:border-gray-200'
+                              ? 'bg-blue-600 text-white shadow-2xs'
+                              : 'bg-gray-100 text-gray-600'
                           }`}
                         >
                           {ws.name.charAt(0).toUpperCase()}
                         </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-xs font-bold text-gray-900 truncate max-w-[200px]">
-                            {ws.name}
-                          </span>
-                          <span className="text-[10px] text-gray-400 font-normal">
-                            {wsRole.label}
-                          </span>
-                        </div>
+                        <span className="text-xs truncate max-w-[150px]">
+                          {ws.name}
+                        </span>
                       </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0 mr-2">
+                      <div className="shrink-0 mr-1.5">
                         {isThisSwitching ? (
-                          <Loader2 size={15} className="animate-spin text-blue-600" />
+                          <Loader2 size={13} className="animate-spin text-blue-600" />
                         ) : isActive ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-white/90 border border-blue-200 px-2 py-0.5 rounded-md">
-                            <Check size={13} className="text-blue-600" />
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-blue-700 bg-white border border-blue-200 px-1.5 py-0.5 rounded-md shadow-2xs">
+                            <Check size={11} className="text-blue-600" />
                             الحالية
                           </span>
                         ) : (
-                          <span className="text-[11px] text-gray-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all flex items-center gap-0.5">
+                          <span className="text-[11px] text-gray-400 group-hover:text-blue-600 transition-colors flex items-center gap-0.5">
                             تبديل
-                            <ChevronLeft size={13} />
+                            <ChevronLeft size={12} />
                           </span>
                         )}
                       </div>
@@ -284,21 +277,19 @@ export const UserProfileDropdown: React.FC = () => {
               </div>
 
               {/* Create new workspace action */}
-              <div className="px-2 pt-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsOpen(false);
-                    setIsModalOpen(true);
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50/80 rounded-xl transition-colors group cursor-pointer text-right"
-                >
-                  <div className="w-6 h-6 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
-                    <Plus size={14} />
-                  </div>
-                  <span>إنشاء مساحة عمل جديدة</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  setIsModalOpen(true);
+                }}
+                className="w-full flex items-center gap-2 px-2.5 py-2 mt-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50/70 rounded-xl transition-colors cursor-pointer text-right"
+              >
+                <div className="w-5 h-5 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                  <Plus size={12} />
+                </div>
+                <span>إنشاء مساحة عمل جديدة</span>
+              </button>
             </div>
 
             {/* 3. Settings & Quick Actions (الإعدادات) */}
@@ -306,55 +297,45 @@ export const UserProfileDropdown: React.FC = () => {
               <Link
                 href="/dashboard/Settings"
                 onClick={() => setIsOpen(false)}
-                className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-gray-50 text-gray-700 hover:text-gray-900 transition-colors group text-right"
+                className="flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-gray-50 text-gray-700 hover:text-gray-900 transition-colors group text-right"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                    <Settings size={16} />
+                  <div className="w-7 h-7 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                    <Settings size={15} />
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-gray-800">
-                      الإعدادات
-                    </span>
-                    <span className="text-[10px] text-gray-400">
-                      الحساب، التفضيلات، والأمان
-                    </span>
-                  </div>
+                  <span className="text-xs font-semibold text-gray-800">
+                    الإعدادات
+                  </span>
                 </div>
-                <ChevronLeft size={14} className="text-gray-300 group-hover:text-gray-500 group-hover:-translate-x-0.5 transition-all" />
+                <ChevronLeft size={13} className="text-gray-300 group-hover:text-gray-500 group-hover:-translate-x-0.5 transition-all" />
               </Link>
 
               <Link
                 href="/dashboard/Team"
                 onClick={() => setIsOpen(false)}
-                className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-gray-50 text-gray-700 hover:text-gray-900 transition-colors group text-right"
+                className="flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-gray-50 text-gray-700 hover:text-gray-900 transition-colors group text-right"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                    <Users size={16} />
+                  <div className="w-7 h-7 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                    <Users size={15} />
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-gray-800">
-                      فريق العمل والأعضاء
-                    </span>
-                    <span className="text-[10px] text-gray-400">
-                      دعوة الأعضاء وإدارة الصلاحيات
-                    </span>
-                  </div>
+                  <span className="text-xs font-semibold text-gray-800">
+                    فريق العمل والأعضاء
+                  </span>
                 </div>
-                <ChevronLeft size={14} className="text-gray-300 group-hover:text-gray-500 group-hover:-translate-x-0.5 transition-all" />
+                <ChevronLeft size={13} className="text-gray-300 group-hover:text-gray-500 group-hover:-translate-x-0.5 transition-all" />
               </Link>
             </div>
 
             {/* 4. Logout Section */}
-            <div className="p-2">
+            <div className="p-1.5">
               <button
                 type="button"
                 onClick={handleLogout}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-red-50 text-red-600 transition-colors text-right font-bold text-xs group"
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-red-50 text-red-600 transition-colors text-right font-semibold text-xs group"
               >
-                <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center group-hover:scale-105 transition-transform">
-                  <LogOut size={16} />
+                <div className="w-7 h-7 rounded-lg bg-red-50 text-red-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <LogOut size={15} />
                 </div>
                 <span>تسجيل الخروج</span>
               </button>
