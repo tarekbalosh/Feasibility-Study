@@ -57,6 +57,36 @@ router.post(
   workspaceController.create
 );
 
+// ——— PATCH /api/workspaces/:id ———
+// تعديل اسم المساحة ونوع النشاط — للمالك والمشرفين (التحقق في الخدمة
+// لأن المساحة تُحدَّد بمعرّف المسار لا بترويسة المساحة النشطة)
+router.patch(
+  "/:id",
+  validateRequest([
+    param("id").isUUID().withMessage("معرف مساحة العمل غير صالح."),
+    body("name")
+      .trim()
+      .isLength({ min: 2, max: 100 })
+      .withMessage("اسم مساحة العمل يجب أن يكون بين 2 و 100 حرف."),
+    body("industry")
+      .optional({ values: "falsy" })
+      .trim()
+      .isLength({ max: 100 })
+      .withMessage("نوع النشاط يجب ألا يتجاوز 100 حرف."),
+  ]),
+  workspaceController.update
+);
+
+// ——— DELETE /api/workspaces/:id ———
+// حذف المساحة نهائياً — للمالك فقط
+router.delete(
+  "/:id",
+  validateRequest([
+    param("id").isUUID().withMessage("معرف مساحة العمل غير صالح."),
+  ]),
+  workspaceController.remove
+);
+
 // ——— GET /api/workspaces/:id/members ———
 router.get(
   "/:id/members",

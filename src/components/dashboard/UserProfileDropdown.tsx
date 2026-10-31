@@ -14,11 +14,14 @@ import {
   Loader2,
   X,
   Sparkles,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import * as workspaceService from '@/services/workspace.service';
+import type { Workspace } from '@/types/workspace';
 
 const QUICK_INDUSTRIES = ['تجاري', 'صناعي', 'خدمي', 'تقني', 'أخرى'];
 
@@ -30,6 +33,15 @@ export const UserProfileDropdown: React.FC = () => {
   const [newWsIndustry, setNewWsIndustry] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+
+  const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editIndustry, setEditIndustry] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const [deletingWorkspace, setDeletingWorkspace] = useState<Workspace | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -48,6 +60,8 @@ export const UserProfileDropdown: React.FC = () => {
       if (e.key === 'Escape') {
         setIsOpen(false);
         setIsModalOpen(false);
+        setEditingWorkspace(null);
+        setDeletingWorkspace(null);
       }
     };
 
@@ -117,6 +131,82 @@ export const UserProfileDropdown: React.FC = () => {
       toast.error(msg);
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const openEditWorkspace = (ws: Workspace) => {
+    setEditingWorkspace(ws);
+    setEditName(ws.name);
+    setEditIndustry(ws.industry || '');
+    setEditError(null);
+    setIsOpen(false);
+  };
+
+  const handleUpdateWorkspace = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingWorkspace) return;
+
+    const trimmed = editName.trim();
+    if (trimmed.length < 2) {
+      setEditError('يرجى كتابة اسم مساحة العمل (حرفان على الأقل).');
+      return;
+    }
+
+    setIsSavingEdit(true);
+    setEditError(null);
+
+    try {
+      const updated = await workspaceService.updateWorkspace(editingWorkspace.id, {
+        name: trimmed,
+        industry: editIndustry || null,
+      });
+
+      toast.success(`تم تحديث مساحة «${updated.name}» بنجاح.`);
+      setEditingWorkspace(null);
+      await refresh();
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.message ||
+        'تعذّر تحديث مساحة العمل. حاول مرة أخرى.';
+      setEditError(msg);
+      toast.error(msg);
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleDeleteWorkspace = async () => {
+    if (!deletingWorkspace) return;
+
+    const deletedId = deletingWorkspace.id;
+    const deletedName = deletingWorkspace.name;
+    const remaining = workspaces.filter((w) => w.id !== deletedId);
+
+    setIsDeleting(true);
+    try {
+      await workspaceService.deleteWorkspace(deletedId);
+      toast.success(`تم حذف مساحة «${deletedName}» نهائياً.`);
+      setDeletingWorkspace(null);
+
+      await refresh();
+
+      if (deletedId === workspace?.id) {
+        if (remaining.length > 0) {
+          await switchWorkspace(remaining[0].id);
+        } else if (typeof window !== 'undefined') {
+          localStorage.removeItem('active_workspace_id');
+          window.location.href = '/workspace/create';
+        }
+      }
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.message ||
+        'تعذّر حذف مساحة العمل. حاول مرة أخرى.';
+      toast.error(msg);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -229,49 +319,88 @@ export const UserProfileDropdown: React.FC = () => {
                   const isActive = ws.id === workspace?.id;
                   const isThisSwitching = switchingId === ws.id;
 
+                  const canEdit = ws.role === 'owner' || ws.role === 'admin';
+                  const canDelete = ws.role === 'owner';
+
                   return (
-                    <button
+                    <div
                       key={ws.id}
-                      type="button"
-                      disabled={isThisSwitching}
-                      onClick={() => handleSwitch(ws.id)}
-                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-right transition-all group ${
+                      className={`w-full flex items-center gap-0.5 px-1.5 rounded-xl transition-all group ${
                         isActive
-                          ? 'bg-blue-50/80 text-blue-900 font-semibold'
+                          ? 'bg-blue-50/80 text-blue-900'
                           : 'hover:bg-gray-50 text-gray-700'
                       }`}
                     >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div
-                          className={`w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0 ${
-                            isActive
-                              ? 'bg-blue-600 text-white shadow-2xs'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}
-                        >
-                          {ws.name.charAt(0).toUpperCase()}
+                      <button
+                        type="button"
+                        disabled={isThisSwitching}
+                        onClick={() => handleSwitch(ws.id)}
+                        className={`flex-1 flex items-center justify-between gap-2 px-1 py-2 rounded-xl text-right min-w-0 ${
+                          isActive ? 'font-semibold' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div
+                            className={`w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0 ${
+                              isActive
+                                ? 'bg-blue-600 text-white shadow-2xs'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {ws.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="text-xs truncate max-w-[120px]">
+                            {ws.name}
+                          </span>
                         </div>
-                        <span className="text-xs truncate max-w-[150px]">
-                          {ws.name}
-                        </span>
-                      </div>
 
-                      <div className="shrink-0 mr-1.5">
-                        {isThisSwitching ? (
-                          <Loader2 size={13} className="animate-spin text-blue-600" />
-                        ) : isActive ? (
-                          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-blue-700 bg-white border border-blue-200 px-1.5 py-0.5 rounded-md shadow-2xs">
-                            <Check size={11} className="text-blue-600" />
-                            الحالية
-                          </span>
-                        ) : (
-                          <span className="text-[11px] text-gray-400 group-hover:text-blue-600 transition-colors flex items-center gap-0.5">
-                            تبديل
-                            <ChevronLeft size={12} />
-                          </span>
-                        )}
-                      </div>
-                    </button>
+                        <div className="shrink-0">
+                          {isThisSwitching ? (
+                            <Loader2 size={13} className="animate-spin text-blue-600" />
+                          ) : isActive ? (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-blue-700 bg-white border border-blue-200 px-1.5 py-0.5 rounded-md shadow-2xs">
+                              <Check size={11} className="text-blue-600" />
+                              الحالية
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-gray-400 group-hover:text-blue-600 transition-colors flex items-center gap-0.5">
+                              تبديل
+                              <ChevronLeft size={12} />
+                            </span>
+                          )}
+                        </div>
+                      </button>
+
+                      {(canEdit || canDelete) && (
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          {canEdit && (
+                            <button
+                              type="button"
+                              title="تعديل مساحة العمل"
+                              aria-label={`تعديل ${ws.name}`}
+                              onClick={() => openEditWorkspace(ws)}
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-white transition-colors"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              type="button"
+                              title="حذف مساحة العمل"
+                              aria-label={`حذف ${ws.name}`}
+                              onClick={() => {
+                                setIsOpen(false);
+                                setDeletingWorkspace(ws);
+                              }}
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-white transition-colors"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -456,6 +585,154 @@ export const UserProfileDropdown: React.FC = () => {
               </div>
             </form>
 
+          </div>
+        </div>
+      )}
+
+      {/* Edit Workspace Modal */}
+      {editingWorkspace && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200 relative">
+            <button
+              type="button"
+              onClick={() => setEditingWorkspace(null)}
+              className="absolute top-4 left-4 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-11 h-11 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                <Pencil size={20} />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-gray-900 leading-tight">
+                  تعديل مساحة العمل
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  حدّث اسم المساحة أو نوع النشاط
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleUpdateWorkspace} className="space-y-4 mt-5">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  اسم مساحة العمل / الشركة <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  value={editName}
+                  onChange={(e) => {
+                    setEditName(e.target.value);
+                    if (editError) setEditError(null);
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all placeholder:text-gray-400"
+                />
+                {editError && (
+                  <p className="text-xs text-red-500 mt-1">{editError}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  نوع النشاط (اختياري)
+                </label>
+                <div className="grid grid-cols-5 gap-2">
+                  {QUICK_INDUSTRIES.map((ind) => (
+                    <button
+                      key={ind}
+                      type="button"
+                      onClick={() => setEditIndustry(ind === editIndustry ? '' : ind)}
+                      className={`py-2 px-2 rounded-xl text-xs font-semibold border transition-all text-center ${
+                        editIndustry === ind
+                          ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-2xs'
+                          : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      {ind}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingWorkspace(null)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  إلغاء
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isSavingEdit || editName.trim().length < 2}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSavingEdit ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>جارٍ الحفظ...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check size={16} />
+                      <span>حفظ التعديلات</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Workspace Confirmation */}
+      {deletingWorkspace && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-sm w-full p-6 animate-in fade-in zoom-in-95 duration-200 relative text-center">
+            <div className="w-12 h-12 mx-auto rounded-full bg-red-50 text-red-600 flex items-center justify-center mb-3">
+              <Trash2 size={22} />
+            </div>
+            <h3 className="font-bold text-lg text-gray-900">
+              حذف مساحة العمل؟
+            </h3>
+            <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+              سيُحذف «{deletingWorkspace.name}» بكل أعضائه ودعواته وبياناته نهائياً،
+              ولا يمكن التراجع عن ذلك.
+            </p>
+
+            <div className="flex items-center gap-2 mt-5">
+              <button
+                type="button"
+                onClick={() => setDeletingWorkspace(null)}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteWorkspace}
+                disabled={isDeleting}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md shadow-red-600/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    <span>جارٍ الحذف...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={15} />
+                    <span>حذف نهائي</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

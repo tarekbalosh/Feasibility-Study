@@ -49,6 +49,31 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
+// ——— PATCH /api/workspaces/:id ———
+export const update = asyncHandler(async (req: Request, res: Response) => {
+  const workspace = await workspaceService.updateWorkspace(
+    req.params.id as string,
+    req.user!.userId,
+    { name: req.body.name, industry: req.body.industry }
+  );
+
+  res.status(200).json({
+    success: true,
+    message: `تم تحديث مساحة العمل «${workspace.name}» بنجاح.`,
+    data: workspace,
+  });
+});
+
+// ——— DELETE /api/workspaces/:id ———
+export const remove = asyncHandler(async (req: Request, res: Response) => {
+  const result = await workspaceService.deleteWorkspace(
+    req.params.id as string,
+    req.user!.userId
+  );
+
+  res.status(200).json({ success: true, ...result });
+});
+
 // ——— GET /api/workspaces/:id/members ———
 export const getMembers = asyncHandler(async (req: Request, res: Response) => {
   const members = await workspaceService.getWorkspaceMembers(

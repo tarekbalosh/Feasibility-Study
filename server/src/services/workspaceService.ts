@@ -315,6 +315,75 @@ async function dispatchInvites(
 // ——————————————————————————————————————————————
 
 /**
+ * يعدّل اسم مساحة العمل ونوع نشاطها. مقصور على المالك والمشرفين.
+ *
+ * المساحة تُحدَّد بمعرّف المسار لا بترويسة المساحة النشطة، لذلك
+ * نتحقق من عضوية الفاعل في المساحة نفسها قبل أي تعديل.
+ */
+export async function updateWorkspace(
+  workspaceId: string,
+  userId: string,
+  payload: { name?: string; industry?: string | null }
+) {
+  const membership = await assertMembership(workspaceId, userId);
+
+  if (membership.role !== "owner" && membership.role !== "admin") {
+    throw ApiError.accessDenied("تعديل مساحة العمل متاح للمالك والمشرفين فقط.");
+  }
+
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+  });
+
+  if (!workspace) {
+    throw ApiError.notFound("مساحة العمل غير موجودة.");
+  }
+
+  const name = payload.name?.trim();
+  if (!name) {
+    throw ApiError.invalidInput("اسم مساحة العمل مطلوب.", [
+      { field: "name", issue: "اسم مساحة العمل مطلوب." },
+    ]);
+  }
+
+  const updated = await prisma.workspace.update({
+    where: { id: workspaceId },
+    data: {
+      name,
+      industry: payload.industry?.trim() || null,
+    },
+  });
+
+  return toWorkspaceSummary(updated, membership.role);
+}
+
+/**
+ * يحذف مساحة العمل نهائياً بكل ما يرتبط بها (الأعضاء، الدعوات،
+ * المشاريع، التحليلات...) عبر Cascade. مقصور على المالك وحده.
+ *
+ */
+export async function deleteWorkspace(workspaceId: string, userId: string) {
+  const membership = await assertMembership(workspaceId, userId);
+
+  if (membership.role !== "owner") {
+    throw ApiError.accessDenied("حذف مساحة العمل متاح لمالكها فقط.");
+  }
+
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { id: true, name: true },
+  });
+
+  if (!workspace) {
+    throw ApiError.notFound("مساحة العمل غير موجودة.");
+  }
+
+  await prisma.workspace.delete({ where: { id: workspaceId } });
+
+  return { message: `تم حذف مساحة العمل «${workspace.name}» نهائياً.` };
+}
+
+/**
  * يدعو أعضاء إلى مساحة عمل موجودة. مقصور على صاحب المساحة والمشرفين.
  * البريد المدعو مسبقاً وما زالت دعوته قائمة تُجدَّد له الدعوة برمز
  * جديد بدل رفض الطلب.

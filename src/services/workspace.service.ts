@@ -61,6 +61,30 @@ export const createWorkspace = async (
   }
 }
 
+/** تعديل اسم مساحة العمل ونوع النشاط */
+export const updateWorkspace = async (
+  workspaceId: string,
+  payload: { name: string; industry?: string | null }
+): Promise<Workspace> => {
+  const { data } = await apiClient.patch(
+    `/workspaces/${workspaceId}`,
+    payload,
+    SKIP_TOAST
+  )
+  return data.data
+}
+
+/** حذف مساحة العمل نهائياً — للمالك فقط */
+export const deleteWorkspace = async (
+  workspaceId: string
+): Promise<{ message: string }> => {
+  const { data } = await apiClient.delete(
+    `/workspaces/${workspaceId}`,
+    SKIP_TOAST
+  )
+  return data
+}
+
 /** أعضاء مساحة عمل (الفعّالون والمدعوّون) */
 export const getWorkspaceMembers = async (
   workspaceId: string
